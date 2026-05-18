@@ -117,3 +117,11 @@ def render_dashboard(result, df32):
         <div style="
             font-size:16px;
             font-weight:600;
+            margin-bottom:10px;
+            color:#1f2a44;
+        ">📋 CL31 vs CL32 Deliverable Register</div>
+    """, unsafe_allow_html=True)
+
+    render_table(result)
+
+    st.markdown("</div>", unsafe_allow_html=True)
