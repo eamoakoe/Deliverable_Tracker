@@ -26,9 +26,10 @@ def _prepare(df):
 
 def _get_delayed(df):
     df = _prepare(df)
-    today = pd.Timestamp.today()
+    today = pd.Timestamp.today().normalize()   # ✅ important fix
 
     delayed = df[
+        (df["Finish"].notna()) &
         (df["Finish"] < today) &
         (df["Activity % Complete"] < 100)
     ].copy()
@@ -55,16 +56,11 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
-    # =========================
-    # DISPLAY FORMATTING ONLY
-    # =========================
+    # Format dates
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
-
-    # =========================
-    # COLOUR FUNCTION (DELAY ONLY)
-    # =========================
+    # Colour function
     def colour_delay(val):
         try:
             v = float(val)
@@ -80,10 +76,7 @@ def render_delayed_table(df):
         except:
             return ""
 
-
-    # =========================
-    # APPLY STYLING (SAFE FOR NEW PANDAS)
-    # =========================
+    # Styling
     styled = display_df.style.set_table_styles([
         {
             "selector": "th",
@@ -119,13 +112,8 @@ def render_delayed_table(df):
         }
     ])
 
-    # =========================
-    # APPLY COLOUR ONLY TO "Delay (Days)"
-    # (FIXED: uses map, not applymap)
-    # =========================
+    # Apply colour (modern pandas)
     styled = styled.map(colour_delay, subset=["Delay (Days)"])
 
-    # =========================
-    # RENDER THIS TABLE ONLY
-    # =========================
+    # Render
     st.write(styled)
