@@ -142,5 +142,4 @@ def render_pie(df):
                 st.error("High delay risk impacting delivery")
             elif a_pct >= 20:
                 st.success("Strong delivery momentum")
-            else:
-                st.info("Delivery performance is stable")
+            
