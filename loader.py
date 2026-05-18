@@ -1,7 +1,11 @@
 import pandas as pd
 import re
+import os
 
 
+# =========================
+# CLEAN COLUMNS
+# =========================
 def _clean_columns(df):
     cleaned = []
 
@@ -26,20 +30,58 @@ def _clean_columns(df):
     return df
 
 
+# =========================
+# LOAD FILE
+# =========================
 def _load(path):
     df = pd.read_excel(path, engine="openpyxl")
 
     df = _clean_columns(df)
 
-    # FINAL SAFETY CHECK (VERY IMPORTANT)
+    # final safety
     df.columns = [c.strip() for c in df.columns]
 
     return df
 
 
-def load_cl31(path="data/CL31-February.xlsx"):
+# =========================
+# BASE PATH
+# =========================
+BASE_PATH = "data/Ferry/"
+
+
+# =========================
+# AUTO DETECT LATEST FILE
+# =========================
+def _get_latest(prefix):
+    if not os.path.exists(BASE_PATH):
+        raise FileNotFoundError(f"Folder not found: {BASE_PATH}")
+
+    files = [f for f in os.listdir(BASE_PATH)
+             if f.startswith(prefix) and f.endswith(".xlsx")]
+
+    if not files:
+        raise FileNotFoundError(f"No files found for {prefix} in {BASE_PATH}")
+
+    files.sort()
+    return os.path.join(BASE_PATH, files[-1])
+
+
+# =========================
+# LOAD CL31
+# =========================
+def load_cl31(path=None):
+    if path is None:
+        path = _get_latest("CL31")
+
     return _load(path)
 
 
-def load_cl32(path="data/CL32-May.xlsx"):
+# =========================
+# LOAD CL32
+# =========================
+def load_cl32(path=None):
+    if path is None:
+        path = _get_latest("CL32")
+
     return _load(path)
