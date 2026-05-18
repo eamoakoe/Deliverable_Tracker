@@ -67,103 +67,25 @@ def render_delayed_table(df):
     ]].copy()
 
     # =========================
-    # FORMAT DATES
+    # CLEAN COLUMN NAMES (PRO LOOK)
     # =========================
-    display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
-    display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
+    display_df.rename(columns={
+        "Activity ID": "ID",
+        "Activity Name": "Activity",
+        "Start": "Start Date",
+        "Finish": "Finish Date",
+        "Delay (Days)": "Delay (Days)",
+        "Comments": "Remarks"
+    }, inplace=True)
 
     # =========================
-    # DELAY COLOURS (LIGHT THEME)
+    # FORMAT DATES
+    # =========================
+    display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
+    display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
+
+    # =========================
+    # DELAY COLOUR SCALE
     # =========================
     def colour_delay(val):
         try:
-            v = float(val)
-
-            if v >= 50:
-                return "background-color:#d32f2f; color:white; font-weight:600"
-            elif v >= 30:
-                return "background-color:#f57c00; color:white; font-weight:600"
-            elif v >= 15:
-                return "background-color:#fbc02d; color:black; font-weight:600"
-            else:
-                return "background-color:#c8e6c9; color:black; font-weight:600"
-        except:
-            return ""
-
-    # =========================
-    # ROW STRIPES (LIGHT)
-    # =========================
-    def stripe_rows(row):
-        return [
-            "background-color:#ffffff" if row.name % 2 == 0 else "background-color:#f7f9fc"
-        ] * len(row)
-
-    # =========================
-    # PROFESSIONAL WHITE TABLE STYLE
-    # =========================
-    styled = (
-        display_df.style
-
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "#1976d2"),
-                    ("color", "white"),
-                    ("font-size", "13px"),
-                    ("font-weight", "700"),
-                    ("padding", "10px"),
-                    ("text-align", "left"),
-                    ("border-bottom", "2px solid #1565c0")
-                ]
-            },
-            {
-                "selector": "td",
-                "props": [
-                    ("padding", "8px"),
-                    ("color", "#1f2a44"),
-                    ("border-bottom", "1px solid #e0e0e0")
-                ]
-            },
-            {
-                "selector": "table",
-                "props": [
-                    ("border-collapse", "collapse"),
-                    ("width", "100%"),
-                    ("background-color", "white"),
-                    ("border-radius", "8px"),
-                    ("overflow", "hidden")
-                ]
-            }
-        ])
-
-        # Row striping
-        .apply(stripe_rows, axis=1)
-
-        # Delay colouring
-        .map(colour_delay, subset=["Delay (Days)"])
-
-        # Align delay column
-        .set_properties(subset=["Delay (Days)"], **{
-            "text-align": "center",
-            "font-weight": "600"
-        })
-
-        # Emphasise activity names
-        .set_properties(subset=["Activity Name"], **{
-            "font-weight": "500"
-        })
-    )
-
-    # =========================
-    # KPI ABOVE TABLE
-    # =========================
-    st.markdown(
-        f"<span style='color:#d32f2f;font-weight:600;font-size:15px'>🔴 {len(display_df)} Delayed Activities</span>",
-        unsafe_allow_html=True
-    )
-
-    # =========================
-    # RENDER
-    # =========================
-    st.write(styled)
