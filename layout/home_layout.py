@@ -8,6 +8,15 @@ from cards.table_card import render_table
 
 
 # =========================
+# PAGE CONFIG (CRITICAL FOR SIDEBAR)
+# =========================
+st.set_page_config(
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+
+# =========================
 # FULL DASHBOARD
 # =========================
 def render_dashboard(result, df32):
@@ -17,16 +26,29 @@ def render_dashboard(result, df32):
     # =========================
     render_header()
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # =========================
-    # SECTION 1 — PIE + DELAY SIDE-BY-SIDE
+    # SECTION 1 — PIE + DELAY
     # =========================
     col1, col2 = st.columns([1, 1.2])  # delay slightly wider
 
     # ---- PIE CARD ----
     with col1:
         st.markdown("""
-        <div class="dashboard-card">
-            <div class="card-title">📊 CL32 Schedule Summary</div>
+        <div style="
+            background:white;
+            padding:15px;
+            border-radius:10px;
+            box-shadow:0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom:15px;
+        ">
+            <div style="
+                font-size:16px;
+                font-weight:600;
+                margin-bottom:10px;
+                color:#1f2a44;
+            ">📊 CL32 Schedule Summary</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
@@ -37,8 +59,19 @@ def render_dashboard(result, df32):
     # ---- DELAY CARD ----
     with col2:
         st.markdown("""
-        <div class="dashboard-card">
-            <div class="card-title">🔴 Delayed Activities</div>
+        <div style="
+            background:white;
+            padding:15px;
+            border-radius:10px;
+            box-shadow:0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom:15px;
+        ">
+            <div style="
+                font-size:16px;
+                font-weight:600;
+                margin-bottom:10px;
+                color:#1f2a44;
+            ">🔴 Delayed Activities</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
@@ -47,11 +80,22 @@ def render_dashboard(result, df32):
 
 
     # =========================
-    # SECTION 2 — FORECAST (FULL WIDTH BELOW)
+    # SECTION 2 — FORECAST
     # =========================
     st.markdown("""
-    <div class="dashboard-card">
-        <div class="card-title">🟢 Next 4 Weeks (Forecast)</div>
+    <div style="
+        background:white;
+        padding:15px;
+        border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);
+        margin-bottom:15px;
+    ">
+        <div style="
+            font-size:16px;
+            font-weight:600;
+            margin-bottom:10px;
+            color:#1f2a44;
+        ">🟢 Next 4 Weeks (Forecast)</div>
     """, unsafe_allow_html=True)
 
     render_next4weeks_table(df32)
@@ -60,13 +104,16 @@ def render_dashboard(result, df32):
 
 
     # =========================
-    # SECTION 3 — FULL REGISTER
+    # SECTION 3 — REGISTER
     # =========================
     st.markdown("""
-    <div class="dashboard-card">
-        <div class="card-title">📋 CL31 vs CL32 Deliverable Register</div>
-    """, unsafe_allow_html=True)
-
-    render_table(result)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    <div style="
+        background:white;
+        padding:15px;
+        border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);
+        margin-bottom:15px;
+    ">
+        <div style="
+            font-size:16px;
+            font-weight:600;
