@@ -101,18 +101,14 @@ def render_pie(df):
 
         col1, col2 = st.columns([2.1, 1])
 
-        # ---------------------
-        # LEFT: PIE
-        # ---------------------
+        # LEFT → PIE
         with col1:
             st.plotly_chart(fig, use_container_width=True)
 
-        # ---------------------
-        # RIGHT: KPIs + NOTES
-        # ---------------------
+        # RIGHT → KPIs + LOGIC NOTES
         with col2:
 
-            # ✅ Colour-coded KPIs
+            # ✅ Colour-coded KPI indicators
             for k in order:
                 pct = (summary[k] / total * 100) if total else 0
 
@@ -132,7 +128,11 @@ def render_pie(df):
                     unsafe_allow_html=True
                 )
 
+            # ✅ Compact logic explanation (replaces empty space)
             st.markdown("---")
 
-
-            
+            st.caption(
+                "🔴 Delayed: past finish date & incomplete\n"
+                "🟢 Accelerated: in progress & ahead of schedule\n"
+                "🟡 On Track: not started or on plan"
+            )
