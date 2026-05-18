@@ -23,7 +23,7 @@ def build_deliverables(cl31, cl32):
     cl32["CL32 Finish_raw"] = _to_date(cl32["Finish"])
 
     # =========================
-    # KEEP ORDER FROM CL31
+    # ORDER FROM CL31
     # =========================
     order_map = {v: i for i, v in enumerate(cl31["Deliverable"].tolist())}
 
@@ -68,26 +68,23 @@ def build_deliverables(cl31, cl32):
     df["Change Type"] = df.apply(change_type, axis=1)
 
     # =========================
-    # COMMENT
+    # COMMENTS
     # =========================
-    def comment(row):
-        return {
-            "NEW": "Added scope in CL32",
-            "REMOVED": "Removed from CL32",
-            "DELAYED": "Shifted later, coordination required",
-            "EARLY": "Pulled forward",
-            "UNCHANGED": "Stable"
-        }.get(row["Change Type"], "Stable")
+    comment_map = {
+        "NEW": "Added scope in CL32",
+        "REMOVED": "Removed from CL32",
+        "DELAYED": "Shifted later, coordination required",
+        "EARLY": "Pulled forward",
+        "UNCHANGED": "Stable"
+    }
 
-    df["Status / Comment"] = df.apply(comment, axis=1)
+    df["Status / Comment"] = df["Change Type"].map(comment_map)
 
     # =========================
     # FORMAT
     # =========================
     def fmt(x):
-        if pd.isna(x):
-            return "-"
-        return x.strftime("%d-%b-%y")
+        return x.strftime("%d-%b-%y") if pd.notna(x) else "-"
 
     df["CL31 Finish"] = df["CL31 Finish_raw"].apply(fmt)
     df["CL32 Finish"] = df["CL32 Finish_raw"].apply(fmt)
