@@ -169,4 +169,3 @@ def render_delayed_table(df):
     # RENDER TABLE
     # =========================
     st.write(styled)
-``
