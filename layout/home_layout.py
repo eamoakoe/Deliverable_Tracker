@@ -156,4 +156,3 @@ def render_dashboard(result, df32):
     render_table(result)
 
     st.markdown("</div>", unsafe_allow_html=True)
-``
