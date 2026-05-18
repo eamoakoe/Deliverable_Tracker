@@ -8,34 +8,34 @@ from cards.table_card import render_table
 
 
 # =========================
-# FULL DASHBOARD (SCROLL VIEW)
+# FULL DASHBOARD
 # =========================
 def render_dashboard(result, df32):
 
     # =========================
-    # HEADER (NEW)
+    # HEADER
     # =========================
     render_header()
 
     # =========================
-    # SECTION 1 — PIE CHART
+    # SECTION 1 — PIE + DELAY SIDE-BY-SIDE
     # =========================
-    st.markdown("""
-    <div class="dashboard-card">
-        <div class="card-title">📊 CL32 Schedule Summary</div>
-    """, unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 1.2])  # delay slightly wider
 
-    render_pie(df32)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-    # =========================
-    # SECTION 2 — DELAY + FORECAST
-    # =========================
-    col1, col2 = st.columns(2)
-
+    # ---- PIE CARD ----
     with col1:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-title">📊 CL32 Schedule Summary</div>
+        """, unsafe_allow_html=True)
+
+        render_pie(df32)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+    # ---- DELAY CARD ----
+    with col2:
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">🔴 Delayed Activities</div>
@@ -46,15 +46,17 @@ def render_dashboard(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-    with col2:
-        st.markdown("""
-        <div class="dashboard-card">
-            <div class="card-title">🟢 Next 4 Weeks (Forecast)</div>
-        """, unsafe_allow_html=True)
+    # =========================
+    # SECTION 2 — FORECAST (FULL WIDTH BELOW)
+    # =========================
+    st.markdown("""
+    <div class="dashboard-card">
+        <div class="card-title">🟢 Next 4 Weeks (Forecast)</div>
+    """, unsafe_allow_html=True)
 
-        render_next4weeks_table(df32)
+    render_next4weeks_table(df32)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
     # =========================
