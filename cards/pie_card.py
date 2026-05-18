@@ -3,9 +3,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-# =========================
-# DATA PREP
-# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -27,36 +24,37 @@ def prepare(df):
     return df
 
 
-# =========================
-# MAIN PIE RENDER
-# =========================
 def render_pie(df):
 
     df = prepare(df)
     today = pd.Timestamp.today()
 
     # =========================
-    # STATUS CLASSIFICATION
+    # ✅ CLEAN CLASSIFICATION (ORDER MATTERS)
     # =========================
     df["Status"] = "On Track"
 
-    df.loc[df["Activity % Complete"] == 100, "Status"] = "Completed"
+    # 1. Completed (highest priority)
+    df.loc[df["Activity % Complete"] >= 100, "Status"] = "Completed"
 
+    # 2. Delayed (overrides On Track only, not Completed)
     df.loc[
-        (df["Finish"] < today) & (df["Activity % Complete"] < 100),
+        (df["Finish"] < today) &
+        (df["Activity % Complete"] < 100),
         "Status"
     ] = "Delayed"
 
+    # 3. Accelerated (only future + started)
     df.loc[
-        (df["Finish"] > today) & (df["Activity % Complete"].between(1, 99)),
+        (df["Finish"] >= today) &
+        (df["Activity % Complete"].between(1, 99)),
         "Status"
     ] = "Accelerated"
 
     # =========================
-    # SUMMARY
+    # ✅ SUMMARY (CONTROLLED ORDER)
     # =========================
     order = ["Completed", "On Track", "Delayed", "Accelerated"]
-
     summary = df["Status"].value_counts().reindex(order, fill_value=0)
 
     colors = {
@@ -69,18 +67,17 @@ def render_pie(df):
     total = int(summary.sum())
 
     # =========================
-    # ✅ THICK PIE (NO HOLE)
+    # ✅ THICK PIE
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-
-            hole=0.0,  # ✅ full pie
+            hole=0.0,  # full pie
 
             texttemplate="%{value}<br>(%{percent})",
-            textfont=dict(size=14, color="black"),
+            textfont=dict(size=13),
 
             marker=dict(colors=[colors[k] for k in summary.index]),
 
@@ -89,83 +86,40 @@ def render_pie(df):
     )
 
     fig.update_layout(
-        height=380,
-        margin=dict(l=10, r=10, t=10, b=10),
+        height=360,
+        margin=dict(l=5, r=5, t=5, b=5),
         showlegend=False
     )
 
     # =========================
-    # CARD STYLE
-    # =========================
-    st.markdown(
-        """
-        <style>
-        .exec-card {
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 18px;
-            box-shadow: 0 5px 18px rgba(0,0,0,0.15);
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # =========================
-    # RENDER CARD
+    # ✅ COMPACT CARD LAYOUT
     # =========================
     with st.container():
 
-        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
+        col1, col2 = st.columns([2.1, 1])
 
-        col1, col2 = st.columns([2.2, 1])
-
-        # =========================
         # LEFT → PIE
-        # =========================
         with col1:
             st.plotly_chart(fig, use_container_width=True)
 
-        # =========================
         # RIGHT → KPIs + NOTES
-        # =========================
         with col2:
 
-            st.markdown("### 📊 Status")
-
+            # ✅ KPIs (compact)
             for k in order:
-                pct = (summary[k] / total * 100) if total > 0 else 0
-                st.markdown(
-                    f"**{k}**: {summary[k]} ({pct:.1f}%)"
-                )
+                pct = (summary[k] / total * 100) if total else 0
+                st.markdown(f"**{k}:** {summary[k]} ({pct:.0f}%)")
 
             st.markdown("---")
-            st.markdown("### 📌 Summary")
 
-            completed = summary["Completed"]
-            on_track = summary["On Track"]
-            delayed = summary["Delayed"]
-            accelerated = summary["Accelerated"]
+            # ✅ LOGICALLY CONSISTENT SUMMARY
+            d_pct = (summary["Delayed"] / total * 100) if total else 0
+            c_pct = (summary["Completed"] / total * 100) if total else 0
 
-            if total > 0:
-                c_pct = (completed / total) * 100
-                d_pct = (delayed / total) * 100
-                a_pct = (accelerated / total) * 100
+            # ✅ SINGLE clear message (no noise)
+            if d_pct >= 25:
+                st.error("High delay risk")
+            elif c_pct >= 60:
+                st.success("Strong delivery")
             else:
-                c_pct = d_pct = a_pct = 0
-
-            # ✅ Overall interpretation
-            if d_pct > 25:
-                st.error("🚨 Delivery at risk due to high delays.")
-            elif c_pct > 60 and d_pct < 10:
-                st.success("✅ Strong delivery performance.")
-            else:
-                st.info("⚖️ Delivery is stable with mixed performance.")
-
-            # ✅ KPI-aligned notes
-            st.markdown(f"- ✅ Completed: {c_pct:.1f}%")
-            st.markdown(f"- ⚠️ Delayed: {d_pct:.1f}%")
-            st.markdown(f"- 🚀 Accelerated: {a_pct:.1f}%")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-``
+                st.info("Stable performance")
