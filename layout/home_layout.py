@@ -16,16 +16,14 @@ st.set_page_config(
 )
 
 # =========================
-# ✅ SIDEBAR STYLING (LIGHT RED)
+# SIDEBAR STYLE (LIGHT RED)
 # =========================
 st.markdown("""
 <style>
-/* Sidebar background */
 section[data-testid="stSidebar"] {
-    background-color: #ffe6e6;  /* light red */
+    background-color: #ffe6e6;
 }
 
-/* Project list styling */
 div[role="radiogroup"] label {
     font-weight: 500;
     padding: 6px 10px;
@@ -33,13 +31,11 @@ div[role="radiogroup"] label {
     cursor: pointer;
 }
 
-/* Selected item highlight */
 div[role="radiogroup"] label[data-checked="true"] {
     background-color: #ffcccc;
     color: #800000;
 }
 
-/* Remove radio circle */
 div[role="radiogroup"] input {
     display: none;
 }
@@ -48,7 +44,7 @@ div[role="radiogroup"] input {
 
 
 # =========================
-# ✅ SIDEBAR — CLICKABLE PROJECT LIST
+# SIDEBAR — PROJECT LIST
 # =========================
 st.sidebar.markdown(
     '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">PROJECT</div>',
@@ -56,11 +52,10 @@ st.sidebar.markdown(
 )
 
 project_list = [
-    "Tally Ho",
     "Ferry PS",
     "Rossall Outfall",
     "Flass Lane",
-    "Harbour Yard",
+    "Harbour Yard / Tally Ho",
     "Eccleston Bridge",
     "Palace Nook",
     "Rampside"
@@ -71,21 +66,41 @@ selected_project = st.sidebar.radio("", project_list)
 st.session_state["selected_project"] = selected_project
 
 
+
 # =========================
 # MAIN DASHBOARD FUNCTION
 # =========================
 def render_dashboard(result, df32):
 
-    # =========================
-    # ✅ FILTER DATA
-    # =========================
     selected_project = st.session_state.get("selected_project")
 
+    # =========================
+    # ✅ ONLY FERRY PS HAS DATA
+    # =========================
+    if selected_project != "Ferry PS":
+        render_header()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.info(f"📂 {selected_project} dashboard not yet connected.")
+        st.write("Data will appear here once linked.")
+
+        return  # STOP here — no error, no crash ✅
+
+
+    # =========================
+    # ✅ FILTER FERRY PS DATA
+    # =========================
     if "Project" in df32.columns:
-        df32 = df32[df32["Project"] == selected_project]
+        df32 = df32[df32["Project"] == "Ferry PS"]
 
     if "Project" in result.columns:
-        result = result[result["Project"] == selected_project]
+        result = result[result["Project"] == "Ferry PS"]
+
+    if df32.empty:
+        st.warning("No data available for Ferry PS")
+        return
+
 
     # =========================
     # HEADER
@@ -101,15 +116,10 @@ def render_dashboard(result, df32):
 
     with col1:
         st.markdown("""
-        <div style="
-            background:white;
-            padding:15px;
-            border-radius:10px;
-            box-shadow:0 1px 4px rgba(0,0,0,0.08);
-            margin-bottom:15px;
-        ">
-            <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-            📊 CL32 Schedule Summary</div>
+        <div style="background:white;padding:15px;border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        📊 CL32 Schedule Summary</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
@@ -118,53 +128,40 @@ def render_dashboard(result, df32):
 
     with col2:
         st.markdown("""
-        <div style="
-            background:white;
-            padding:15px;
-            border-radius:10px;
-            box-shadow:0 1px 4px rgba(0,0,0,0.08);
-            margin-bottom:15px;
-        ">
-            <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-            🔴 Delayed Activities</div>
+        <div style="background:white;padding:15px;border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        🔴 Delayed Activities</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+
     # =========================
-    # SECTION 2 — FORECAST
+    # NEXT 4 WEEKS
     # =========================
     st.markdown("""
-    <div style="
-        background:white;
-        padding:15px;
-        border-radius:10px;
-        box-shadow:0 1px 4px rgba(0,0,0,0.08);
-        margin-bottom:15px;
-    ">
-        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-        🟢 Next 4 Weeks (Forecast)</div>
+    <div style="background:white;padding:15px;border-radius:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+    🟢 Next 4 Weeks (Forecast)</div>
     """, unsafe_allow_html=True)
 
     render_next4weeks_table(df32)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+
     # =========================
-    # SECTION 3 — REGISTER
+    # REGISTER
     # =========================
     st.markdown("""
-    <div style="
-        background:white;
-        padding:15px;
-        border-radius:10px;
-        box-shadow:0 1px 4px rgba(0,0,0,0.08);
-        margin-bottom:15px;
-    ">
-        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-        📋 CL31 vs CL32 Deliverable Register</div>
+    <div style="background:white;padding:15px;border-radius:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+    📋 CL31 vs CL32 Deliverable Register</div>
     """, unsafe_allow_html=True)
 
     render_table(result)
