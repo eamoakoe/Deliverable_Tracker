@@ -83,18 +83,34 @@ def render_next4weeks_table(df):
     display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # FORECAST TAG
+    # ADD URGENCY CLASSIFICATION
     # =========================
-    display_df["Window"] = "4-Week Lookahead"
+    today = pd.Timestamp.today().normalize()
+    raw_start = pd.to_datetime(upcoming["Start"], errors="coerce")
+
+    days_to_start = (raw_start - today).dt.days
+
+    def classify(days):
+        if pd.isna(days):
+            return "Upcoming"
+        elif days <= 7:
+            return "Starting Soon"
+        else:
+            return "Upcoming"
+
+    display_df["Window"] = days_to_start.apply(classify)
 
     # =========================
-    # COLOUR FUNCTION
+    # COLOUR FUNCTION (WITH LIGHT RED)
     # =========================
     def colour_window(val):
-        return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
+        if val == "Starting Soon":
+            return "background-color:#fdecea; color:#b71c1c; font-weight:600"
+        else:
+            return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
 
     # =========================
-    # ROW STRIPES (LIGHT)
+    # ROW STRIPES
     # =========================
     def stripe_rows(row):
         return [
@@ -118,7 +134,7 @@ def render_next4weeks_table(df):
                     ("text-transform", "uppercase"),
                     ("letter-spacing", "0.6px"),
                     ("padding", "10px 8px"),
-                    ("border-bottom", "3px solid #3b82f6"),
+                    ("border-bottom", "3px solid #3b82f6")
                 ]
             },
             {
@@ -142,22 +158,33 @@ def render_next4weeks_table(df):
             }
         ])
 
-        # Striping
+        # Row striping
         .apply(stripe_rows, axis=1)
 
-        # Highlight window column
+        # Highlight urgency
         .map(colour_window, subset=["Window"])
 
-        # Alignment
-        .set_properties(subset=["ID", "Activity", "Remarks"], **{"text-align": "left"})
-        .set_properties(subset=["Start Date", "Finish Date"], **{"text-align": "center"})
+        # Align columns
+        .set_properties(subset=["ID", "Activity", "Remarks"], **{
+            "text-align": "left"
+        })
+        .set_properties(subset=["Start Date", "Finish Date"], **{
+            "text-align": "center"
+        })
     )
 
     # =========================
-    # KPI
+    # KPI SUMMARY
     # =========================
+    soon_count = (display_df["Window"] == "Starting Soon").sum()
+    total = len(display_df)
+
     st.markdown(
-        f"<span style='color:#1e88e5;font-weight:600;font-size:15px'>🟢 {len(display_df)} Activities in Lookahead</span>",
+        f"""
+        <span style='font-weight:600'>
+            🔴 {soon_count} Starting Soon &nbsp;&nbsp;|&nbsp;&nbsp; 🟢 {total - soon_count} Upcoming
+        </span>
+        """,
         unsafe_allow_html=True
     )
 
