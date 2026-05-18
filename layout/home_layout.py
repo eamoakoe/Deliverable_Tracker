@@ -52,7 +52,7 @@ project_list = [
     "Ferry PS",
     "Rossall Outfall",
     "Flass Lane",
-    "Harbour Yard / Tally Ho",
+    "Harbour Yard",
     "Eccleston Bridge",
     "Palace Nook",
     "Rampside"
