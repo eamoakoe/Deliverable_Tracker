@@ -3,6 +3,9 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
+# =========================
+# DATA PREP
+# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -24,27 +27,27 @@ def prepare(df):
     return df
 
 
+# =========================
+# MAIN PIE RENDER
+# =========================
 def render_pie(df):
 
     df = prepare(df)
     today = pd.Timestamp.today()
 
     # =========================
-    # ✅ CLEAN CLASSIFICATION (ORDER MATTERS)
+    # ✅ FINAL LOGIC (NO COMPLETED)
     # =========================
     df["Status"] = "On Track"
 
-    # 1. Completed (highest priority)
-    df.loc[df["Activity % Complete"] >= 100, "Status"] = "Completed"
-
-    # 2. Delayed (overrides On Track only, not Completed)
+    # 🔴 Delayed → overdue & unfinished
     df.loc[
         (df["Finish"] < today) &
         (df["Activity % Complete"] < 100),
         "Status"
     ] = "Delayed"
 
-    # 3. Accelerated (only future + started)
+    # 🟢 Accelerated → future & in progress
     df.loc[
         (df["Finish"] >= today) &
         (df["Activity % Complete"].between(1, 99)),
@@ -52,13 +55,13 @@ def render_pie(df):
     ] = "Accelerated"
 
     # =========================
-    # ✅ SUMMARY (CONTROLLED ORDER)
+    # SUMMARY
     # =========================
-    order = ["Completed", "On Track", "Delayed", "Accelerated"]
+    order = ["On Track", "Delayed", "Accelerated"]
+
     summary = df["Status"].value_counts().reindex(order, fill_value=0)
 
     colors = {
-        "Completed": "#007AFF",
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
         "Accelerated": "#00C853"
@@ -74,7 +77,7 @@ def render_pie(df):
             labels=summary.index,
             values=summary.values,
             sort=False,
-            hole=0.0,  # full pie
+            hole=0.0,
 
             texttemplate="%{value}<br>(%{percent})",
             textfont=dict(size=13),
@@ -92,34 +95,52 @@ def render_pie(df):
     )
 
     # =========================
-    # ✅ COMPACT CARD LAYOUT
+    # LAYOUT
     # =========================
     with st.container():
 
         col1, col2 = st.columns([2.1, 1])
 
-        # LEFT → PIE
+        # ---------------------
+        # LEFT: PIE
+        # ---------------------
         with col1:
             st.plotly_chart(fig, use_container_width=True)
 
-        # RIGHT → KPIs + NOTES
+        # ---------------------
+        # RIGHT: KPIs + NOTES
+        # ---------------------
         with col2:
 
-            # ✅ KPIs (compact)
+            # ✅ Colour-coded KPIs
             for k in order:
                 pct = (summary[k] / total * 100) if total else 0
-                st.markdown(f"**{k}:** {summary[k]} ({pct:.0f}%)")
+
+                st.markdown(
+                    f"""
+                    <div style="display:flex;align-items:center;margin-bottom:8px;">
+                        <div style="
+                            width:10px;
+                            height:10px;
+                            border-radius:50%;
+                            background:{colors[k]};
+                            margin-right:8px;">
+                        </div>
+                        <span><b>{k}:</b> {summary[k]} ({pct:.0f}%)</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
             st.markdown("---")
 
-            # ✅ LOGICALLY CONSISTENT SUMMARY
+            # ✅ EXECUTIVE SUMMARY
             d_pct = (summary["Delayed"] / total * 100) if total else 0
-            c_pct = (summary["Completed"] / total * 100) if total else 0
+            a_pct = (summary["Accelerated"] / total * 100) if total else 0
 
-            # ✅ SINGLE clear message (no noise)
             if d_pct >= 25:
-                st.error("High delay risk")
-            elif c_pct >= 60:
-                st.success("Strong delivery")
+                st.error("High delay risk impacting delivery")
+            elif a_pct >= 20:
+                st.success("Strong delivery momentum")
             else:
-                st.info("Stable performance")
+                st.info("Delivery performance is stable")
