@@ -134,12 +134,5 @@ def render_pie(df):
 
             st.markdown("---")
 
-            # ✅ EXECUTIVE SUMMARY
-            d_pct = (summary["Delayed"] / total * 100) if total else 0
-            a_pct = (summary["Accelerated"] / total * 100) if total else 0
 
-            if d_pct >= 25:
-                st.error("High delay risk impacting delivery")
-            elif a_pct >= 20:
-                st.success("Strong delivery momentum")
             
