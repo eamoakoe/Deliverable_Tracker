@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 
 
+# =========================
+# DATA PREPARATION
+# =========================
 def _prepare(df):
     df = df.copy()
 
@@ -30,11 +33,12 @@ def _prepare(df):
 def _get_next4weeks(df):
     df = _prepare(df)
 
-    today = pd.Timestamp.today()
+    today = pd.Timestamp.today().normalize()
     lookahead = today + pd.Timedelta(days=28)
 
-    # Activities that overlap next 4-week window
     next4weeks = df[
+        (df["Start"].notna()) &
+        (df["Finish"].notna()) &
         (df["Start"] <= lookahead) &
         (df["Finish"] >= today)
     ].copy()
@@ -62,68 +66,100 @@ def render_next4weeks_table(df):
     ]].copy()
 
     # =========================
-    # DISPLAY FORMATTING ONLY
+    # CLEAN COLUMN NAMES
     # =========================
-    display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
-    display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
+    display_df.rename(columns={
+        "Activity ID": "ID",
+        "Activity Name": "Activity",
+        "Start": "Start Date",
+        "Finish": "Finish Date",
+        "Comments": "Remarks"
+    }, inplace=True)
 
     # =========================
-    # CONSTRAINT COLUMN (SIMPLE FORECAST LABEL)
+    # FORMAT DATES
     # =========================
-    display_df["Constraints"] = "Within 4-week window"
-
-
-    # =========================
-    # COLOUR FUNCTION (CONSTRAINT ONLY)
-    # =========================
-    def colour_constraints(val):
-        if "Within" in str(val):
-            return "background-color:#1e4d2b; color:white; font-weight:bold"
-        return ""
-
+    display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
+    display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # TABLE STYLING (SAME STYLE AS delay_cl32.py)
+    # FORECAST TAG
     # =========================
-    styled = display_df.style.set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#2b3a55"),
-                ("color", "white"),
-                ("font-size", "13px"),
-                ("font-weight", "600"),
-                ("text-transform", "uppercase"),
-                ("letter-spacing", "1px"),
-                ("padding", "10px"),
-                ("border-bottom", "2px solid #4da3ff"),
-                ("text-align", "left")
-            ]
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("padding", "8px"),
-                ("background-color", "#1c2233"),
-                ("color", "#f1f1f1"),
-                ("border-bottom", "1px solid #2a3347"),
-                ("border-right", "1px solid #2a3347")
-            ]
-        },
-        {
-            "selector": "table",
-            "props": [
-                ("border-collapse", "collapse"),
-                ("width", "100%"),
-                ("background-color", "#1c2233")
-            ]
-        }
-    ])
+    display_df["Window"] = "4-Week Lookahead"
 
     # =========================
-    # APPLY COLOUR ONLY TO CONSTRAINTS COLUMN
+    # COLOUR FUNCTION
     # =========================
-    styled = styled.map(colour_constraints, subset=["Constraints"])
+    def colour_window(val):
+        return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
+
+    # =========================
+    # ROW STRIPES (LIGHT)
+    # =========================
+    def stripe_rows(row):
+        return [
+            "background-color:#ffffff" if row.name % 2 == 0 else "background-color:#f7f9fc"
+        ] * len(row)
+
+    # =========================
+    # PROFESSIONAL TABLE STYLE
+    # =========================
+    styled = (
+        display_df.style
+
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#1e3a8a"),
+                    ("color", "white"),
+                    ("font-size", "12.5px"),
+                    ("font-weight", "700"),
+                    ("text-transform", "uppercase"),
+                    ("letter-spacing", "0.6px"),
+                    ("padding", "10px 8px"),
+                    ("border-bottom", "3px solid #3b82f6"),
+                ]
+            },
+            {
+                "selector": "td",
+                "props": [
+                    ("padding", "8px"),
+                    ("color", "#1f2a44"),
+                    ("border-bottom", "1px solid #e5e7eb")
+                ]
+            },
+            {
+                "selector": "table",
+                "props": [
+                    ("border-collapse", "collapse"),
+                    ("width", "100%"),
+                    ("background-color", "white"),
+                    ("border-radius", "8px"),
+                    ("overflow", "hidden"),
+                    ("box-shadow", "0 1px 3px rgba(0,0,0,0.08)")
+                ]
+            }
+        ])
+
+        # Striping
+        .apply(stripe_rows, axis=1)
+
+        # Highlight window column
+        .map(colour_window, subset=["Window"])
+
+        # Alignment
+        .set_properties(subset=["ID", "Activity", "Remarks"], **{"text-align": "left"})
+        .set_properties(subset=["Start Date", "Finish Date"], **{"text-align": "center"})
+    )
+
+    # =========================
+    # KPI
+    # =========================
+    st.markdown(
+        f"<span style='color:#1e88e5;font-weight:600;font-size:15px'>🟢 {len(display_df)} Activities in Lookahead</span>",
+        unsafe_allow_html=True
+    )
 
     # =========================
     # RENDER
