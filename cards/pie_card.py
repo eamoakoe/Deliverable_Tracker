@@ -63,15 +63,14 @@ def render_pie(df):
     total = int(summary.sum())
 
     # =========================
-    # DONUT CHART (UPGRADED)
+    # DONUT CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-
-            hole=0.5,  # ✅ donut style
+            hole=0.5,
 
             texttemplate="%{label}<br>%{value} (%{percent})",
             textfont=dict(color="black", size=13),
@@ -101,9 +100,10 @@ def render_pie(df):
     )
 
     # =========================
-    # CARD STYLE
+    # CARD STYLE (SAFE)
     # =========================
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         .pie-card {
             background: #ffffff;
@@ -123,3 +123,47 @@ def render_pie(df):
         .dot {
             width: 12px;
             height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .value {
+            font-weight: 700;
+            margin-left: 6px;
+            color: black;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # =========================
+    # RENDER CARD
+    # =========================
+    with st.container():
+
+        st.markdown('<div class="pie-card">', unsafe_allow_html=True)
+
+        col1, col2 = st.columns([2.3, 1])
+
+        # ✅ Chart
+        with col1:
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+        # ✅ Legend (SAFE LOOP — no broken triple quotes)
+        with col2:
+            for k in ["On Track", "Delayed", "Accelerated"]:
+                st.markdown(
+                    f"""
+                    <div class="item">
+                        <div class="dot" style="background:{colors[k]};"></div>
+                        {k} <span class="value">{summary[k]}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
