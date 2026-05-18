@@ -1,8 +1,10 @@
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.graph_objects as go
 
-
+# =========================
+# DATA PREP
+# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -24,27 +26,48 @@ def prepare(df):
     return df
 
 
-def classify(row, today):
-
-    if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-        return "On Track"
-
-    if row["Finish"] < today and row["Activity % Complete"] < 100:
-        return "Delayed"
-
-    if row["Finish"] > today and row["Activity % Complete"] > 0:
-        return "Accelerated"
-
-    return "On Track"
-
-
-def render_pie(df):
-
-    df = prepare(df)
+# =========================
+# CLASSIFICATION (FAST)
+# =========================
+def classify(df):
     today = pd.Timestamp.today()
 
-    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
+    df["Status"] = "On Track"
 
+    df.loc[
+        (df["Finish"] < today) & (df["Activity % Complete"] < 100),
+        "Status"
+    ] = "Delayed"
+
+    df.loc[
+        (df["Finish"] > today) & (df["Activity % Complete"].between(1, 99)),
+        "Status"
+    ] = "Accelerated"
+
+    return df
+
+
+# =========================
+# KPI SECTION
+# =========================
+def render_kpis(df):
+    total = len(df)
+    completed = (df["Activity % Complete"] == 100).sum()
+    delayed = (df["Status"] == "Delayed").sum()
+    progress = round(df["Activity % Complete"].mean(), 1)
+
+    cols = st.columns(4)
+
+    cols[0].metric("Total Tasks", total)
+    cols[1].metric("Completed", completed)
+    cols[2].metric("Delayed", delayed, delta=None)
+    cols[3].metric("Avg Progress %", f"{progress}%")
+
+
+# =========================
+# DONUT CHART
+# =========================
+def render_status_chart(df):
     summary = df["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Accelerated"],
         fill_value=0
@@ -56,103 +79,106 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
-    # =========================
-    # PIE CHART (BLACK TEXT FIX)
-    # =========================
+    total = summary.sum()
+
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
+            hole=0.5,
             sort=False,
 
-            # 🔥 FIX: black text inside chart (your request)
-            textinfo="label+value",
-            textfont=dict(color="black", size=13),
+            texttemplate="%{label}<br>%{value} (%{percent})",
 
-            marker=dict(colors=[colors[k] for k in summary.index]),
-            pull=[0.03, 0.03, 0.03]
+            marker=dict(colors=summary.index.map(colors)),
+
+            hovertemplate="<b>%{label}</b><br>Tasks: %{value}<br>%{percent}<extra></extra>"
         )]
     )
 
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=380,
-
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-
-        showlegend=False,
-
-        font=dict(color="black")  # 🔥 ensures all labels default to black
+    fig.add_annotation(
+        text=f"<b>{total}</b><br>Total",
+        showarrow=False
     )
 
-    # =========================
-    # CARD STYLE
-    # =========================
-    st.markdown("""
-        <style>
-        .pie-card {
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 16px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-        }
+    fig.update_layout(
+        height=350,
+        margin=dict(l=10, r=10, t=10, b=10)
+    )
 
-        .item {
-            font-size: 15px;
-            margin-bottom: 14px;
-            color: black;
-            display: flex;
-            align-items: center;
-        }
+    st.plotly_chart(fig, use_container_width=True)
 
-        .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
 
-        .value {
-            font-weight: 700;
-            margin-left: 6px;
-            color: black;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+# =========================
+# TREND ANALYSIS
+# =========================
+def render_timeline(df):
+    timeline = df.copy()
 
-    # =========================
-    # RENDER CARD
-    # =========================
-    with st.container():
+    timeline["Month"] = timeline["Finish"].dt.to_period("M").astype(str)
+    trend = timeline.groupby("Month")["Activity % Complete"].mean().reset_index()
 
-        st.markdown('<div class="pie-card">', unsafe_allow_html=True)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=trend["Month"],
+        y=trend["Activity % Complete"],
+        mode="lines+markers",
+        name="Progress Trend"
+    ))
 
-        col1, col2 = st.columns([2.3, 1])
+    fig.update_layout(
+        title="Progress Trend Over Time",
+        height=300
+    )
 
-        with col1:
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                config={"displayModeBar": False}
-            )
+    st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
-            st.markdown(f"""
-                <div class="item">
-                    <div class="dot" style="background:#FFD700;"></div>
-                    On Track <span class="value">{summary['On Track']}</span>
-                </div>
 
-                <div class="item">
-                    <div class="dot" style="background:#FF3B30;"></div>
-                    Delayed <span class="value">{summary['Delayed']}</span>
-                </div>
+# =========================
+# FILTERS
+# =========================
+def render_filters(df):
+    st.sidebar.header("Filters")
 
-                <div class="item">
-                    <div class="dot" style="background:#00C853;"></div>
-                    Accelerated <span class="value">{summary['Accelerated']}</span>
-                </div>
-            """, unsafe_allow_html=True)
+    status_filter = st.sidebar.multiselect(
+        "Status",
+        options=df["Status"].unique(),
+        default=df["Status"].unique()
+    )
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    return df[df["Status"].isin(status_filter)]
+
+
+# =========================
+# MAIN DASHBOARD
+# =========================
+def render_dashboard(df):
+
+    df = prepare(df)
+    df = classify(df)
+
+    st.title("📊 Executive Project Dashboard")
+
+    # Filters
+    df = render_filters(df)
+
+    # KPI row
+    render_kpis(df)
+
+    st.divider()
+
+    col1, col2 = st.columns([1.2, 1])
+
+    with col1:
+        st.subheader("Status Distribution")
+        render_status_chart(df)
+
+    with col2:
+        st.subheader("Trend")
+        render_timeline(df)
+
+    st.divider()
+
+    st.subheader("Task Details")
+    st.dataframe(df, use_container_width=True)
+``
