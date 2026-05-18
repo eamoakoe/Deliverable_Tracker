@@ -16,14 +16,17 @@ st.set_page_config(
 )
 
 # =========================
-# SIDEBAR STYLE (LIGHT RED)
+# ✅ SIDEBAR STYLE (LIGHT GREEN)
 # =========================
 st.markdown("""
 <style>
+
+/* Sidebar background */
 section[data-testid="stSidebar"] {
-    background-color: #ffe6e6;
+    background-color: #e6ffe6;  /* light green */
 }
 
+/* Sidebar list items */
 div[role="radiogroup"] label {
     font-weight: 500;
     padding: 6px 10px;
@@ -31,14 +34,17 @@ div[role="radiogroup"] label {
     cursor: pointer;
 }
 
+/* Selected item */
 div[role="radiogroup"] label[data-checked="true"] {
-    background-color: #ffcccc;
-    color: #800000;
+    background-color: #b3ffb3;
+    color: #006600;
 }
 
+/* Remove radio dots */
 div[role="radiogroup"] input {
     display: none;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,9 +68,7 @@ project_list = [
 ]
 
 selected_project = st.sidebar.radio("", project_list)
-
 st.session_state["selected_project"] = selected_project
-
 
 
 # =========================
@@ -75,95 +79,62 @@ def render_dashboard(result, df32):
     selected_project = st.session_state.get("selected_project")
 
     # =========================
-    # ✅ ONLY FERRY PS HAS DATA
+    # ✅ ONLY FERRY PS SHOWS DATA
     # =========================
     if selected_project != "Ferry PS":
-        render_header()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        st.info(f"📂 {selected_project} dashboard not yet connected.")
-        st.write("Data will appear here once linked.")
-
-        return  # STOP here — no error, no crash ✅
+        return  # ✅ completely blank
 
 
     # =========================
-    # ✅ FILTER FERRY PS DATA
-    # =========================
-    if "Project" in df32.columns:
-        df32 = df32[df32["Project"] == "Ferry PS"]
-
-    if "Project" in result.columns:
-        result = result[result["Project"] == "Ferry PS"]
-
-    if df32.empty:
-        st.warning("No data available for Ferry PS")
-        return
-
-
-    # =========================
-    # HEADER
+    # ✅ FERRY PS DASHBOARD
     # =========================
     render_header()
-
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # =========================
-    # SECTION 1 — PIE + DELAY
-    # =========================
     col1, col2 = st.columns([1, 1.2])
 
+    # PIE
     with col1:
         st.markdown("""
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
-        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
         📊 CL32 Schedule Summary</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
-
         st.markdown("</div>", unsafe_allow_html=True)
 
+    # DELAY
     with col2:
         st.markdown("""
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
-        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
         🔴 Delayed Activities</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-
-    # =========================
     # NEXT 4 WEEKS
-    # =========================
     st.markdown("""
     <div style="background:white;padding:15px;border-radius:10px;
     box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
-    <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-    🟢 Next 4 Weeks (Forecast)</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+    🟢 Next 4 Weeks</div>
     """, unsafe_allow_html=True)
 
     render_next4weeks_table(df32)
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-
-    # =========================
     # REGISTER
-    # =========================
     st.markdown("""
     <div style="background:white;padding:15px;border-radius:10px;
     box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
-    <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
-    📋 CL31 vs CL32 Deliverable Register</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+    📋 Register</div>
     """, unsafe_allow_html=True)
 
     render_table(result)
-
     st.markdown("</div>", unsafe_allow_html=True)
