@@ -35,7 +35,7 @@ def render_pie(df):
     df = prepare(df)
     today = pd.Timestamp.today()
 
-    # ✅ FAST classification (no apply)
+    # ✅ FAST classification (improved but same intent)
     df["Status"] = "On Track"
 
     df.loc[
@@ -49,10 +49,8 @@ def render_pie(df):
     ] = "Accelerated"
 
     # ✅ Summary
-    summary = df["Status"].value_counts().reindex(
-        ["On Track", "Delayed", "Accelerated"],
-        fill_value=0
-    )
+    order = ["On Track", "Delayed", "Accelerated"]
+    summary = df["Status"].value_counts().reindex(order, fill_value=0)
 
     colors = {
         "On Track": "#FFD700",
@@ -83,7 +81,7 @@ def render_pie(df):
         )]
     )
 
-    # ✅ center total
+    # ✅ center label
     fig.add_annotation(
         text=f"<b>{total}</b><br>Total",
         showarrow=False,
@@ -154,16 +152,18 @@ def render_pie(df):
                 config={"displayModeBar": False}
             )
 
-        # ✅ Legend (SAFE LOOP — no broken triple quotes)
+        # ✅ SAFE legend loop (no syntax risk)
         with col2:
-            for k in ["On Track", "Delayed", "Accelerated"]:
+            for k in order:
                 st.markdown(
                     f"""
                     <div class="item">
                         <div class="dot" style="background:{colors[k]};"></div>
-                        {k} <span class="value">{summary[k]}</span>
+                        {k} <span class="value">{int(summary[k])}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
+        st.markdown('</div>', unsafe_allow_html=True)
+``
