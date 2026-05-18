@@ -33,7 +33,6 @@ def _prepare(df):
 def _get_delayed(df):
     df = _prepare(df)
 
-    # Normalize date to match pie logic
     today = pd.Timestamp.today().normalize()
 
     delayed = df[
@@ -74,7 +73,7 @@ def render_delayed_table(df):
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # DELAY COLOUR (CLEAR & BRIGHT)
+    # DELAY COLOURS (LIGHT THEME)
     # =========================
     def colour_delay(val):
         try:
@@ -83,48 +82,47 @@ def render_delayed_table(df):
             if v >= 50:
                 return "background-color:#d32f2f; color:white; font-weight:600"
             elif v >= 30:
-                return "background-color:#f57c00; color:black; font-weight:600"
+                return "background-color:#f57c00; color:white; font-weight:600"
             elif v >= 15:
                 return "background-color:#fbc02d; color:black; font-weight:600"
             else:
-                return "background-color:#cddc39; color:black; font-weight:600"
+                return "background-color:#c8e6c9; color:black; font-weight:600"
         except:
             return ""
 
     # =========================
-    # ROW STRIPING (READABLE)
+    # ROW STRIPES (LIGHT)
     # =========================
     def stripe_rows(row):
         return [
-            "background-color:#2a2f3a" if row.name % 2 == 0 else "background-color:#343a46"
+            "background-color:#ffffff" if row.name % 2 == 0 else "background-color:#f7f9fc"
         ] * len(row)
 
     # =========================
-    # PROFESSIONAL TABLE STYLE
+    # PROFESSIONAL WHITE TABLE STYLE
     # =========================
     styled = (
         display_df.style
 
-        # Header
         .set_table_styles([
             {
                 "selector": "th",
                 "props": [
-                    ("background-color", "#4a6fa5"),
+                    ("background-color", "#1976d2"),
                     ("color", "white"),
                     ("font-size", "13px"),
                     ("font-weight", "700"),
                     ("padding", "10px"),
-                    ("border-bottom", "2px solid #90caf9"),
-                    ("text-align", "left")
+                    ("text-align", "left"),
+                    ("border-bottom", "2px solid #1565c0")
                 ]
             },
             {
                 "selector": "td",
                 "props": [
                     ("padding", "8px"),
-                    ("color", "#f1f3f6"),
-                    ("border-bottom", "1px solid #555a66")
+                    ("color", "#1f2a44"),
+                    ("border-bottom", "1px solid #e0e0e0")
                 ]
             },
             {
@@ -132,17 +130,17 @@ def render_delayed_table(df):
                 "props": [
                     ("border-collapse", "collapse"),
                     ("width", "100%"),
-                    ("background-color", "#2f3542"),
+                    ("background-color", "white"),
                     ("border-radius", "8px"),
                     ("overflow", "hidden")
                 ]
             }
         ])
 
-        # Stripe rows
+        # Row striping
         .apply(stripe_rows, axis=1)
 
-        # Highlight delay column
+        # Delay colouring
         .map(colour_delay, subset=["Delay (Days)"])
 
         # Align delay column
@@ -161,7 +159,7 @@ def render_delayed_table(df):
     # KPI ABOVE TABLE
     # =========================
     st.markdown(
-        f"<span style='color:#ff6b6b;font-weight:600'>🔴 {len(display_df)} Delayed Activities</span>",
+        f"<span style='color:#d32f2f;font-weight:600;font-size:15px'>🔴 {len(display_df)} Delayed Activities</span>",
         unsafe_allow_html=True
     )
 
