@@ -8,7 +8,7 @@ from cards.table_card import render_table
 
 
 # =========================
-# PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
+# PAGE CONFIG
 # =========================
 st.set_page_config(
     layout="wide",
@@ -16,27 +16,58 @@ st.set_page_config(
 )
 
 # =========================
-# SIDEBAR — PROJECT SELECTOR
+# ✅ SIDEBAR STYLING (LIGHT RED)
+# =========================
+st.markdown("""
+<style>
+/* Sidebar background */
+section[data-testid="stSidebar"] {
+    background-color: #ffe6e6;  /* light red */
+}
+
+/* Project list styling */
+div[role="radiogroup"] label {
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Selected item highlight */
+div[role="radiogroup"] label[data-checked="true"] {
+    background-color: #ffcccc;
+    color: #800000;
+}
+
+/* Remove radio circle */
+div[role="radiogroup"] input {
+    display: none;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# =========================
+# ✅ SIDEBAR — CLICKABLE PROJECT LIST
 # =========================
 st.sidebar.markdown(
-    '<div style="font-size:14px;font-weight:600;margin-bottom:5px;">PROJECT</div>',
+    '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">PROJECT</div>',
     unsafe_allow_html=True
 )
 
 project_list = [
-    "Flass Lane",
+    "Tally Ho",
     "Ferry PS",
     "Rossall Outfall",
-    "Tally Ho",
+    "Flass Lane",
     "Harbour Yard",
     "Eccleston Bridge",
     "Palace Nook",
     "Rampside"
 ]
 
-selected_project = st.sidebar.selectbox("", project_list)
+selected_project = st.sidebar.radio("", project_list)
 
-# Store selection globally (used elsewhere if needed)
 st.session_state["selected_project"] = selected_project
 
 
@@ -46,7 +77,7 @@ st.session_state["selected_project"] = selected_project
 def render_dashboard(result, df32):
 
     # =========================
-    # ✅ FILTER DATA BY PROJECT
+    # ✅ FILTER DATA
     # =========================
     selected_project = st.session_state.get("selected_project")
 
@@ -68,7 +99,6 @@ def render_dashboard(result, df32):
     # =========================
     col1, col2 = st.columns([1, 1.2])
 
-    # ---- PIE CARD ----
     with col1:
         st.markdown("""
         <div style="
@@ -78,19 +108,14 @@ def render_dashboard(result, df32):
             box-shadow:0 1px 4px rgba(0,0,0,0.08);
             margin-bottom:15px;
         ">
-            <div style="
-                font-size:16px;
-                font-weight:600;
-                margin-bottom:10px;
-                color:#1f2a44;
-            ">📊 CL32 Schedule Summary</div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+            📊 CL32 Schedule Summary</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---- DELAY CARD ----
     with col2:
         st.markdown("""
         <div style="
@@ -100,18 +125,13 @@ def render_dashboard(result, df32):
             box-shadow:0 1px 4px rgba(0,0,0,0.08);
             margin-bottom:15px;
         ">
-            <div style="
-                font-size:16px;
-                font-weight:600;
-                margin-bottom:10px;
-                color:#1f2a44;
-            ">🔴 Delayed Activities</div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+            🔴 Delayed Activities</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
-
 
     # =========================
     # SECTION 2 — FORECAST
@@ -124,18 +144,13 @@ def render_dashboard(result, df32):
         box-shadow:0 1px 4px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
-        <div style="
-            font-size:16px;
-            font-weight:600;
-            margin-bottom:10px;
-            color:#1f2a44;
-        ">🟢 Next 4 Weeks (Forecast)</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        🟢 Next 4 Weeks (Forecast)</div>
     """, unsafe_allow_html=True)
 
     render_next4weeks_table(df32)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
     # =========================
     # SECTION 3 — REGISTER
@@ -148,12 +163,8 @@ def render_dashboard(result, df32):
         box-shadow:0 1px 4px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
-        <div style="
-            font-size:16px;
-            font-weight:600;
-            margin-bottom:10px;
-            color:#1f2a44;
-        ">📋 CL31 vs CL32 Deliverable Register</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;color:#1f2a44;">
+        📋 CL31 vs CL32 Deliverable Register</div>
     """, unsafe_allow_html=True)
 
     render_table(result)
