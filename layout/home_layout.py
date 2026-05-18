@@ -8,18 +8,53 @@ from cards.table_card import render_table
 
 
 # =========================
-# PAGE CONFIG (CRITICAL FOR SIDEBAR)
+# PAGE CONFIG (MUST BE FIRST STREAMLIT CALL)
 # =========================
 st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# =========================
+# SIDEBAR — PROJECT SELECTOR
+# =========================
+st.sidebar.markdown(
+    '<div style="font-size:14px;font-weight:600;margin-bottom:5px;">PROJECT</div>',
+    unsafe_allow_html=True
+)
+
+project_list = [
+    "Flass Lane",
+    "Ferry PS",
+    "Rossall Outfall",
+    "Tally Ho",
+    "Harbour Yard",
+    "Eccleston Bridge",
+    "Palace Nook",
+    "Rampside"
+]
+
+selected_project = st.sidebar.selectbox("", project_list)
+
+# Store selection globally (used elsewhere if needed)
+st.session_state["selected_project"] = selected_project
+
 
 # =========================
-# FULL DASHBOARD
+# MAIN DASHBOARD FUNCTION
 # =========================
 def render_dashboard(result, df32):
+
+    # =========================
+    # ✅ FILTER DATA BY PROJECT
+    # =========================
+    selected_project = st.session_state.get("selected_project")
+
+    if "Project" in df32.columns:
+        df32 = df32[df32["Project"] == selected_project]
+
+    if "Project" in result.columns:
+        result = result[result["Project"] == selected_project]
 
     # =========================
     # HEADER
@@ -31,7 +66,7 @@ def render_dashboard(result, df32):
     # =========================
     # SECTION 1 — PIE + DELAY
     # =========================
-    col1, col2 = st.columns([1, 1.2])  # delay slightly wider
+    col1, col2 = st.columns([1, 1.2])
 
     # ---- PIE CARD ----
     with col1:
@@ -54,7 +89,6 @@ def render_dashboard(result, df32):
         render_pie(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
-
 
     # ---- DELAY CARD ----
     with col2:
