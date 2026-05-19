@@ -1,6 +1,4 @@
 import streamlit as st
-import pandas as pd
-import os
 
 from cards.header import render_header
 from cards.pie_card import render_pie
@@ -12,11 +10,14 @@ from cards.table_card import render_table
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 
 # =========================
-# ✅ SIDEBAR STYLE
+# ✅ SIDEBAR STYLE (LIGHT GREEN)
 # =========================
 st.markdown("""
 <style>
@@ -39,97 +40,107 @@ div[role="radiogroup"] input {
 
 
 # =========================
-# ✅ SAFE LOAD (CLOUD DEBUG FRIENDLY)
+# ✅ SIDEBAR (UI ONLY)
 # =========================
-def safe_load(path):
-    if os.path.exists(path):
-        return pd.read_excel(path)
-    else:
-        st.warning(f"Missing file: {path}")  # helps debug cloud
-        return None
+project_list = [
+    "Ferry PS",
+    "Rossall Outfall",
+    "Flass Lane",
+    "Harbour Yard",
+    "Eccleston Bridge",
+    "Palace Nook",
+    "Rampside"
+]
 
-
-# =========================
-# ✅ LOAD DATA (USE / NOT \ )
-# =========================
-@st.cache_data
-def load_data():
-    return {
-
-        "Ferry PS": {
-            "cl32": safe_load("data/ferry_ps_cl32.xlsx"),
-            "cl31": safe_load("data/ferry_ps_cl31.xlsx"),
-        },
-
-        "Flass Lane": {
-            "cl32": safe_load("data/Flass/CL32-FL-March.xlsx"),
-            "cl31": safe_load("data/Flass/CL31-FL-March.xlsx"),
-        },
-
-        "Rossall Outfall": {
-            "cl32": safe_load("data/Rossall/CL32-RO-May.xlsx"),
-            "cl31": safe_load("data/Rossall/CL31-RO-March.xlsx"),
-        },
-
-        # placeholders
-        "Harbour Yard": {"cl32": None, "cl31": None},
-        "Eccleston Bridge": {"cl32": None, "cl31": None},
-        "Palace Nook": {"cl32": None, "cl31": None},
-        "Rampside": {"cl32": None, "cl31": None},
-    }
-
-
-datasets = load_data()
-
-
-# =========================
-# ✅ SIDEBAR
-# =========================
 selected_project = st.sidebar.radio(
     "Project",
-    list(datasets.keys()),
+    project_list,
     label_visibility="collapsed"
 )
 
-
-# =========================
-# ✅ LINK SIDEBAR → DATA
-# =========================
-project_data = datasets[selected_project]
-
-df32 = project_data["cl32"]
-df31 = project_data["cl31"]
+# store selection for loader to use
+st.session_state["selected_project"] = selected_project
 
 
 # =========================
-# ✅ DEBUG (REMOVE LATER)
+# ✅ DASHBOARD (REQUIRES DATA FROM LOADER)
 # =========================
-# st.write("Selected:", selected_project)
-# st.write("Files in data:", os.listdir("data"))
+def render_dashboard(df31, df32):
+
+    # =========================
+    # ✅ STOP IF NO DATA (PLACEHOLDERS)
+    # =========================
+    if df32 is None or df32.empty:
+        st.stop()   # ✅ blank screen for placeholders
 
 
-# =========================
-# ✅ STOP IF NO DATA
-# =========================
-if df32 is None or df32.empty:
-    st.stop()
+    # =========================
+    # HEADER
+    # =========================
+    render_header()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 1.2])
 
 
-# =========================
-# ✅ DASHBOARD
-# =========================
-render_header()
+    # -------------------------
+    # PIE CARD
+    # -------------------------
+    with col1:
+        st.markdown("""
+        <div style="background:white;padding:15px;border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+        📊 CL32 Schedule Summary</div>
+        """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+        render_pie(df32)
 
-col1, col2 = st.columns([1, 1.2])
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
-with col1:
-    render_pie(df32)
+    # -------------------------
+    # DELAY CARD
+    # -------------------------
+    with col2:
+        st.markdown("""
+        <div style="background:white;padding:15px;border-radius:10px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+        🔴 Delayed Activities</div>
+        """, unsafe_allow_html=True)
 
-with col2:
-    render_delayed_table(df32)
+        render_delayed_table(df32)
 
-render_next4weeks_table(df32)
-render_table(df31)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+    # -------------------------
+    # NEXT 4 WEEKS
+    # -------------------------
+    st.markdown("""
+    <div style="background:white;padding:15px;border-radius:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+    🟢 Next 4 Weeks</div>
+    """, unsafe_allow_html=True)
+
+    render_next4weeks_table(df32)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+    # -------------------------
+    # REGISTER
+    # -------------------------
+    st.markdown("""
+    <div style="background:white;padding:15px;border-radius:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
+    📋 Register</div>
+    """, unsafe_allow_html=True)
+
+    render_table(df31)
+
+    st.markdown("</div>", unsafe_allow_html=True)
