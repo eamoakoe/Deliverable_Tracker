@@ -15,4 +15,3 @@ def load_ferry():
     cl32 = pd.read_excel(get_latest(base, "CL32"), engine="openpyxl")
 
     return cl31, cl32
-``
