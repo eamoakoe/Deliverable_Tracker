@@ -12,16 +12,9 @@ def _clean_columns(df):
     for col in df.columns:
         col = str(col)
 
-        # Remove weird unicode spaces
         col = col.replace("\u00a0", " ")
-
-        # Remove line breaks
         col = col.replace("\n", " ")
-
-        # Collapse multiple spaces
         col = re.sub(r"\s+", " ", col)
-
-        # Strip whitespace
         col = col.strip()
 
         cleaned.append(col)
@@ -40,65 +33,80 @@ def _load(path):
     df = pd.read_excel(path, engine="openpyxl")
 
     df = _clean_columns(df)
-
-    # Final safety strip
     df.columns = [c.strip() for c in df.columns]
 
     return df
 
 
 # =========================
-# BASE PATH (DEFAULT FALLBACK)
+# PROJECT PATHS (✅ NEW)
 # =========================
-BASE_PATH = "data/Ferry/"
+PROJECT_PATHS = {
+    "Ferry PS": "data/Ferry/",
+    "Flass Lane": "data/Flass/",
+    "Rossall Outfall": "data/Rossall/",
+}
 
 
 # =========================
 # AUTO DETECT LATEST FILE
 # =========================
-def _get_latest(prefix):
-    if not os.path.exists(BASE_PATH):
-        raise FileNotFoundError(f"Folder not found: {BASE_PATH}")
+def _get_latest(prefix, project):
+
+    base_path = PROJECT_PATHS.get(project)
+
+    if not base_path:
+        raise ValueError(f"Project not configured in loader: {project}")
+
+    if not os.path.exists(base_path):
+        raise FileNotFoundError(f"Folder not found: {base_path}")
 
     files = [
-        f for f in os.listdir(BASE_PATH)
+        f for f in os.listdir(base_path)
         if f.startswith(prefix) and f.endswith(".xlsx")
     ]
 
     if not files:
-        raise FileNotFoundError(f"No files found for {prefix} in {BASE_PATH}")
+        raise FileNotFoundError(f"No {prefix} files in {base_path}")
 
-    # Sort alphabetically (works if naming is consistent)
-    files.sort()
+    files.sort()  # assumes naming consistency
 
-    return os.path.join(BASE_PATH, files[-1])
+    return os.path.join(base_path, files[-1])
 
 
 # =========================
 # LOAD CL31
 # =========================
-def load_cl31(path=None):
-    """
-    Load CL31 file.
-    If path is provided → load that file (used by sidebar)
-    If not → load latest from default BASE_PATH
-    """
-    if path:
+def load_cl31(project):
+    try:
+        path = _get_latest("CL31", project)
         return _load(path)
-    else:
-        return _load(_get_latest("CL31"))
+    except Exception:
+        return None  # ✅ Placeholder safe
 
 
 # =========================
 # LOAD CL32
 # =========================
-def load_cl32(path=None):
-    """
-    Load CL32 file.
-    If path is provided → load from sidebar selection
-    If not → auto-load latest file
-    """
-    if path:
+def load_cl32(project):
+    try:
+        path = _get_latest("CL32", project)
         return _load(path)
-    else:
-        return _load(_get_latest("CL32"))
+    except Exception:
+        return None  # ✅ Placeholder safe
+
+
+# =========================
+# LOAD BOTH (MAIN FUNCTION)
+# =========================
+def load_project_data(project):
+    """
+    Main function used by app.py
+    Returns df31, df32
+    """
+
+    df31 = load_cl31(project)
+    df32 = load_cl32(project)
+
+    return df31, df32
+``
