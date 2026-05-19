@@ -26,18 +26,15 @@ st.markdown("""
 section[data-testid="stSidebar"] {
     background-color: #e6ffe6;
 }
-
 div[role="radiogroup"] label {
     font-weight: 500;
     padding: 6px 10px;
     border-radius: 6px;
 }
-
 div[role="radiogroup"] label[data-checked="true"] {
     background-color: #b3ffb3;
     color: #006600;
 }
-
 div[role="radiogroup"] input {
     display: none;
 }
@@ -46,12 +43,13 @@ div[role="radiogroup"] input {
 
 
 # =========================
-# ✅ SAFE LOAD FUNCTION
+# ✅ SAFE LOAD FUNCTION (WITH DEBUG)
 # =========================
 def safe_load(path):
     if os.path.exists(path):
         return pd.read_excel(path)
-    return None
+    else:
+        return None
 
 
 # =========================
@@ -61,25 +59,25 @@ def safe_load(path):
 def load_data():
     return {
 
-        # ✅ Ferry PS (existing)
+        # ✅ FERRY PS (MAKE SURE PATH IS CORRECT)
         "Ferry PS": {
             "cl32": safe_load("data/ferry_ps_cl32.xlsx"),
             "cl31": safe_load("data/ferry_ps_cl31.xlsx"),
         },
 
-        # ✅ Flass Lane (NEW)
+        # ✅ FLASS LANE
         "Flass Lane": {
             "cl32": safe_load(r"data\Flass\CL32-FL-March.xlsx"),
             "cl31": safe_load(r"data\Flass\CL31-FL-March.xlsx"),
         },
 
-        # ✅ Rossall Outfall (NEW)
+        # ✅ ROSSALL OUTFALL
         "Rossall Outfall": {
             "cl32": safe_load(r"data\Rossall\CL32-RO-May.xlsx"),
             "cl31": safe_load(r"data\Rossall\CL31-RO-March.xlsx"),
         },
 
-        # ✅ Placeholders
+        # ✅ PLACEHOLDERS
         "Harbour Yard": {"cl32": None, "cl31": None},
         "Eccleston Bridge": {"cl32": None, "cl31": None},
         "Palace Nook": {"cl32": None, "cl31": None},
@@ -91,18 +89,17 @@ datasets = load_data()
 
 
 # =========================
-# ✅ SIDEBAR
+# ✅ SIDEBAR (FIXED LABEL)
 # =========================
-st.sidebar.markdown(
-    '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">PROJECT</div>',
-    unsafe_allow_html=True
+selected_project = st.sidebar.radio(
+    "Project",
+    list(datasets.keys()),
+    label_visibility="collapsed"
 )
 
-selected_project = st.sidebar.radio("", list(datasets.keys()))
-
 
 # =========================
-# ✅ SELECT DATA
+# ✅ LINK SIDEBAR → DATA
 # =========================
 project_data = datasets[selected_project]
 
@@ -111,14 +108,22 @@ df31 = project_data["cl31"]
 
 
 # =========================
-# ✅ 🔴 HARD STOP (KEY FIX)
+# ✅ DEBUG (REMOVE LATER)
+# =========================
+# Uncomment if still blank
+# st.write("Selected:", selected_project)
+# st.write("CL32 loaded:", df32 is not None)
+
+
+# =========================
+# ✅ STOP IF NO DATA (PLACEHOLDERS)
 # =========================
 if df32 is None or df32.empty:
-    st.stop()   # ✅ TRUE BLANK for placeholders
+    st.stop()
 
 
 # =========================
-# ✅ DASHBOARD
+# ✅ DASHBOARD (ONLY RUNS IF DATA EXISTS)
 # =========================
 render_header()
 
@@ -127,9 +132,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 col1, col2 = st.columns([1, 1.2])
 
 
-# -------------------------
-# PIE CARD
-# -------------------------
+# PIE
 with col1:
     st.markdown("""
     <div style="background:white;padding:15px;border-radius:10px;
@@ -142,9 +145,7 @@ with col1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# -------------------------
-# DELAY CARD
-# -------------------------
+# DELAY
 with col2:
     st.markdown("""
     <div style="background:white;padding:15px;border-radius:10px;
@@ -157,9 +158,7 @@ with col2:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# -------------------------
 # NEXT 4 WEEKS
-# -------------------------
 st.markdown("""
 <div style="background:white;padding:15px;border-radius:10px;
 box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
@@ -171,9 +170,7 @@ render_next4weeks_table(df32)
 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# -------------------------
-# REGISTER
-# -------------------------
+# REGISTER (CL31 DATA)
 st.markdown("""
 <div style="background:white;padding:15px;border-radius:10px;
 box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
@@ -182,5 +179,4 @@ box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
 """, unsafe_allow_html=True)
 
 render_table(df31)
-
 st.markdown("</div>", unsafe_allow_html=True)
