@@ -36,19 +36,17 @@ def _load(path):
 
 
 # =========================
-# PROJECT FILE MAP (ACTIVE ONLY)
+# PROJECT FILE MAP
 # =========================
 PROJECT_FILES = {
     "Ferry PS": {
         "cl31": "data/Ferry/CL31-Ferry.xlsx",
         "cl32": "data/Ferry/CL32-Ferry.xlsx",
     },
-
     "Flass Lane": {
         "cl31": "data/Flass/CL31-FL-March.xlsx",
         "cl32": "data/Flass/CL32-FL-March.xlsx",
     },
-
     "Rossall Outfall": {
         "cl31": "data/Rossall/CL31-RO-March.xlsx",
         "cl32": "data/Rossall/CL32-RO-May.xlsx",
@@ -57,22 +55,16 @@ PROJECT_FILES = {
 
 
 # =========================
-# LOAD CL31
+# LOAD FUNCTIONS
 # =========================
 def load_cl31(project):
     return _load(PROJECT_FILES[project]["cl31"])
 
 
-# =========================
-# LOAD CL32
-# =========================
 def load_cl32(project):
     return _load(PROJECT_FILES[project]["cl32"])
 
 
-# =========================
-# MAIN FUNCTION
-# =========================
 def load_project_data(project):
     df31 = load_cl31(project)
     df32 = load_cl32(project)
