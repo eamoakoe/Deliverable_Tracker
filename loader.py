@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import os
+import streamlit as st
 
 
 # =========================
@@ -55,17 +56,24 @@ PROJECT_FILES = {
 
 
 # =========================
-# LOAD FUNCTIONS
+# ✅ GET SELECTED PROJECT (FROM SIDEBAR)
 # =========================
-def load_cl31(project):
+def _get_project():
+    return st.session_state.get("selected_project", "Ferry PS")
+
+
+# =========================
+# LOAD CL31 (NO PARAM ✅)
+# =========================
+def load_cl31():
+    project = _get_project()
     return _load(PROJECT_FILES[project]["cl31"])
 
 
-def load_cl32(project):
+# =========================
+# LOAD CL32 (NO PARAM ✅)
+# =========================
+def load_cl32():
+    project = _get_project()
     return _load(PROJECT_FILES[project]["cl32"])
-
-
-def load_project_data(project):
-    df31 = load_cl31(project)
-    df32 = load_cl32(project)
-    return df31, df32
+``
