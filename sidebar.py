@@ -35,4 +35,3 @@ def render_sidebar():
         )
 
     return project
-``
