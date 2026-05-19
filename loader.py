@@ -28,7 +28,7 @@ def _clean_columns(df):
 # =========================
 def _load(path):
     if not os.path.exists(path):
-        raise FileNotFoundError(f"File not found: {path}")
+        return None   # ✅ important → avoids crashing
 
     df = pd.read_excel(path, engine="openpyxl")
 
@@ -39,71 +39,56 @@ def _load(path):
 
 
 # =========================
-# PROJECT PATHS (✅ NEW)
+# PROJECT PATH MAPPING ✅ NEW
 # =========================
-PROJECT_PATHS = {
-    "Ferry PS": "data/Ferry/",
-    "Flass Lane": "data/Flass/",
-    "Rossall Outfall": "data/Rossall/",
+PROJECT_FILES = {
+    "Ferry PS": {
+        "cl31": "data/Ferry/CL31-Ferry.xlsx",
+        "cl32": "data/Ferry/CL32-Ferry.xlsx",
+    },
+
+    "Flass Lane": {
+        "cl31": "data/Flass/CL31-FL-March.xlsx",
+        "cl32": "data/Flass/CL32-FL-March.xlsx",
+    },
+
+    "Rossall Outfall": {
+        "cl31": "data/Rossall/CL31-RO-March.xlsx",
+        "cl32": "data/Rossall/CL32-RO-May.xlsx",
+    },
 }
-
-
-# =========================
-# AUTO DETECT LATEST FILE
-# =========================
-def _get_latest(prefix, project):
-
-    base_path = PROJECT_PATHS.get(project)
-
-    if not base_path:
-        raise ValueError(f"Project not configured in loader: {project}")
-
-    if not os.path.exists(base_path):
-        raise FileNotFoundError(f"Folder not found: {base_path}")
-
-    files = [
-        f for f in os.listdir(base_path)
-        if f.startswith(prefix) and f.endswith(".xlsx")
-    ]
-
-    if not files:
-        raise FileNotFoundError(f"No {prefix} files in {base_path}")
-
-    files.sort()  # assumes naming consistency
-
-    return os.path.join(base_path, files[-1])
 
 
 # =========================
 # LOAD CL31
 # =========================
-def load_cl31(project):
-    try:
-        path = _get_latest("CL31", project)
-        return _load(path)
-    except Exception:
-        return None  # ✅ Placeholder safe
+def load_cl31(project="Ferry PS"):
+
+    project_files = PROJECT_FILES.get(project)
+
+    if not project_files:
+        return None  # ✅ placeholder → no data
+
+    return _load(project_files["cl31"])
 
 
 # =========================
 # LOAD CL32
 # =========================
-def load_cl32(project):
-    try:
-        path = _get_latest("CL32", project)
-        return _load(path)
-    except Exception:
-        return None  # ✅ Placeholder safe
+def load_cl32(project="Ferry PS"):
+
+    project_files = PROJECT_FILES.get(project)
+
+    if not project_files:
+        return None
+
+    return _load(project_files["cl32"])
 
 
 # =========================
-# LOAD BOTH (MAIN FUNCTION)
+# LOAD BOTH (MAIN)
 # =========================
 def load_project_data(project):
-    """
-    Main function used by app.py
-    Returns df31, df32
-    """
 
     df31 = load_cl31(project)
     df32 = load_cl32(project)
