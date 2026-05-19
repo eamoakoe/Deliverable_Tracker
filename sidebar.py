@@ -17,9 +17,6 @@ def render_sidebar():
 
     logo_base64 = get_base64_image("assets/logo.png")
 
-    # =========================
-    # STYLE
-    # =========================
     st.markdown("""
     <style>
         [data-testid="stSidebarNav"] {display:none;}
@@ -32,18 +29,14 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # =========================
-        # LOGO ✅
-        # =========================
+        # ✅ LOGO
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
             data:image/png;base64,{logo_base64}
         </div>
         """, unsafe_allow_html=True)
 
-        # =========================
-        # PROJECTS ONLY ✅
-        # =========================
+        # ✅ PROJECTS ONLY
         st.title("Projects")
 
         project = st.radio(
@@ -52,3 +45,4 @@ def render_sidebar():
         )
 
     return project
+``

@@ -62,7 +62,7 @@ def get_latest(folder, prefix):
 
 
 # =========================
-# LOAD DATA (BASED ON PROJECT)
+# LOAD DATA (BY PROJECT)
 # =========================
 if project == "Ferry PS":
     df31 = load_file(get_latest("data/Ferry/", "CL31"))
@@ -82,18 +82,26 @@ elif project == "Flass Lane":
 # =========================
 if project == "Rossall Outfall":
 
-    # ----- CL31 FIX -----
+    # ----- CL31: Finish → BL Project Finish -----
     if "Finish" in df31.columns and "BL Project Finish" not in df31.columns:
         df31.rename(columns={"Finish": "BL Project Finish"}, inplace=True)
 
-    # ----- CL32 FIX -----
-    # Create missing Activity % Complete
+    # ----- CL32: Create Activity % Complete -----
     if "Activity % Complete" not in df32.columns:
 
         if "Remaining Duration" in df32.columns:
+
+            # ✅ convert to numeric (fix TypeError)
+            df32["Remaining Duration"] = pd.to_numeric(
+                df32["Remaining Duration"],
+                errors="coerce"
+            )
+
+            # ✅ derive % complete
             df32["Activity % Complete"] = df32["Remaining Duration"].apply(
                 lambda x: 0 if pd.notnull(x) and x > 0 else 100
             )
+
         else:
             df32["Activity % Complete"] = 0
 
@@ -107,7 +115,7 @@ if df31 is None or df32 is None:
 
 
 # =========================
-# YOUR ORIGINAL LOGIC ✅
+# YOUR LOGIC (UNCHANGED ✅)
 # =========================
 result = build_deliverables(df31, df32)
 render_dashboard(result, df32)
