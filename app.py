@@ -14,9 +14,9 @@ st.set_page_config(layout="wide")
 
 
 # =========================
-# SIDEBAR (PROJECT NAMES ONLY)
+# SIDEBAR (RADIO LIST ✅)
 # =========================
-project = st.sidebar.selectbox(
+project = st.sidebar.radio(
     "Projects",
     ["Ferry PS", "Rossall Outfall", "Flass Lane"]
 )
@@ -64,7 +64,7 @@ def get_latest(folder, prefix):
 
 
 # =========================
-# MAP PROJECT → DATA SOURCE
+# MAP PROJECT → DATA
 # =========================
 if project == "Ferry PS":
     df31 = load_file(get_latest("data/Ferry/", "CL31"))
@@ -88,7 +88,7 @@ if df31 is None or df32 is None:
 
 
 # =========================
-# YOUR ORIGINAL LOGIC (UNCHANGED ✅)
+# YOUR ORIGINAL LOGIC ✅ (UNCHANGED)
 # =========================
 result = build_deliverables(df31, df32)
 render_dashboard(result, df32)
