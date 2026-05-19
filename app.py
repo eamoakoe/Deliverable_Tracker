@@ -14,6 +14,15 @@ st.set_page_config(layout="wide")
 
 
 # =========================
+# SIDEBAR (THIS IS THE KEY)
+# =========================
+site = st.sidebar.selectbox(
+    "Select Site",
+    ["Ferry", "Flass", "Rossall"]
+)
+
+
+# =========================
 # CLEAN COLUMNS
 # =========================
 def clean_columns(df):
@@ -32,8 +41,7 @@ def load_file(path):
         return None
 
     df = pd.read_excel(path, engine="openpyxl")
-    df = clean_columns(df)
-    return df
+    return clean_columns(df)
 
 
 # =========================
@@ -56,16 +64,7 @@ def get_latest(folder, prefix):
 
 
 # =========================
-# SIDEBAR (ONLY ADDITION)
-# =========================
-site = st.sidebar.selectbox(
-    "Select Site",
-    ["Ferry", "Flass", "Rossall"]
-)
-
-
-# =========================
-# LOAD DATA (SAME PATTERN)
+# LOAD DATA (ONLY SWITCH SOURCE)
 # =========================
 if site == "Ferry":
     df31 = load_file(get_latest("data/Ferry/", "CL31"))
@@ -89,7 +88,7 @@ if df31 is None or df32 is None:
 
 
 # =========================
-# KEEP YOUR EXISTING FLOW
+# YOUR ORIGINAL LOGIC (UNCHANGED)
 # =========================
 result = build_deliverables(df31, df32)
 render_dashboard(result, df32)
