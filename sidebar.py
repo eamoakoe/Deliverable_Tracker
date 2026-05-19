@@ -1,6 +1,7 @@
 import streamlit as st
 import base64
 import os
+import pandas as pd
 
 
 # =========================
@@ -15,8 +16,6 @@ def get_base64_image(image_path):
 # SIDEBAR
 # =========================
 def render_sidebar():
-
-    BASE_PATH = "data/Ferry/"
 
     logo_base64 = get_base64_image("assets/logo.png")
 
@@ -53,27 +52,41 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
         # =========================
-        # PROJECT / DATASET
+        # PROJECT LIST ✅
         # =========================
         st.markdown('<div class="section-title">PROJECT</div>', unsafe_allow_html=True)
 
-        project = st.selectbox(
+        project = st.radio(
             "",
-            ["Ferry"]   # scalable later
+            ["Ferry PS", "Rossall Outfall", "Flass Lane"]
         )
 
-        project_path = f"data/{project}/"
+        # =========================
+        # MAP PROJECT → PATH ✅
+        # =========================
+        project_map = {
+            "Ferry PS": ("data/Ferry/", "", ""),
+            "Rossall Outfall": ("data/Rossall/", "CL31-RO", "CL32-RO"),
+            "Flass Lane": ("data/Flass/", "CL31-FL", "CL32-FL"),
+        }
+
+        base_path, cl31_prefix, cl32_prefix = project_map[project]
+
+        # Ferry uses standard naming
+        if project == "Ferry PS":
+            cl31_prefix = "CL31"
+            cl32_prefix = "CL32"
 
         # =========================
-        # LOAD FILES
+        # GET FILES
         # =========================
-        files = [f for f in os.listdir(project_path) if f.endswith(".xlsx")]
+        files = [f for f in os.listdir(base_path) if f.endswith(".xlsx")]
 
-        cl31_files = sorted([f for f in files if f.startswith("CL31")])
-        cl32_files = sorted([f for f in files if f.startswith("CL32")])
+        cl31_files = sorted([f for f in files if f.startswith(cl31_prefix)])
+        cl32_files = sorted([f for f in files if f.startswith(cl32_prefix)])
 
         # =========================
-        # SELECT CL31
+        # CL31 SELECT
         # =========================
         st.markdown('<div class="section-title">CL31 BASELINE</div>', unsafe_allow_html=True)
 
@@ -84,7 +97,7 @@ def render_sidebar():
         )
 
         # =========================
-        # SELECT CL32
+        # CL32 SELECT
         # =========================
         st.markdown('<div class="section-title">CL32 CURRENT</div>', unsafe_allow_html=True)
 
@@ -97,21 +110,20 @@ def render_sidebar():
         # =========================
         # LOAD DATA
         # =========================
-        import pandas as pd
-
-        cl31 = pd.read_excel(os.path.join(project_path, selected_cl31))
-        cl32 = pd.read_excel(os.path.join(project_path, selected_cl32))
+        cl31 = pd.read_excel(os.path.join(base_path, selected_cl31))
+        cl32 = pd.read_excel(os.path.join(base_path, selected_cl32))
 
         # =========================
-        # OPTIONAL FILTER (LIGHT)
+        # FILTER (optional)
         # =========================
         st.markdown('<div class="section-title">FILTER</div>', unsafe_allow_html=True)
 
         filter_text = st.text_input("Search Activity")
 
-        if filter_text:
+        if filter_text and "Activity Name" in cl32.columns:
             cl32 = cl32[
                 cl32["Activity Name"].astype(str).str.contains(filter_text, case=False, na=False)
             ]
 
         return project, cl31, cl32
+
