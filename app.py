@@ -3,57 +3,48 @@ import pandas as pd
 import os
 import re
 
-from components.sidebar import render_sidebar
-from components.header import render_header
-from components.trend import render_trend
-from components.outstanding import render_outstanding_line
-from components.age_outstanding import render_age_outstanding
+from deliverables import build_deliverables
+from layout.home_layout import render_dashboard
 
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="Asset TQ & RFI Tracker",
-    layout="wide"
-)
+st.set_page_config(layout="wide")
 
 
 # =========================
 # CLEAN COLUMNS
 # =========================
 def clean_columns(df):
-    df = df.copy()
-
     df.columns = [
         re.sub(r"\s+", " ", str(c).replace("\n", " ").replace("\u00a0", " ")).strip()
         for c in df.columns
     ]
-
-    df.columns = df.columns.str.strip().str.lower()
-
     return df
 
 
 # =========================
-# SAFE LOAD FUNCTION
+# LOAD FILE
 # =========================
-def safe_load(path):
-    if os.path.exists(path):
-        df = pd.read_excel(path, engine="openpyxl")
-        return clean_columns(df)
-    return None
+def load_file(path):
+    if not path or not os.path.exists(path):
+        return None
+
+    df = pd.read_excel(path, engine="openpyxl")
+    df = clean_columns(df)
+    return df
 
 
 # =========================
-# GET LATEST FILE (GENERIC)
+# GET LATEST FILE
 # =========================
-def get_latest(base_path, prefix):
-    if not os.path.exists(base_path):
+def get_latest(folder, prefix):
+    if not os.path.exists(folder):
         return None
 
     files = [
-        f for f in os.listdir(base_path)
+        f for f in os.listdir(folder)
         if f.lower().startswith(prefix.lower()) and f.endswith(".xlsx")
     ]
 
@@ -61,106 +52,44 @@ def get_latest(base_path, prefix):
         return None
 
     files.sort()
-    return os.path.join(base_path, files[-1])
+    return os.path.join(folder, files[-1])
 
 
 # =========================
-# LOAD DATASETS (ALL IN ONE PLACE)
+# SIDEBAR (ONLY ADDITION)
 # =========================
-@st.cache_data
-def load_data():
-
-    return {
-        # =====================
-        # FERRY (UNCHANGED LOGIC)
-        # =====================
-        "Ferry CL31": safe_load(get_latest("data/Ferry/", "CL31")),
-        "Ferry CL32": safe_load(get_latest("data/Ferry/", "CL32")),
-
-        # =====================
-        # FLASS (NEW)
-        # =====================
-        "Flass CL31": safe_load(get_latest("data/Flass/", "CL31-FL")),
-        "Flass CL32": safe_load(get_latest("data/Flass/", "CL32-FL")),
-
-        # =====================
-        # ROSSALL (NEW)
-        # =====================
-        "Rossall CL31": safe_load(get_latest("data/Rossall/", "CL31-RO")),
-        "Rossall CL32": safe_load(get_latest("data/Rossall/", "CL32-RO")),
-    }
-
-
-datasets = load_data()
+site = st.sidebar.selectbox(
+    "Select Site",
+    ["Ferry", "Flass", "Rossall"]
+)
 
 
 # =========================
-# SIDEBAR
+# LOAD DATA (SAME PATTERN)
 # =========================
-asset, df, seq = render_sidebar(datasets)
+if site == "Ferry":
+    df31 = load_file(get_latest("data/Ferry/", "CL31"))
+    df32 = load_file(get_latest("data/Ferry/", "CL32"))
 
-render_header()
+elif site == "Flass":
+    df31 = load_file(get_latest("data/Flass/", "CL31-FL"))
+    df32 = load_file(get_latest("data/Flass/", "CL32-FL"))
+
+elif site == "Rossall":
+    df31 = load_file(get_latest("data/Rossall/", "CL31-RO"))
+    df32 = load_file(get_latest("data/Rossall/", "CL32-RO"))
 
 
 # =========================
-# HANDLE MISSING DATA
+# SAFETY CHECK
 # =========================
-if df is None or df.empty:
-    st.warning(f"No data available for {asset}")
+if df31 is None or df32 is None:
+    st.warning(f"No data available for {site}")
     st.stop()
 
 
 # =========================
-# CLEAN DATE FIELDS
+# KEEP YOUR EXISTING FLOW
 # =========================
-df = df.copy()
-
-df["date sent"] = pd.to_datetime(df.get("date sent"), errors="coerce")
-df["reply date"] = pd.to_datetime(df.get("reply date"), errors="coerce")
-df["required date"] = pd.to_datetime(df.get("required date"), errors="coerce")
-
-
-# =========================
-# DASHBOARD
-# =========================
-render_outstanding_line(df, total=len(df))
-
-st.markdown("---")
-
-col1, col2 = st.columns(2, gap="large")
-
-with col1:
-    render_trend(df)
-
-with col2:
-    render_age_outstanding(df)
-
-
-# =========================
-# ROW DETAILS
-# =========================
-if seq is not None:
-
-    selected_df = df[df["seq no"] == seq]
-
-    if not selected_df.empty:
-        selected = selected_df.iloc[0]
-
-        st.markdown("---")
-        st.subheader(f"{selected.get('doc type', '')} - {selected.get('seq no', '')}")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.write("**Originator:**", selected.get("originator", "—"))
-            st.write("**Sender:**", selected.get("sender", "—"))
-            st.write("**Recipient:**", selected.get("recipient", "—"))
-
-        with col2:
-            st.write("**Date Sent:**", selected.get("date sent", "—"))
-            st.write("**Required Date:**", selected.get("required date", "—"))
-            st.write("**Reply Date:**", selected.get("reply date", "—"))
-
-        st.write("**Subject:**", selected.get("subject", "—"))
-        st.write("**Notes:**", selected.get("notes", "—"))
-        st.write("**Status:**", selected.get("status", "—"))
+result = build_deliverables(df31, df32)
+render_dashboard(result, df32)
