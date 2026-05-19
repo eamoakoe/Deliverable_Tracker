@@ -41,64 +41,107 @@ def _load(path):
 
     df = _clean_columns(df)
 
-    # Final safety strip
     df.columns = [c.strip() for c in df.columns]
 
     return df
 
 
 # =========================
-# BASE PATH (DEFAULT FALLBACK)
+# BASE PATHS
 # =========================
-BASE_PATH = "data/Ferry/"
+BASE_PATH_FERRY = "data/Ferry/"
+BASE_PATH_FLASS = "data/Flass/"
+BASE_PATH_ROSSALL = "data/Rossall/"
 
 
 # =========================
 # AUTO DETECT LATEST FILE
 # =========================
-def _get_latest(prefix):
-    if not os.path.exists(BASE_PATH):
-        raise FileNotFoundError(f"Folder not found: {BASE_PATH}")
+def _get_latest(prefix, base_path):
+    if not os.path.exists(base_path):
+        raise FileNotFoundError(f"Folder not found: {base_path}")
 
     files = [
-        f for f in os.listdir(BASE_PATH)
-        if f.startswith(prefix) and f.endswith(".xlsx")
+        f for f in os.listdir(base_path)
+        if f.lower().startswith(prefix.lower()) and f.endswith(".xlsx")
     ]
 
     if not files:
-        raise FileNotFoundError(f"No files found for {prefix} in {BASE_PATH}")
+        raise FileNotFoundError(
+            f"No files found for '{prefix}' in {base_path}"
+        )
 
-    # Sort alphabetically (works if naming is consistent)
     files.sort()
 
-    return os.path.join(BASE_PATH, files[-1])
+    return os.path.join(base_path, files[-1])
 
 
 # =========================
-# LOAD CL31
+# FERRY LOADERS
 # =========================
 def load_cl31(path=None):
-    """
-    Load CL31 file.
-    If path is provided → load that file (used by sidebar)
-    If not → load latest from default BASE_PATH
-    """
     if path:
         return _load(path)
-    else:
-        return _load(_get_latest("CL31"))
+    return _load(_get_latest("CL31", BASE_PATH_FERRY))
 
 
-# =========================
-# LOAD CL32
-# =========================
 def load_cl32(path=None):
-    """
-    Load CL32 file.
-    If path is provided → load from sidebar selection
-    If not → auto-load latest file
-    """
     if path:
         return _load(path)
-    else:
-        return _load(_get_latest("CL32"))
+    return _load(_get_latest("CL32", BASE_PATH_FERRY))
+
+
+# =========================
+# FLASS LOADERS
+# =========================
+def load_cl31_flass(path=None):
+    if path:
+        return _load(path)
+    return _load(_get_latest("CL31-FL", BASE_PATH_FLASS))
+
+
+def load_cl32_flass(path=None):
+    if path:
+        return _load(path)
+    return _load(_get_latest("CL32-FL", BASE_PATH_FLASS))
+
+
+# =========================
+# ROSSALL LOADERS
+# =========================
+def load_cl31_rossall(path=None):
+    if path:
+        return _load(path)
+    return _load(_get_latest("CL31-RO", BASE_PATH_ROSSALL))
+
+
+def load_cl32_rossall(path=None):
+    if path:
+        return _load(path)
+    return _load(_get_latest("CL32-RO", BASE_PATH_ROSSALL))
+
+
+# =========================
+# OPTIONAL UNIVERSAL LOADER (BEST PRACTICE)
+# =========================
+def load_site(site, prefix, path=None):
+    """
+    Generic loader for any site and prefix
+    """
+
+    base_paths = {
+        "ferry": BASE_PATH_FERRY,
+        "flass": BASE_PATH_FLASS,
+        "rossall": BASE_PATH_ROSSALL,
+    }
+
+    if path:
+        return _load(path)
+
+    site = site.lower()
+
+    if site not in base_paths:
+        raise ValueError(f"Unknown site: {site}")
+
+    return _load(_get_latest(prefix, base_paths[site]))
+``
