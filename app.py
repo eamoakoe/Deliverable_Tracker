@@ -14,11 +14,11 @@ st.set_page_config(layout="wide")
 
 
 # =========================
-# SIDEBAR (THIS IS THE KEY)
+# SIDEBAR (PROJECT NAMES ONLY)
 # =========================
-site = st.sidebar.selectbox(
-    "Select Site",
-    ["Ferry", "Flass", "Rossall"]
+project = st.sidebar.selectbox(
+    "Projects",
+    ["Ferry PS", "Rossall Outfall", "Flass Lane"]
 )
 
 
@@ -64,31 +64,31 @@ def get_latest(folder, prefix):
 
 
 # =========================
-# LOAD DATA (ONLY SWITCH SOURCE)
+# MAP PROJECT → DATA SOURCE
 # =========================
-if site == "Ferry":
+if project == "Ferry PS":
     df31 = load_file(get_latest("data/Ferry/", "CL31"))
     df32 = load_file(get_latest("data/Ferry/", "CL32"))
 
-elif site == "Flass":
-    df31 = load_file(get_latest("data/Flass/", "CL31-FL"))
-    df32 = load_file(get_latest("data/Flass/", "CL32-FL"))
-
-elif site == "Rossall":
+elif project == "Rossall Outfall":
     df31 = load_file(get_latest("data/Rossall/", "CL31-RO"))
     df32 = load_file(get_latest("data/Rossall/", "CL32-RO"))
+
+elif project == "Flass Lane":
+    df31 = load_file(get_latest("data/Flass/", "CL31-FL"))
+    df32 = load_file(get_latest("data/Flass/", "CL32-FL"))
 
 
 # =========================
 # SAFETY CHECK
 # =========================
 if df31 is None or df32 is None:
-    st.warning(f"No data available for {site}")
+    st.warning(f"No data available for {project}")
     st.stop()
 
 
 # =========================
-# YOUR ORIGINAL LOGIC (UNCHANGED)
+# YOUR ORIGINAL LOGIC (UNCHANGED ✅)
 # =========================
 result = build_deliverables(df31, df32)
 render_dashboard(result, df32)
