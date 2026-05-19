@@ -46,10 +46,6 @@ project_list = [
     "Ferry PS",
     "Rossall Outfall",
     "Flass Lane",
-    "Harbour Yard",
-    "Eccleston Bridge",
-    "Palace Nook",
-    "Rampside"
 ]
 
 selected_project = st.sidebar.radio(
