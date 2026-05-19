@@ -109,4 +109,3 @@ def load_project_data(project):
     df32 = load_cl32(project)
 
     return df31, df32
-``
