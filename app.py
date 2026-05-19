@@ -164,4 +164,3 @@ if seq is not None:
         st.write("**Subject:**", selected.get("subject", "—"))
         st.write("**Notes:**", selected.get("notes", "—"))
         st.write("**Status:**", selected.get("status", "—"))
-``
