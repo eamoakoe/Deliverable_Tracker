@@ -11,7 +11,7 @@ def get_base64_image(image_path):
 
 
 # =========================
-# SIDEBAR (CLEAN ✅)
+# SIDEBAR
 # =========================
 def render_sidebar():
 
@@ -23,6 +23,7 @@ def render_sidebar():
     st.markdown("""
     <style>
         [data-testid="stSidebarNav"] {display:none;}
+
         section[data-testid="stSidebar"] {
             background: linear-gradient(180deg, #08111f 0%, #0b1a2f 100%);
         }
@@ -31,14 +32,18 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # ✅ LOGO
+        # =========================
+        # LOGO ✅ (FIXED)
+        # =========================
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
             <img src="data:image/png;base64,{logo_base64}" width="80">
         </div>
         """, unsafe_allow_html=True)
 
-        # ✅ PROJECTS ONLY
+        # =========================
+        # PROJECT LIST ✅
+        # =========================
         st.title("Projects")
 
         project = st.radio(
