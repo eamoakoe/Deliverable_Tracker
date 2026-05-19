@@ -37,7 +37,7 @@ def render_sidebar():
         # =========================
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
-            <img src="data:image/png;base64,{logo_base64}" width="80">
+            data:image/png;base64,{logo_base64}
         </div>
         """, unsafe_allow_html=True)
 

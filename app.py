@@ -82,11 +82,20 @@ elif project == "Flass Lane":
 # =========================
 if project == "Rossall Outfall":
 
-    # CL31 uses "Finish" instead of required name
+    # ----- CL31 FIX -----
     if "Finish" in df31.columns and "BL Project Finish" not in df31.columns:
         df31.rename(columns={"Finish": "BL Project Finish"}, inplace=True)
 
-    # CL32 is already correct ("Finish")
+    # ----- CL32 FIX -----
+    # Create missing Activity % Complete
+    if "Activity % Complete" not in df32.columns:
+
+        if "Remaining Duration" in df32.columns:
+            df32["Activity % Complete"] = df32["Remaining Duration"].apply(
+                lambda x: 0 if pd.notnull(x) and x > 0 else 100
+            )
+        else:
+            df32["Activity % Complete"] = 0
 
 
 # =========================
