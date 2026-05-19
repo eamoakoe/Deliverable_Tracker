@@ -186,4 +186,3 @@ try:
 
 except Exception as e:
     st.error(f"Error loading data: {e}")
-``
