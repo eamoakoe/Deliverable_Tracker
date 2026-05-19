@@ -33,7 +33,7 @@ def render_sidebar():
     with st.sidebar:
 
         # =========================
-        # LOGO ✅ (FIXED)
+        # LOGO ✅
         # =========================
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
@@ -42,7 +42,7 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
         # =========================
-        # PROJECT LIST ✅
+        # PROJECTS ONLY ✅
         # =========================
         st.title("Projects")
 

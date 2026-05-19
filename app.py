@@ -78,6 +78,18 @@ elif project == "Flass Lane":
 
 
 # =========================
+# FIX ROSSALL SCHEMA ✅
+# =========================
+if project == "Rossall Outfall":
+
+    # CL31 uses "Finish" instead of required name
+    if "Finish" in df31.columns and "BL Project Finish" not in df31.columns:
+        df31.rename(columns={"Finish": "BL Project Finish"}, inplace=True)
+
+    # CL32 is already correct ("Finish")
+
+
+# =========================
 # SAFETY CHECK
 # =========================
 if df31 is None or df32 is None:
