@@ -12,6 +12,7 @@ def _prepare(df):
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    df["BL1 Finish"] = pd.to_datetime(df.get("BL1 Finish"), errors="coerce")
 
     df["Activity % Complete"] = (
         df["Activity % Complete"]
@@ -28,33 +29,39 @@ def _prepare(df):
 
 
 # =========================
-# LOOKAHEAD LOGIC (NEXT 4 WEEKS)
+# ✅ FORECAST LOGIC (NEXT 7 DAYS)
 # =========================
-def _get_next4weeks(df):
+def _get_next7days(df):
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
-    lookahead = today + pd.Timedelta(days=28)
+    lookahead = today + pd.Timedelta(days=7)
 
-    next4weeks = df[
+    upcoming = df[
         (df["Start"].notna()) &
         (df["Finish"].notna()) &
         (df["Start"] <= lookahead) &
         (df["Finish"] >= today)
     ].copy()
 
-    return next4weeks.sort_values("Start", ascending=True)
+    # ✅ Add Delta vs BL1 Finish
+    if "BL1 Finish" in upcoming.columns:
+        upcoming["Delta (Days)"] = (
+            upcoming["Finish"] - upcoming["BL1 Finish"]
+        ).dt.days
+
+    return upcoming.sort_values("Start", ascending=True)
 
 
 # =========================
 # RENDER TABLE
 # =========================
-def render_next4weeks_table(df):
+def render_next7days_table(df):
 
-    upcoming = _get_next4weeks(df)
+    upcoming = _get_next7days(df)
 
     if upcoming.empty:
-        st.success("No activities in the next 4 weeks 🎯")
+        st.success("No activities in the next 7 days 🎯")
         return
 
     display_df = upcoming[[
@@ -62,6 +69,8 @@ def render_next4weeks_table(df):
         "Activity Name",
         "Start",
         "Finish",
+        "BL1 Finish",
+        "Delta (Days)",
         "Comments"
     ]].copy()
 
@@ -72,7 +81,8 @@ def render_next4weeks_table(df):
         "Activity ID": "ID",
         "Activity Name": "Activity",
         "Start": "Start Date",
-        "Finish": "Finish Date",
+        "Finish": "Forecast Finish",
+        "BL1 Finish": "Baseline Finish",
         "Comments": "Remarks"
     }, inplace=True)
 
@@ -80,34 +90,24 @@ def render_next4weeks_table(df):
     # FORMAT DATES
     # =========================
     display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
-    display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
+    display_df["Forecast Finish"] = display_df["Forecast Finish"].dt.strftime("%d-%b-%Y")
+    display_df["Baseline Finish"] = display_df["Baseline Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # ADD URGENCY CLASSIFICATION
+    # DELTA COLOUR
     # =========================
-    today = pd.Timestamp.today().normalize()
-    raw_start = pd.to_datetime(upcoming["Start"], errors="coerce")
+    def colour_delta(val):
+        try:
+            v = float(val)
 
-    days_to_start = (raw_start - today).dt.days
-
-    def classify(days):
-        if pd.isna(days):
-            return "Upcoming"
-        elif days <= 7:
-            return "Starting Soon"
-        else:
-            return "Upcoming"
-
-    display_df["Window"] = days_to_start.apply(classify)
-
-    # =========================
-    # COLOUR FUNCTION (WITH LIGHT RED)
-    # =========================
-    def colour_window(val):
-        if val == "Starting Soon":
-            return "background-color:#fdecea; color:#b71c1c; font-weight:600"
-        else:
-            return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
+            if v > 0:
+                return "background-color:#fdecea; color:#b71c1c; font-weight:600"
+            elif v < 0:
+                return "background-color:#e8f5e9; color:#1b5e20; font-weight:600"
+            else:
+                return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
+        except:
+            return ""
 
     # =========================
     # ROW STRIPES
@@ -118,7 +118,7 @@ def render_next4weeks_table(df):
         ] * len(row)
 
     # =========================
-    # PROFESSIONAL TABLE STYLE
+    # STYLE
     # =========================
     styled = (
         display_df.style
@@ -132,7 +132,6 @@ def render_next4weeks_table(df):
                     ("font-size", "12.5px"),
                     ("font-weight", "700"),
                     ("text-transform", "uppercase"),
-                    ("letter-spacing", "0.6px"),
                     ("padding", "10px 8px"),
                     ("border-bottom", "3px solid #3b82f6")
                 ]
@@ -144,45 +143,23 @@ def render_next4weeks_table(df):
                     ("color", "#1f2a44"),
                     ("border-bottom", "1px solid #e5e7eb")
                 ]
-            },
-            {
-                "selector": "table",
-                "props": [
-                    ("border-collapse", "collapse"),
-                    ("width", "100%"),
-                    ("background-color", "white"),
-                    ("border-radius", "8px"),
-                    ("overflow", "hidden"),
-                    ("box-shadow", "0 1px 3px rgba(0,0,0,0.08)")
-                ]
             }
         ])
 
-        # Row striping
         .apply(stripe_rows, axis=1)
-
-        # Highlight urgency
-        .map(colour_window, subset=["Window"])
-
-        # Align columns
-        .set_properties(subset=["ID", "Activity", "Remarks"], **{
-            "text-align": "left"
-        })
-        .set_properties(subset=["Start Date", "Finish Date"], **{
-            "text-align": "center"
-        })
+        .map(colour_delta, subset=["Delta (Days)"])
     )
 
     # =========================
-    # KPI SUMMARY
+    # KPI
     # =========================
-    soon_count = (display_df["Window"] == "Starting Soon").sum()
+    delay_count = (display_df["Delta (Days)"] > 0).sum()
     total = len(display_df)
 
     st.markdown(
         f"""
         <span style='font-weight:600'>
-            🔴 {soon_count} Starting Soon &nbsp;&nbsp;|&nbsp;&nbsp; 🟢 {total - soon_count} Upcoming
+            🔴 {delay_count} Behind Plan &nbsp;|&nbsp; 🟢 {total - delay_count} On/ Ahead
         </span>
         """,
         unsafe_allow_html=True
@@ -191,4 +168,5 @@ def render_next4weeks_table(df):
     # =========================
     # RENDER
     # =========================
-    st.write(styled)
+    st.dataframe(styled, use_container_width=True)
+``

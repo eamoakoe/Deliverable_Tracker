@@ -54,7 +54,7 @@ def render_delayed_table(df):
     delayed = _get_delayed(df)
 
     if delayed.empty:
-        st.success("No delayed activities 🎯")
+        st.success("No delayed deliverables 🎯")
         return
 
     display_df = delayed[[
