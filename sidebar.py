@@ -93,4 +93,3 @@ def render_programme_tracker():
             <span><b>{day}</b></span>
         </div>
         """, unsafe_allow_html=True)
-``
