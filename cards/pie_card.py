@@ -123,7 +123,6 @@ def render_pie(df):
     # =========================
     # RENDER (NO EXTRA BAR)
     # =========================
-    st.markdown('<div class="pie-card">', unsafe_allow_html=True)
 
     col1, col2 = st.columns([2.3, 1])
 
