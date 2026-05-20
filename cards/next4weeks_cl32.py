@@ -1,16 +1,4 @@
-import streamlit as st
-import pandas as pd
-
-
-# =========================
-# DATA PREPARATION
-# =========================
-def _prepare(df):
-    df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
-
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df.get("BL1 Finish"), errors="coerce")
+import streamlit as stimport stream_datetime(df.get("BL1 Finish"), errors="coerce")
 
     df["Total Float"] = pd.to_numeric(df.get("Total Float"), errors="coerce")
 
@@ -43,7 +31,7 @@ def _get_next4weeks(df):   # name unchanged
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ Change vs baseline
+    # Change vs baseline
     upcoming["Change (Days)"] = (
         upcoming["Finish"] - upcoming["BL1 Finish"]
     ).dt.days
@@ -183,6 +171,18 @@ def render_next4weeks_table(df):
     )
 
     # =========================
-    # RENDER
+    # RENDER TABLE
     # =========================
     st.dataframe(styled, width="stretch")
+``
+import pandas as pd
+
+
+# =========================
+# DATA PREPARATION
+# =========================
+def _prepare(df):
+    df = df.copy()
+    df.columns = df.columns.astype(str).str.strip()
+
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
