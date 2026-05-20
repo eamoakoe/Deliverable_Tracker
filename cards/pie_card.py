@@ -24,16 +24,16 @@ def prepare(df):
     return df
 
 
-# ✅ ONLY CHANGE: logic switched + name changed
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    if row["Finish"] < today and row["Activity % Complete"] < 100:
+    # ✅ FIXED DELAY LOGIC (ONLY 0% = delayed when past finish)
+    if row["Finish"] < today and row["Activity % Complete"] == 0:
         return "Delayed"
 
-    # ✅ changed from Accelerated logic → Completed logic
+    # ✅ Completed logic (your previous change)
     if row["Activity % Complete"] >= 100:
         return "Completed"
 
@@ -47,7 +47,6 @@ def render_pie(df):
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
-    # ✅ updated label here only
     summary = df["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Completed"],
         fill_value=0
@@ -56,21 +55,19 @@ def render_pie(df):
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
-        "Completed": "#00C853"   # ✅ renamed only
+        "Completed": "#00C853"
     }
 
     # =========================
-    # PIE CHART
+    # PIE CHART (UNCHANGED)
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-
             textinfo="label+value",
             textfont=dict(color="black", size=13),
-
             marker=dict(colors=[colors[k] for k in summary.index]),
             pull=[0.03, 0.03, 0.03]
         )]
@@ -86,7 +83,7 @@ def render_pie(df):
     )
 
     # =========================
-    # CARD STYLE
+    # CARD STYLE (UNCHANGED)
     # =========================
     st.markdown("""
         <style>
@@ -121,7 +118,7 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # RENDER CARD
+    # RENDER (UNCHANGED)
     # =========================
     with st.container():
 
@@ -152,6 +149,3 @@ def render_pie(df):
                     <div class="dot" style="background:#00C853;"></div>
                     Completed <span class="value">{summary['Completed']}</span>
                 </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
