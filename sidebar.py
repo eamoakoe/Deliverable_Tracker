@@ -5,12 +5,13 @@ import datetime
 import os
 
 
+# ✅ LOAD LOGO
 def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER (COLOUR-CODED TABLE)
+# ✅ PROGRAMME TRACKER (DATAFRAME VERSION - WORKS IN SIDEBAR)
 def render_programme_tracker():
     file_path = "components/contract_submission_dates.xlsx"
 
@@ -19,8 +20,11 @@ def render_programme_tracker():
         return
 
     df = pd.read_excel(file_path)
+
+    # Clean column names
     df.columns = df.columns.str.strip()
 
+    # Get current month
     today = datetime.datetime.today()
     month = today.strftime("%B")
     today_day = today.day
@@ -31,65 +35,49 @@ def render_programme_tracker():
 
     current = df[["KEY", month]].dropna()
 
-    # ✅ Short labels for cleaner display
+    # ✅ Short cleaner labels
     labels = {
-        "Data date for Man & Sub-contractor programme": "Data date",
-        "Sub contractor submits PFA to Man": "PFA submission",
-        "Man Programme submission to client": "Client submission",
-        "Deadline for Man to accept / reject programme": "Accept / Reject"
+        "Data date for Murphy & Sub-contractor programme": "Data date",
+        "Sub contractor submits PFA to Murphy": "PFA submission",
+        "Murphy Programme submission to client": "Client submission",
+        "Deadline for Murphy to accept / reject programme": "Accept / Reject"
     }
 
-    rows_html = ""
+    data = []
 
     for _, row in current.iterrows():
         key = labels.get(row["KEY"], row["KEY"])
         day = int(row[month])
 
-        # ✅ Colour logic
+        # ✅ Status icons (safe + clean)
         if day < today_day:
-            colour = "#4CAF50"   # green = complete
+            status = "🟢 Completed"
         elif day == today_day:
-            colour = "#FFC107"   # amber = today
+            status = "🟡 Today"
         else:
-            colour = "#B0BEC5"   # grey = upcoming
+            status = "⚪ Upcoming"
 
-        rows_html += f"""
-        <tr>
-            <td style="padding:4px 6px;">{key}</td>
-            <td style="text-align:center;">{day}</td>
-            <td style="text-align:center;">
-                <span style="
-                    display:inline-block;
-                    width:10px;
-                    height:10px;
-                    border-radius:50%;
-                    background:{colour};
-                "></span>
-            </td>
-        </tr>
-        """
+        data.append({
+            "Activity": key,
+            "Date": day,
+            "Status": status
+        })
 
-    # ✅ FINAL DISPLAY
+    display_df = pd.DataFrame(data)
+
+    # ✅ DISPLAY
     st.sidebar.markdown("---")
-    st.sidebar.markdown("## 📘 Contract Submission Dates 2026–2027")
+    st.sidebar.markdown("## 📘 ARUP Contract Submission Dates 2025–2026")
     st.sidebar.markdown(f"### 📅 {month} Programme")
 
-    st.sidebar.markdown(f"""
-    <table style="width:100%; font-size:13px;">
-        <thead>
-            <tr>
-                <th style="text-align:left;">Activity</th>
-                <th>Date</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {rows_html}
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
+    st.sidebar.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True
+    )
 
 
+# ✅ SIDEBAR
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
@@ -117,12 +105,14 @@ def render_sidebar():
 
     with st.sidebar:
 
+        # ✅ LOGO
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
             <img src="data:image/png;base64,{logo}" width="80">
         </div>
         """, unsafe_allow_html=True)
 
+        # ✅ PROJECT SELECTOR
         st.title("Projects")
 
         project = st.radio(
