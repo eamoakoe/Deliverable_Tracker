@@ -18,26 +18,36 @@ def _prepare(df):
         errors="coerce"
     )
 
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
+
     return df
 
 
 # =========================
 # ✅ ISSUE FORECAST (NEXT 7 DAYS)
 # =========================
-def _get_next4weeks(df):  # name unchanged
+def _get_next4weeks(df):   # name unchanged
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
     lookahead = today + pd.Timedelta(days=7)
 
-    # ✅ Deliverables being issued in next 7 days
     upcoming = df[
         (df["Finish"].notna()) &
         (df["Finish"] >= today) &
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ Delta: Forecast vs Baseline
+    # ✅ Delta vs baseline
     upcoming["Change (Days)"] = (
         upcoming["Finish"] - upcoming["BL1 Finish"]
     ).dt.days
@@ -46,7 +56,7 @@ def _get_next4weeks(df):  # name unchanged
 
 
 # =========================
-# RENDER TABLE
+# RENDER TABLE + DASHBOARD
 # =========================
 def render_next4weeks_table(df):
 
@@ -62,7 +72,8 @@ def render_next4weeks_table(df):
         "BL1 Finish",
         "Finish",
         "Change (Days)",
-        "Total Float"
+        "Total Float",
+        "Activity % Complete"
     ]].copy()
 
     # =========================
@@ -73,7 +84,8 @@ def render_next4weeks_table(df):
         "Activity Name": "Activity",
         "BL1 Finish": "Baseline Finish",
         "Finish": "Forecast Finish",
-        "Total Float": "Float"
+        "Total Float": "Float",
+        "Activity % Complete": "% Complete"
     }, inplace=True)
 
     # =========================
@@ -82,8 +94,54 @@ def render_next4weeks_table(df):
     display_df["Baseline Finish"] = display_df["Baseline Finish"].dt.strftime("%d-%b-%Y")
     display_df["Forecast Finish"] = display_df["Forecast Finish"].dt.strftime("%d-%b-%Y")
 
+    # ✅ Format %
+    display_df["% Complete"] = display_df["% Complete"].round(0).astype(int).astype(str) + "%"
+
     # =========================
-    # COLOUR LOGIC
+    # KPI CALCULATIONS
+    # =========================
+    total = len(display_df)
+    behind = (display_df["Change (Days)"] > 0).sum()
+    on_plan = (display_df["Change (Days)"] == 0).sum()
+    ahead = (display_df["Change (Days)"] < 0).sum()
+    critical = (display_df["Float"] < 0).sum()
+
+    # =========================
+    # KPI CARDS
+    # =========================
+    st.markdown(f"""
+    <div style="display:flex; gap:12px; margin-bottom:12px;">
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
+            <div style="font-size:20px; font-weight:700;">{total}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
+            <div style="font-size:20px; font-weight:700; color:#b71c1c;">{behind}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">On Plan</div>
+            <div style="font-size:20px; font-weight:700; color:#0d47a1;">{on_plan}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">Ahead</div>
+            <div style="font-size:20px; font-weight:700; color:#1b5e20;">{ahead}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
+            <div style="font-size:20px; font-weight:700; color:#ef6c00;">{critical}</div>
+        </div>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    # =========================
+    # COLOUR FUNCTIONS
     # =========================
     def colour_delta(val):
         try:
@@ -107,6 +165,18 @@ def render_next4weeks_table(df):
         except:
             return ""
 
+    def colour_progress(val):
+        try:
+            v = float(val.replace("%", ""))
+            if v >= 80:
+                return "background-color:#e8f5e9; color:#1b5e20; font-weight:600"
+            elif v >= 40:
+                return "background-color:#fff3e0; color:#ef6c00; font-weight:600"
+            else:
+                return "background-color:#fdecea; color:#b71c1c; font-weight:600"
+        except:
+            return ""
+
     # =========================
     # ROW STRIPES
     # =========================
@@ -116,35 +186,17 @@ def render_next4weeks_table(df):
         ] * len(row)
 
     # =========================
-    # STYLE
+    # STYLE TABLE
     # =========================
     styled = (
         display_df.style
-
         .apply(stripe_rows, axis=1)
         .map(colour_delta, subset=["Change (Days)"])
         .map(colour_float, subset=["Float"])
+        .map(colour_progress, subset=["% Complete"])
     )
 
     # =========================
-    # KPI (CORE VALUE)
-    # =========================
-    total = len(display_df)
-    behind = (display_df["Change (Days)"] > 0).sum()
-    critical = (display_df["Float"] < 0).sum()
-
-    st.markdown(
-        f"""
-        <span style='font-weight:600'>
-            📦 {total} Deliverables This Week &nbsp;&nbsp;|&nbsp;&nbsp;
-            🔴 {behind} Behind Plan &nbsp;&nbsp;|&nbsp;&nbsp;
-            ⚠ {critical} Critical (Neg Float)
-        </span>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # =========================
-    # RENDER
+    # RENDER TABLE
     # =========================
     st.dataframe(styled, use_container_width=True)
