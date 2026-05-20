@@ -24,16 +24,19 @@ def prepare(df):
     return df
 
 
+# ✅ FINAL LOGIC (ONLY CHANGE REQUIRED)
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
+    # 🔴 Delayed = past finish AND not 100%
     if row["Finish"] < today and row["Activity % Complete"] < 100:
         return "Delayed"
 
-    if row["Finish"] > today and row["Activity % Complete"] > 0:
-        return "Accelerated"
+    # ✅ Completed
+    if row["Activity % Complete"] >= 100:
+        return "Completed"
 
     return "On Track"
 
@@ -41,34 +44,31 @@ def classify(row, today):
 def render_pie(df):
 
     df = prepare(df)
-    today = pd.Timestamp.today()
+    today = pd.Timestamp.today().normalize()
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
     summary = df["Status"].value_counts().reindex(
-        ["On Track", "Delayed", "Accelerated"],
+        ["On Track", "Delayed", "Completed"],
         fill_value=0
     )
 
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
-        "Accelerated": "#00C853"
+        "Completed": "#00C853"
     }
 
     # =========================
-    # PIE CHART (BLACK TEXT FIX)
+    # PIE CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-
-            # 🔥 FIX: black text inside chart (your request)
             textinfo="label+value",
             textfont=dict(color="black", size=13),
-
             marker=dict(colors=[colors[k] for k in summary.index]),
             pull=[0.03, 0.03, 0.03]
         )]
@@ -77,17 +77,14 @@ def render_pie(df):
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
         height=380,
-
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-
         showlegend=False,
-
-        font=dict(color="black")  # 🔥 ensures all labels default to black
+        font=dict(color="black")
     )
 
     # =========================
-    # CARD STYLE
+    # CARD STYLE (UNCHANGED)
     # =========================
     st.markdown("""
         <style>
@@ -122,7 +119,7 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # RENDER CARD
+    # RENDER CARD (UNCHANGED)
     # =========================
     with st.container():
 
@@ -151,7 +148,7 @@ def render_pie(df):
 
                 <div class="item">
                     <div class="dot" style="background:#00C853;"></div>
-                    Accelerated <span class="value">{summary['Accelerated']}</span>
+                    Completed <span class="value">{summary['Completed']}</span>
                 </div>
             """, unsafe_allow_html=True)
 
