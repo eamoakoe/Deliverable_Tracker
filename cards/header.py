@@ -84,6 +84,7 @@ def render_header():
 
     col1, col2, col3 = st.columns([5, 3, 2], gap="small")
 
+    # ✅ LEFT
     with col1:
         st.markdown("""
         <div class="header-box left-box">
@@ -92,6 +93,7 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
+    # ✅ DATE
     with col2:
         st.markdown(f"""
         <div class="header-box" style="align-items:center;">
@@ -101,6 +103,7 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
+    # ✅ STATUS
     with col3:
         st.markdown("""
         <div class="header-box" style="align-items:center;">
