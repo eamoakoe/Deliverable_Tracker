@@ -123,7 +123,7 @@ def render_programme_tracker():
         font-weight:600;
         font-size:13px;
     ">
-        📘 Contract Submission Dates 2026–2027
+        📘 ARUP Contract Submission Dates 2025–2026
     </div>
     """, unsafe_allow_html=True)
 
@@ -151,19 +151,19 @@ def render_programme_tracker():
 
         if "Data date" in key:
             bg = "#cfe2f3"   # light blue
-            label = "Data date"
+            label = "Data date for Murphy and Sub Prog"
 
         elif "PFA" in key:
             bg = "#f4cccc"   # red
-            label = "PFA submission"
+            label = "Sub Submits PFA to Murphy"
 
         elif "submission to client" in key:
             bg = "#ffe599"   # gold
-            label = "Client submission"
+            label = "Murphy Prog submission to Client"
 
         elif "accept / reject" in key:
             bg = "#d9f2d9"   # green
-            label = "Accept / Reject"
+            label = "Deadline for Murphy to Accept / Reject"
 
         else:
             bg = "#f2f2f2"
