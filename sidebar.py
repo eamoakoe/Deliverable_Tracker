@@ -13,7 +13,7 @@ def get_base64_image(path):
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER (COMPACT COLOUR-CODED TABLE STYLE)
+# ✅ PROGRAMME TRACKER (ACTIVITY COLOURS ONLY)
 def render_programme_tracker():
 
     file_path = "components/contract_submission_dates.xlsx"
@@ -69,39 +69,39 @@ def render_programme_tracker():
     </div>
     """, unsafe_allow_html=True)
 
-    # ✅ ROWS (EXCEL-STYLE COLOUR CODING)
+    # ✅ ROWS (YOUR EXACT COLOUR RULES)
     for _, row in current.iterrows():
         key = row["KEY"]
         day = int(row[month])
 
-        # ✅ Match Excel colours
+        # ✅ FIXED ACTIVITY COLOURS
         if "Data date" in key:
-            bg = "#d4f5d0"   # green
+            bg = "#cfe2f3"   # light blue
             label = "Data date"
 
         elif "PFA" in key:
-            bg = "#fff7cc"   # yellow
+            bg = "#f4cccc"   # red (soft)
             label = "PFA submission"
 
         elif "submission to client" in key:
-            bg = "#cfe8f6"   # blue
+            bg = "#ffe599"   # gold
             label = "Client submission"
 
         elif "accept / reject" in key:
-            bg = "#ffd6d6"   # red
+            bg = "#d9f2d9"   # green
             label = "Accept / Reject"
 
         else:
             bg = "#f2f2f2"
             label = key
 
-        # ✅ Optional status indicator
+        # ✅ STATUS ICON (separate from colour)
         if day < today_day:
             status = "✅"
         elif day == today_day:
             status = "⚠️"
         else:
-            status = ""
+            status = "🔴"
 
         st.sidebar.markdown(f"""
         <div style="
@@ -123,7 +123,6 @@ def render_programme_tracker():
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
-    # ✅ SIDEBAR STYLE
     st.markdown("""
     <style>
         [data-testid="stSidebarNav"] {
@@ -147,11 +146,11 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # ✅ LOGO (FIXED)
+        # ✅ LOGO
         if logo:
             st.markdown(f"""
             <div style="text-align:center; padding:10px 0 15px 0;">
-                <img src="data:image/png;base64,{logo}" width="100">
+                data:image/png;base64,{logo}
             </div>
             """, unsafe_allow_html=True)
 
