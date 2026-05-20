@@ -28,7 +28,7 @@ def render_dashboard(df31, df32):
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
         <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        📊 CL32 Schedule Summary</div>
+        📊 CL32 Deliverable Summary</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
@@ -41,7 +41,7 @@ def render_dashboard(df31, df32):
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
         <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        🔴 Delayed Activities</div>
+        🔴 Delayed Deliverables</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
@@ -53,7 +53,7 @@ def render_dashboard(df31, df32):
     <div style="background:white;padding:15px;border-radius:10px;
     box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
     <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-    🟢 Next 4 Weeks</div>
+    🟢 Next 7 Days</div>
     """, unsafe_allow_html=True)
 
     render_next4weeks_table(df32)
@@ -65,7 +65,7 @@ def render_dashboard(df31, df32):
     <div style="background:white;padding:15px;border-radius:10px;
     box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
     <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-    📋 Register</div>
+    📋 CL31 & CL32 Tracker</div>
     """, unsafe_allow_html=True)
 
     render_table(df31)
