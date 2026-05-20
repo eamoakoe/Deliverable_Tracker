@@ -27,9 +27,16 @@ def render_header():
         justify-content: space-between;
     }
 
+    .left-section {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 70%;
+    }
+
     .title {
         color: #1b4332;
-        font-size: 24px;
+        font-size: 25px;
         font-weight: 800;
         letter-spacing: 0.4px;
         line-height: 1.2;
@@ -39,8 +46,8 @@ def render_header():
         color: #2d6a4f;
         font-size: 12px;
         font-weight: 600;
-        opacity: 0.9;
         margin-top: 4px;
+        opacity: 0.9;
     }
 
     .right-panel {
@@ -54,6 +61,8 @@ def render_header():
         font-size: 13px;
         font-weight: 700;
         text-align: right;
+        padding-right: 12px;
+        border-right: 1px solid rgba(0,0,0,0.15);
     }
 
     .time {
@@ -73,6 +82,7 @@ def render_header():
         color: #166534;
         font-size: 12px;
         font-weight: 700;
+        white-space: nowrap;
     }
 
     .dot {
@@ -82,12 +92,12 @@ def render_header():
     }
 
     @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.4; }
-        100% { opacity: 1; }
+        0% {opacity: 1;}
+        50% {opacity: 0.4;}
+        100% {opacity: 1;}
     }
 
-    /* Sticky behavior */
+    /* Sticky header */
     div[data-testid="stHorizontalBlock"] {
         position: sticky;
         top: 0;
@@ -108,7 +118,7 @@ def render_header():
         <div class="header-grid">
 
             <!-- LEFT -->
-            <div>
+            <div class="left-section">
                 <div class="title">
                     Design Management Deliverables Dashboard
                 </div>
@@ -121,7 +131,7 @@ def render_header():
             <div class="right-panel">
 
                 <div class="date-box">
-                    📅 {now.strftime('%d %b %Y')}
+                    <div>📅 {now.strftime('%d %b %Y')}</div>
                     <div class="time">
                         Updated: {now.strftime('%H:%M')}
                     </div>
