@@ -13,6 +13,7 @@ def prepare(df):
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
+    # Clean percentage column
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -36,41 +37,40 @@ def render_pie(df):
     today = pd.Timestamp.today()
 
     # =========================
-    # ✅ FINAL LOGIC (NO COMPLETED)
+    # ✅ FINAL STATUS LOGIC
     # =========================
     df["Status"] = "On Track"
 
-    # 🔴 Delayed → overdue & unfinished
+    # 🟢 Completed → 100%
+    df.loc[
+        df["Activity % Complete"] >= 100,
+        "Status"
+    ] = "Completed"
+
+    # 🔴 Delayed → overdue & not completed
     df.loc[
         (df["Finish"] < today) &
         (df["Activity % Complete"] < 100),
         "Status"
     ] = "Delayed"
 
-    # 🟢 Accelerated → future & in progress
-    df.loc[
-        (df["Finish"] >= today) &
-        (df["Activity % Complete"].between(1, 99)),
-        "Status"
-    ] = "Accelerated"
-
     # =========================
     # SUMMARY
     # =========================
-    order = ["On Track", "Delayed", "Accelerated"]
+    order = ["On Track", "Delayed", "Completed"]
 
     summary = df["Status"].value_counts().reindex(order, fill_value=0)
 
     colors = {
-        "On Track": "#FFD700",
-        "Delayed": "#FF3B30",
-        "Accelerated": "#00C853"
+        "On Track": "#FFD700",   # Yellow
+        "Delayed": "#FF3B30",    # Red
+        "Completed": "#00C853"   # Green
     }
 
     total = int(summary.sum())
 
     # =========================
-    # ✅ THICK PIE
+    # PIE CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
@@ -105,10 +105,9 @@ def render_pie(df):
         with col1:
             st.plotly_chart(fig, use_container_width=True)
 
-        # RIGHT → KPIs + LOGIC NOTES
+        # RIGHT → KPIs
         with col2:
 
-            # ✅ Colour-coded KPI indicators
             for k in order:
                 pct = (summary[k] / total * 100) if total else 0
 
@@ -128,11 +127,13 @@ def render_pie(df):
                     unsafe_allow_html=True
                 )
 
-            # ✅ Compact logic explanation (replaces empty space)
+            # =========================
+            # LOGIC NOTES
+            # =========================
             st.markdown("---")
 
             st.caption(
                 "🔴 Delayed: past finish date & incomplete\n"
-                "🟢 Accelerated: in progress & ahead of schedule\n"
-                "🟡 On Track: not started or on plan"
+                "🟢 Completed: 100% complete\n"
+                "🟡 On Track: not started or in progress"
             )
