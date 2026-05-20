@@ -5,7 +5,7 @@ import os
 
 
 # =========================
-# GET LATEST FILE (FIXED)
+# GET LATEST FILE
 # =========================
 def get_latest(folder, prefix):
     files = [
@@ -17,7 +17,6 @@ def get_latest(folder, prefix):
     if not files:
         return None
 
-    # ✅ Pick latest by modified time
     return max(files, key=os.path.getmtime)
 
 
@@ -27,26 +26,36 @@ def get_latest(folder, prefix):
 def load_ferry():
     base = "data/Ferry/"
 
-    cl31_file = get_latest(base, "CL31")
     cl32_file = get_latest(base, "CL32")
 
-    cl31 = pd.read_excel(cl31_file, engine="openpyxl") if cl31_file else pd.DataFrame()
-    cl32 = pd.read_excel(cl32_file, engine="openpyxl") if cl32_file else pd.DataFrame()
+    if cl32_file is None:
+        return pd.DataFrame()
 
-    return cl31, cl32
+    return pd.read_excel(cl32_file, engine="openpyxl")
 
 
 # =========================
-# DATA PREP
+# PREP DATA (CL32 ONLY)
 # =========================
 def prepare(df):
     df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    # Clean headers
+    df.columns = (
+        df.columns.astype(str)
+        .str.strip()
+        .str.replace(r"\s+", " ", regex=True)
+    )
 
-    # ✅ Clean percentage column
+    # ✅ REQUIRED columns
+    if "Activity % Complete" not in df.columns:
+        st.error(f"Missing column: 'Activity % Complete'. Found: {list(df.columns)}")
+        return df
+
+    # Dates
+    df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
+
+    # ✅ Clean % column
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -62,14 +71,15 @@ def prepare(df):
 
 
 # =========================
-# PIE FUNCTION
+# PIE CHART (CL32 ONLY)
 # =========================
 def render_pie(df):
 
     df = prepare(df)
+
     today = pd.Timestamp.today()
 
-    # ✅ STATUS LOGIC (ORDER MATTERS)
+    # ✅ STATUS LOGIC
     df["Status"] = "On Track"
 
     # 🔴 Delayed
@@ -79,7 +89,7 @@ def render_pie(df):
         "Status"
     ] = "Delayed"
 
-    # 🟢 Completed (must be LAST)
+    # 🟢 Completed (ONLY from CL32 % column)
     df.loc[
         df["Activity % Complete"] >= 100,
         "Status"
@@ -89,6 +99,7 @@ def render_pie(df):
     # SUMMARY
     # =========================
     order = ["On Track", "Delayed", "Completed"]
+
     summary = df["Status"].value_counts().reindex(order, fill_value=0)
 
     colors = {
@@ -108,8 +119,7 @@ def render_pie(df):
             values=summary.values,
             sort=False,
             texttemplate="%{value}<br>(%{percent})",
-            marker=dict(colors=[colors[k] for k in summary.index]),
-            hovertemplate="<b>%{label}</b><br>%{value} tasks<br>%{percent}<extra></extra>"
+            marker=dict(colors=[colors[k] for k in summary.index])
         )]
     )
 
@@ -120,7 +130,7 @@ def render_pie(df):
     )
 
     # =========================
-    # UI
+    # LAYOUT
     # =========================
     col1, col2 = st.columns([2.1, 1])
 
@@ -150,7 +160,7 @@ def render_pie(df):
         st.markdown("---")
         st.caption(
             "🔴 Delayed: past finish date & incomplete\n"
-            "🟢 Completed: 100% complete\n"
+            "🟢 Completed (CL32): 100% complete\n"
             "🟡 On Track: not started or in progress"
         )
 
@@ -158,26 +168,17 @@ def render_pie(df):
 # =========================
 # MAIN APP
 # =========================
-st.title("Project Status Tracker")
+st.title("Ferry Project Tracker (CL32 Only)")
 
-# ✅ Force fresh load (fix caching issue)
+# ✅ force refresh (important)
 st.cache_data.clear()
 
-cl31, cl32 = load_ferry()
+df_cl32 = load_ferry()
 
-# ✅ Dataset selector (helps debugging + usability)
-dataset = st.selectbox("Select dataset", ["CL31", "CL32"])
+# ✅ debug (remove later)
+st.write("Rows loaded (CL32):", len(df_cl32))
 
-if dataset == "CL31":
-    df = cl31
+if not df_cl32.empty:
+    render_pie(df_cl32)
 else:
-    df = cl32
-
-# ✅ Debug (remove later)
-st.write("Rows loaded:", len(df))
-
-# ✅ Render pie
-if not df.empty:
-    render_pie(df)
-else:
-    st.warning("No data found.")
+    st.warning("No CL32 data found.")
