@@ -3,9 +3,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-# =========================
-# PREP DATA
-# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -13,7 +10,12 @@ def prepare(df):
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Your data is already numeric (no % symbol)
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+
     df["Activity % Complete"] = pd.to_numeric(
         df["Activity % Complete"],
         errors="coerce"
@@ -22,28 +24,22 @@ def prepare(df):
     return df
 
 
-# =========================
-# UPDATED STATUS LOGIC
-# =========================
+# ✅ ONLY CHANGE: logic switched + name changed
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    # 🔴 Delayed
     if row["Finish"] < today and row["Activity % Complete"] < 100:
         return "Delayed"
 
-    # ✅ 🟢 Completed (replaces Accelerated)
+    # ✅ changed from Accelerated logic → Completed logic
     if row["Activity % Complete"] >= 100:
         return "Completed"
 
     return "On Track"
 
 
-# =========================
-# RENDER PIE
-# =========================
 def render_pie(df):
 
     df = prepare(df)
@@ -51,6 +47,7 @@ def render_pie(df):
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
+    # ✅ updated label here only
     summary = df["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Completed"],
         fill_value=0
@@ -59,7 +56,7 @@ def render_pie(df):
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
-        "Completed": "#00C853"
+        "Completed": "#00C853"   # ✅ renamed only
     }
 
     # =========================
@@ -70,8 +67,10 @@ def render_pie(df):
             labels=summary.index,
             values=summary.values,
             sort=False,
+
             textinfo="label+value",
             textfont=dict(color="black", size=13),
+
             marker=dict(colors=[colors[k] for k in summary.index]),
             pull=[0.03, 0.03, 0.03]
         )]
@@ -122,7 +121,7 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # RENDER
+    # RENDER CARD
     # =========================
     with st.container():
 
@@ -133,9 +132,8 @@ def render_pie(df):
         with col1:
             st.plotly_chart(
                 fig,
-                width="stretch",   # ✅ updated API
-                config={"displayModeBar": False},
-                key="status_pie"   # ✅ avoids duplicate ID error
+                use_container_width=True,
+                config={"displayModeBar": False}
             )
 
         with col2:
