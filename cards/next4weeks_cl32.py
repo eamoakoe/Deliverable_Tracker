@@ -10,51 +10,39 @@ def _prepare(df):
 
     df.columns = df.columns.astype(str).str.strip()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
     df["BL1 Finish"] = pd.to_datetime(df.get("BL1 Finish"), errors="coerce")
 
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
+    df["Total Float"] = pd.to_numeric(
+        df.get("Total Float"),
         errors="coerce"
-    ).fillna(0)
+    )
 
     return df
 
 
 # =========================
-# LOOKAHEAD LOGIC (NOW 7 DAYS)
+# ✅ ISSUE FORECAST (NEXT 7 DAYS)
 # =========================
-def _get_next4weeks(df):   # ✅ name unchanged
+def _get_next4weeks(df):  # name unchanged
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
-    lookahead = today + pd.Timedelta(days=7)   # ✅ changed from 28 → 7
+    lookahead = today + pd.Timedelta(days=7)
 
-    df = df[
-        (df["Start"].notna()) &
-        (df["Finish"].notna())
-    ].copy()
-
-    # ✅ activities active within 7 days window
+    # ✅ Deliverables being issued in next 7 days
     upcoming = df[
-        (df["Start"] <= lookahead) &
-        (df["Finish"] >= today)
+        (df["Finish"].notna()) &
+        (df["Finish"] >= today) &
+        (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ Delta vs baseline
-    if "BL1 Finish" in upcoming.columns:
-        upcoming["Delta (Days)"] = (
-            upcoming["Finish"] - upcoming["BL1 Finish"]
-        ).dt.days
+    # ✅ Delta: Forecast vs Baseline
+    upcoming["Change (Days)"] = (
+        upcoming["Finish"] - upcoming["BL1 Finish"]
+    ).dt.days
 
-    return upcoming.sort_values("Start", ascending=True)
+    return upcoming.sort_values("Finish")
 
 
 # =========================
@@ -62,58 +50,65 @@ def _get_next4weeks(df):   # ✅ name unchanged
 # =========================
 def render_next4weeks_table(df):
 
-    upcoming = _get_next4weeks(df)
+    forecast = _get_next4weeks(df)
 
-    if upcoming.empty:
-        st.success("No activities in the next 7 days 🎯")
+    if forecast.empty:
+        st.success("No deliverables due in next 7 days 🎯")
         return
 
-    display_df = upcoming[[
+    display_df = forecast[[
         "Activity ID",
         "Activity Name",
-        "Start",
-        "Finish",
         "BL1 Finish",
-        "Delta (Days)",
-        "Comments"
+        "Finish",
+        "Change (Days)",
+        "Total Float"
     ]].copy()
 
     # =========================
-    # CLEAN COLUMN NAMES
+    # CLEAN HEADERS
     # =========================
     display_df.rename(columns={
         "Activity ID": "ID",
         "Activity Name": "Activity",
-        "Start": "Start Date",
-        "Finish": "Forecast Finish",
         "BL1 Finish": "Baseline Finish",
-        "Comments": "Remarks"
+        "Finish": "Forecast Finish",
+        "Total Float": "Float"
     }, inplace=True)
 
     # =========================
     # FORMAT DATES
     # =========================
-    display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
-    display_df["Forecast Finish"] = display_df["Forecast Finish"].dt.strftime("%d-%b-%Y")
     display_df["Baseline Finish"] = display_df["Baseline Finish"].dt.strftime("%d-%b-%Y")
+    display_df["Forecast Finish"] = display_df["Forecast Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # DELTA COLOURING
+    # COLOUR LOGIC
     # =========================
     def colour_delta(val):
         try:
-            v = float(val)
-            if v > 0:
+            if val > 0:
                 return "background-color:#fdecea; color:#b71c1c; font-weight:600"
-            elif v < 0:
+            elif val < 0:
                 return "background-color:#e8f5e9; color:#1b5e20; font-weight:600"
             else:
-                return "background-color:#e3f2fd; color:#0d47a1; font-weight:600"
+                return "background-color:#e3f2fd; color:#0d47a1"
+        except:
+            return ""
+
+    def colour_float(val):
+        try:
+            if val < 0:
+                return "background-color:#ffcdd2; color:#b71c1c; font-weight:600"
+            elif val <= 5:
+                return "background-color:#fff3e0; color:#ef6c00"
+            else:
+                return "background-color:#e8f5e9; color:#1b5e20"
         except:
             return ""
 
     # =========================
-    # ROW STRIPING
+    # ROW STRIPES
     # =========================
     def stripe_rows(row):
         return [
@@ -121,48 +116,29 @@ def render_next4weeks_table(df):
         ] * len(row)
 
     # =========================
-    # PROFESSIONAL STYLE
+    # STYLE
     # =========================
     styled = (
         display_df.style
 
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "#1e3a8a"),
-                    ("color", "white"),
-                    ("font-size", "12.5px"),
-                    ("font-weight", "700"),
-                    ("text-transform", "uppercase"),
-                    ("padding", "10px 8px"),
-                    ("border-bottom", "3px solid #3b82f6")
-                ]
-            },
-            {
-                "selector": "td",
-                "props": [
-                    ("padding", "8px"),
-                    ("color", "#1f2a44"),
-                    ("border-bottom", "1px solid #e5e7eb")
-                ]
-            }
-        ])
-
         .apply(stripe_rows, axis=1)
-        .map(colour_delta, subset=["Delta (Days)"])
+        .map(colour_delta, subset=["Change (Days)"])
+        .map(colour_float, subset=["Float"])
     )
 
     # =========================
-    # KPI SUMMARY
+    # KPI (CORE VALUE)
     # =========================
-    delay_count = (display_df["Delta (Days)"] > 0).sum()
     total = len(display_df)
+    behind = (display_df["Change (Days)"] > 0).sum()
+    critical = (display_df["Float"] < 0).sum()
 
     st.markdown(
         f"""
         <span style='font-weight:600'>
-            🔴 {delay_count} Behind Plan &nbsp;&nbsp;|&nbsp;&nbsp; 🟢 {total - delay_count} On / Ahead
+            📦 {total} Deliverables This Week &nbsp;&nbsp;|&nbsp;&nbsp;
+            🔴 {behind} Behind Plan &nbsp;&nbsp;|&nbsp;&nbsp;
+            ⚠ {critical} Critical (Neg Float)
         </span>
         """,
         unsafe_allow_html=True
@@ -172,3 +148,4 @@ def render_next4weeks_table(df):
     # RENDER
     # =========================
     st.dataframe(styled, use_container_width=True)
+``
