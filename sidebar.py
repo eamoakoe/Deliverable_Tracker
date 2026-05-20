@@ -13,7 +13,82 @@ def get_base64_image(path):
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER
+# ✅ NEXT DEADLINE CARD
+def render_next_deadline():
+
+    file_path = "components/contract_submission_dates.xlsx"
+
+    if not os.path.exists(file_path):
+        return
+
+    df = pd.read_excel(file_path)
+    df.columns = df.columns.str.strip()
+
+    today = datetime.datetime.today()
+    month = today.strftime("%B")
+    year = today.year
+    today_date = today.date()
+
+    if month not in df.columns:
+        return
+
+    current = df[["KEY", month]].dropna()
+
+    next_item = None
+    min_days = None
+
+    for _, row in current.iterrows():
+        day = int(row[month])
+
+        try:
+            deadline_date = datetime.date(year, today.month, day)
+        except:
+            continue
+
+        days_remaining = (deadline_date - today_date).days
+
+        if days_remaining >= 0:
+            if min_days is None or days_remaining < min_days:
+                min_days = days_remaining
+                next_item = row
+
+    if next_item is None:
+        return
+
+    key = next_item["KEY"]
+    day = int(next_item[month])
+
+    # ✅ Clean labels
+    if "Data date" in key:
+        label = "Data date"
+    elif "PFA" in key:
+        label = "PFA submission"
+    elif "submission to client" in key:
+        label = "Client submission"
+    elif "accept / reject" in key:
+        label = "Accept / Reject"
+    else:
+        label = key
+
+    st.sidebar.markdown("---")
+
+    # ✅ CARD DISPLAY
+    st.sidebar.markdown(f"""
+    <div style="
+        background:#ffffff;
+        padding:8px;
+        border-radius:6px;
+        border-left:5px solid #e53935;
+    ">
+        <b>🎯 Next Deadline</b><br>
+        {label}<br>
+        → <b>{day} {month}</b><br>
+        ⏳ In {min_days} day(s)
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ✅ PROGRAMME TRACKER (COLOUR-CODED TABLE)
 def render_programme_tracker():
 
     file_path = "components/contract_submission_dates.xlsx"
@@ -94,7 +169,7 @@ def render_programme_tracker():
             bg = "#f2f2f2"
             label = key
 
-        # ✅ STATUS ICON (independent of colour)
+        # ✅ STATUS ICON
         if day < today_day:
             status = "✅"
         elif day == today_day:
@@ -145,11 +220,11 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # ✅ LOGO (FIXED PROPERLY)
+        # ✅ LOGO
         if logo:
             st.markdown(f"""
             <div style="text-align:center; padding:10px 0 15px 0;">
-                <img src="data:image/png;base64,{logo}" width="90">
+                <img src="data:image/png;base64,{logo}" width="100">
             </div>
             """, unsafe_allow_html=True)
 
@@ -163,5 +238,8 @@ def render_sidebar():
 
         # ✅ TRACKER
         render_programme_tracker()
+
+        # ✅ NEXT DEADLINE
+        render_next_deadline()
 
     return project
