@@ -121,4 +121,3 @@ def render_sidebar():
         render_programme_tracker()
 
     return project
-``
