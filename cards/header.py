@@ -6,132 +6,68 @@ def render_header():
 
     now = datetime.now()
 
-    # =========================
-    # STYLES
-    # =========================
     st.markdown("""
     <style>
-
     .header-container {
         background: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%);
-        border: 1px solid rgba(45, 106, 79, 0.25);
         border-radius: 16px;
         padding: 14px 20px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
         margin-bottom: 10px;
     }
 
     .header-grid {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-    }
-
-    .left-section {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        align-items: center;
     }
 
     .title {
-        color: #1b4332;
-        font-size: 25px;
+        font-size: 24px;
         font-weight: 800;
-        letter-spacing: 0.4px;
-        line-height: 1.2;
+        color: #1b4332;
     }
 
     .subtitle {
+        font-size: 12px;
         color: #2d6a4f;
-        font-size: 12px;
-        font-weight: 600;
         margin-top: 4px;
-        opacity: 0.9;
     }
 
-    .right-panel {
+    .right {
         display: flex;
+        gap: 15px;
         align-items: center;
-        gap: 18px;
     }
 
-    .date-box {
-        color: #1b4332;
-        font-size: 13px;
-        font-weight: 700;
-        text-align: right;
-        padding-right: 12px;
-        border-right: 1px solid rgba(0,0,0,0.15);
-    }
-
-    .time {
-        font-size: 11px;
-        opacity: 0.7;
-        margin-top: 2px;
-    }
-
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
+    .pill {
+        background: #dcfce7;
         border-radius: 999px;
-        background: rgba(22, 163, 74, 0.12);
-        border: 1px solid rgba(22, 163, 74, 0.35);
-        color: #166534;
+        padding: 5px 10px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: bold;
+        color: #166534;
     }
-
-    .dot {
-        font-size: 10px;
-        color: #16a34a;
-        animation: pulse 1.4s infinite;
-    }
-
-    @keyframes pulse {
-        0% {opacity: 1;}
-        50% {opacity: 0.4;}
-        100% {opacity: 1;}
-    }
-
     </style>
     """, unsafe_allow_html=True)
 
-    # =========================
-    # HEADER HTML
-    # =========================
     st.markdown(f"""
     <div class="header-container">
         <div class="header-grid">
 
-            <!-- LEFT -->
-            <div class="left-section">
-                <div class="title">
-                    Design Management Deliverables Dashboard
-                </div>
-                <div class="subtitle">
-                    CL31 & CL32 Programmes • Delivery Tracking • Forecasting
-                </div>
+            <div>
+                <div class="title">Design Management Deliverables Dashboard</div>
+                <div class="subtitle">CL31 & CL32 Programmes • Tracking • Forecasting</div>
             </div>
 
-            <!-- RIGHT -->
-            <div class="right-panel">
-
-                <div class="date-box">
-                    <div>📅 {now.strftime('%d %b %Y')}</div>
-                    <div class="time">
-                        Updated: {now.strftime('%H:%M')}
-                    </div>
-                </div>
-
-                <div class="status-pill">
-                    <span class="dot">●</span>
-                    Live
-                </div>
-
+            <div class="right">
+                <div>📅 {now.strftime('%d %b %Y')}</div>
+                <div class="pill">● Live</div>
             </div>
 
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+# ✅ IMPORTANT: CALL IT
+render_header()
