@@ -169,4 +169,3 @@ def render_next7days_table(df):
     # RENDER
     # =========================
     st.dataframe(styled, use_container_width=True)
-``
