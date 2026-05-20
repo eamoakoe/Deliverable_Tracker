@@ -29,9 +29,9 @@ def _prepare(df):
 
 
 # =========================
-# ✅ 7 DAY ISSUE FORECAST
+# ✅ 7-DAY ISSUE FORECAST
 # =========================
-def _get_next4weeks(df):  # name unchanged
+def _get_next4weeks(df):   # name unchanged
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
@@ -43,7 +43,7 @@ def _get_next4weeks(df):  # name unchanged
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ Delta vs baseline
+    # ✅ Change vs baseline
     upcoming["Change (Days)"] = (
         upcoming["Finish"] - upcoming["BL1 Finish"]
     ).dt.days
@@ -101,7 +101,7 @@ def render_next4weeks_table(df):
     critical = (display_df["Float"] < 0).sum()
 
     # =========================
-    # ✅ KPI CARDS (FIXED LAYOUT)
+    # ✅ KPI CARDS (FIXED)
     # =========================
     st.markdown(f"""
 <div style="display:flex; gap:12px; margin-bottom:12px;">
@@ -141,9 +141,8 @@ def render_next4weeks_table(df):
         if val > 0:
             return "background-color:#fdecea; color:#b71c1c; font-weight:600"
         elif val < 0:
-            return "background-color:#e8f5e9; color:#1b5e20; font-weight:600"
-        else:
-            return "background-color:#e3f2fd; color:#0d47a1"
+            return "background-color:#e8f5e9; color:#1b5e20"
+        return ""
 
     def colour_float(val):
         if pd.notna(val):
@@ -156,13 +155,16 @@ def render_next4weeks_table(df):
         return ""
 
     def colour_progress(val):
-        v = float(val.replace("%", ""))
-        if v >= 80:
-            return "background-color:#e8f5e9; color:#1b5e20"
-        elif v >= 40:
-            return "background-color:#fff3e0; color:#ef6c00"
-        else:
-            return "background-color:#fdecea; color:#b71c1c"
+        try:
+            v = float(val.replace("%", ""))
+            if v >= 80:
+                return "background-color:#e8f5e9; color:#1b5e20"
+            elif v >= 40:
+                return "background-color:#fff3e0; color:#ef6c00"
+            else:
+                return "background-color:#fdecea; color:#b71c1c"
+        except:
+            return ""
 
     def stripe_rows(row):
         return [
@@ -183,4 +185,5 @@ def render_next4weeks_table(df):
     # =========================
     # RENDER
     # =========================
-    st.dataframe(styled, width="stretch")   # ✅ updated API
+    st.dataframe(styled, width="stretch")
+``
