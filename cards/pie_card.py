@@ -1,61 +1,38 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-import os
 
 
 # =========================
-# GET LATEST FILE
+# LOAD CL32 ONLY (FIXED PATH)
 # =========================
-def get_latest(folder, prefix):
-    files = [
-        os.path.join(folder, f)
-        for f in os.listdir(folder)
-        if f.startswith(prefix) and f.endswith(".xlsx")
-    ]
-
-    if not files:
-        return None
-
-    return max(files, key=os.path.getmtime)
+def load_cl32():
+    file_path = "data/Ferry/CL32-May.xlsx"
+    return pd.read_excel(file_path, engine="openpyxl")
 
 
 # =========================
-# LOAD DATA
-# =========================
-def load_ferry():
-    base = "data/Ferry/"
-
-    cl32_file = get_latest(base, "CL32")
-
-    if cl32_file is None:
-        return pd.DataFrame()
-
-    return pd.read_excel(cl32_file, engine="openpyxl")
-
-
-# =========================
-# PREP DATA (CL32 ONLY)
+# PREP DATA
 # =========================
 def prepare(df):
     df = df.copy()
 
-    # Clean headers
+    # Clean column names
     df.columns = (
         df.columns.astype(str)
         .str.strip()
         .str.replace(r"\s+", " ", regex=True)
     )
 
-    # ✅ REQUIRED columns
+    # Ensure column exists
     if "Activity % Complete" not in df.columns:
-        st.error(f"Missing column: 'Activity % Complete'. Found: {list(df.columns)}")
+        st.error(f"Missing 'Activity % Complete'. Found: {list(df.columns)}")
         return df
 
     # Dates
     df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
 
-    # ✅ Clean % column
+    # Clean %
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -71,12 +48,11 @@ def prepare(df):
 
 
 # =========================
-# PIE CHART (CL32 ONLY)
+# PIE
 # =========================
 def render_pie(df):
 
     df = prepare(df)
-
     today = pd.Timestamp.today()
 
     # ✅ STATUS LOGIC
@@ -89,7 +65,7 @@ def render_pie(df):
         "Status"
     ] = "Delayed"
 
-    # 🟢 Completed (ONLY from CL32 % column)
+    # 🟢 Completed
     df.loc[
         df["Activity % Complete"] >= 100,
         "Status"
@@ -111,7 +87,7 @@ def render_pie(df):
     total = int(summary.sum())
 
     # =========================
-    # PIE
+    # PIE CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
@@ -160,25 +136,21 @@ def render_pie(df):
         st.markdown("---")
         st.caption(
             "🔴 Delayed: past finish date & incomplete\n"
-            "🟢 Completed (CL32): 100% complete\n"
+            "🟢 Completed: 100% complete (from CL32)\n"
             "🟡 On Track: not started or in progress"
         )
 
 
 # =========================
-# MAIN APP
+# MAIN
 # =========================
-st.title("Ferry Project Tracker (CL32 Only)")
+st.title("Ferry Tracker (CL32 Only)")
 
-# ✅ force refresh (important)
+# ✅ Force refresh
 st.cache_data.clear()
 
-df_cl32 = load_ferry()
+df = load_cl32()
 
-# ✅ debug (remove later)
-st.write("Rows loaded (CL32):", len(df_cl32))
+st.write("Rows loaded:", len(df))  # debug
 
-if not df_cl32.empty:
-    render_pie(df_cl32)
-else:
-    st.warning("No CL32 data found.")
+render_pie(df)
