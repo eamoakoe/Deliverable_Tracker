@@ -31,7 +31,6 @@ def render_header():
         display: flex;
         flex-direction: column;
         justify-content: center;
-        max-width: 70%;
     }
 
     .title {
@@ -82,7 +81,6 @@ def render_header():
         color: #166534;
         font-size: 12px;
         font-weight: 700;
-        white-space: nowrap;
     }
 
     .dot {
@@ -97,21 +95,11 @@ def render_header():
         100% {opacity: 1;}
     }
 
-    /* Sticky header */
-    div[data-testid="stHorizontalBlock"] {
-        position: sticky;
-        top: 0;
-        z-index: 999;
-        background: #f8fdf9;
-        padding-top: 6px;
-        padding-bottom: 6px;
-    }
-
     </style>
     """, unsafe_allow_html=True)
 
     # =========================
-    # HEADER CONTENT
+    # HEADER HTML
     # =========================
     st.markdown(f"""
     <div class="header-container">
