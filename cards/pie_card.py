@@ -4,7 +4,7 @@ import pandas as pd
 
 
 # =========================
-# LOAD CL32 ONLY (FIXED PATH)
+# LOAD CL32 ONLY
 # =========================
 def load_cl32():
     file_path = "data/Ferry/CL32-May.xlsx"
@@ -12,7 +12,7 @@ def load_cl32():
 
 
 # =========================
-# PREP DATA
+# PREP DATA (FIXED CLEANING)
 # =========================
 def prepare(df):
     df = df.copy()
@@ -24,19 +24,19 @@ def prepare(df):
         .str.replace(r"\s+", " ", regex=True)
     )
 
-    # Ensure column exists
+    # Check column exists
     if "Activity % Complete" not in df.columns:
-        st.error(f"Missing 'Activity % Complete'. Found: {list(df.columns)}")
+        st.error(f"Missing column. Found: {list(df.columns)}")
         return df
 
-    # Dates
+    # Convert Finish date
     df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
 
-    # Clean %
+    # ✅ ✅ CRITICAL FIX (handles hidden Excel characters)
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
-        .str.replace("%", "", regex=False)
+        .str.replace(r"[^0-9.]", "", regex=True)  # removes %, spaces, hidden chars
     )
 
     df["Activity % Complete"] = pd.to_numeric(
@@ -48,14 +48,16 @@ def prepare(df):
 
 
 # =========================
-# PIE
+# PIE FUNCTION
 # =========================
 def render_pie(df):
 
     df = prepare(df)
     today = pd.Timestamp.today()
 
+    # =========================
     # ✅ STATUS LOGIC
+    # =========================
     df["Status"] = "On Track"
 
     # 🔴 Delayed
@@ -65,7 +67,7 @@ def render_pie(df):
         "Status"
     ] = "Delayed"
 
-    # 🟢 Completed
+    # 🟢 Completed (now WILL work)
     df.loc[
         df["Activity % Complete"] >= 100,
         "Status"
@@ -87,7 +89,7 @@ def render_pie(df):
     total = int(summary.sum())
 
     # =========================
-    # PIE CHART
+    # PIE
     # =========================
     fig = go.Figure(
         data=[go.Pie(
@@ -95,7 +97,8 @@ def render_pie(df):
             values=summary.values,
             sort=False,
             texttemplate="%{value}<br>(%{percent})",
-            marker=dict(colors=[colors[k] for k in summary.index])
+            marker=dict(colors=[colors[k] for k in summary.index]),
+            hovertemplate="<b>%{label}</b><br>%{value} tasks<br>%{percent}<extra></extra>"
         )]
     )
 
@@ -136,21 +139,24 @@ def render_pie(df):
         st.markdown("---")
         st.caption(
             "🔴 Delayed: past finish date & incomplete\n"
-            "🟢 Completed: 100% complete (from CL32)\n"
+            "🟢 Completed: 100% complete (CL32)\n"
             "🟡 On Track: not started or in progress"
         )
 
 
 # =========================
-# MAIN
+# MAIN APP
 # =========================
 st.title("Ferry Tracker (CL32 Only)")
 
-# ✅ Force refresh
+# Force refresh
 st.cache_data.clear()
 
 df = load_cl32()
 
-st.write("Rows loaded:", len(df))  # debug
+# ✅ DEBUG (remove after confirming)
+st.write("Rows loaded:", len(df))
+st.write("Sample cleaned values:", df["Activity % Complete"].head(10))
 
+# Render
 render_pie(df)
