@@ -1,7 +1,20 @@
+import streamlit as st
+import base64
+import pandas as pd
+import datetime
+import os
+
+
+# ✅ LOAD LOGO
+def get_base64_image(path):
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
+# ✅ PROGRAMME TRACKER (COMPACT COLOUR-CODED TABLE STYLE)
 def render_programme_tracker():
-    import pandas as pd
-    import datetime
-    import os
 
     file_path = "components/contract_submission_dates.xlsx"
 
@@ -14,6 +27,7 @@ def render_programme_tracker():
 
     today = datetime.datetime.today()
     month = today.strftime("%B")
+    today_day = today.day
 
     if month not in df.columns:
         st.sidebar.warning(f"{month} not in tracker")
@@ -21,8 +35,9 @@ def render_programme_tracker():
 
     current = df[["KEY", month]].dropna()
 
-    # ✅ Title
     st.sidebar.markdown("---")
+
+    # ✅ HEADER
     st.sidebar.markdown("""
     <div style="
         background:#0b3d0b;
@@ -54,30 +69,39 @@ def render_programme_tracker():
     </div>
     """, unsafe_allow_html=True)
 
-    # ✅ ROWS (COLOUR MATCHED TO YOUR EXCEL)
+    # ✅ ROWS (EXCEL-STYLE COLOUR CODING)
     for _, row in current.iterrows():
         key = row["KEY"]
         day = int(row[month])
 
+        # ✅ Match Excel colours
         if "Data date" in key:
-            bg = "#d4f5d0"   # light green
+            bg = "#d4f5d0"   # green
             label = "Data date"
 
         elif "PFA" in key:
-            bg = "#fff7cc"   # light amber
+            bg = "#fff7cc"   # yellow
             label = "PFA submission"
 
         elif "submission to client" in key:
-            bg = "#cfe8f6"   # light blue
+            bg = "#cfe8f6"   # blue
             label = "Client submission"
 
         elif "accept / reject" in key:
-            bg = "#ffd6d6"   # light red
+            bg = "#ffd6d6"   # red
             label = "Accept / Reject"
 
         else:
             bg = "#f2f2f2"
             label = key
+
+        # ✅ Optional status indicator
+        if day < today_day:
+            status = "✅"
+        elif day == today_day:
+            status = "⚠️"
+        else:
+            status = ""
 
         st.sidebar.markdown(f"""
         <div style="
@@ -90,6 +114,56 @@ def render_programme_tracker():
             font-size:12px;
         ">
             <span>{label}</span>
-            <span><b>{day}</b></span>
+            <span><b>{day}</b> {status}</span>
         </div>
         """, unsafe_allow_html=True)
+
+
+# ✅ MAIN SIDEBAR
+def render_sidebar():
+    logo = get_base64_image("assets/logo.png")
+
+    # ✅ SIDEBAR STYLE
+    st.markdown("""
+    <style>
+        [data-testid="stSidebarNav"] {
+            display: none;
+        }
+
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #d4f5d0 0%, #a8e6a3 100%);
+        }
+
+        section[data-testid="stSidebar"] .stRadio label {
+            color: #0b3d0b;
+            font-weight: 500;
+        }
+
+        section[data-testid="stSidebar"] h1 {
+            color: #0b3d0b;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.sidebar:
+
+        # ✅ LOGO (FIXED)
+        if logo:
+            st.markdown(f"""
+            <div style="text-align:center; padding:10px 0 15px 0;">
+                <img src="data:image/png;base64,{logo}" width="100">
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ✅ PROJECT SELECTOR
+        st.title("Projects")
+
+        project = st.radio(
+            "",
+            ["Ferry PS", "Rossall Outfall", "Flass Lane"]
+        )
+
+        # ✅ TRACKER
+        render_programme_tracker()
+
+    return project
