@@ -5,17 +5,20 @@ import datetime
 import os
 
 
+# ✅ LOAD LOGO
 def get_base64_image(path):
+    if not os.path.exists(path):
+        return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER (COMPACT CARD STYLE)
+# ✅ COMPACT PROGRAMME TRACKER (SIDEBAR FRIENDLY)
 def render_programme_tracker():
     file_path = "components/contract_submission_dates.xlsx"
 
     if not os.path.exists(file_path):
-        st.sidebar.error("Programme tracker file not found")
+        st.sidebar.warning("Tracker file missing")
         return
 
     df = pd.read_excel(file_path)
@@ -26,12 +29,12 @@ def render_programme_tracker():
     today_day = today.day
 
     if month not in df.columns:
-        st.sidebar.warning(f"{month} not found")
+        st.sidebar.warning(f"{month} not in tracker")
         return
 
     current = df[["KEY", month]].dropna()
 
-    # ✅ Clean labels
+    # ✅ Short labels
     labels = {
         "Data date for Man & Sub-contractor programme": "Data date",
         "Sub contractor submits PFA to Man": "PFA submission",
@@ -41,7 +44,7 @@ def render_programme_tracker():
 
     st.sidebar.markdown("---")
 
-    # ✅ Styled header block
+    # ✅ Styled header
     st.sidebar.markdown(f"""
     <div style="
         background:#0b3d0b;
@@ -50,31 +53,33 @@ def render_programme_tracker():
         text-align:center;
         color:white;
         font-weight:600;
+        font-size:14px;
     ">
-        Contract Submission Dates 2026–2027
+        📘 Contract Submission Dates 2026–2027
     </div>
     """, unsafe_allow_html=True)
 
     st.sidebar.markdown(f"**📅 {month} Programme**")
 
-    # ✅ Compact row display (fits sidebar perfectly)
+    # ✅ Compact rows (fits sidebar)
     for _, row in current.iterrows():
         key = labels.get(row["KEY"], row["KEY"])
         day = int(row[month])
 
-        # ✅ Status logic
+        # ✅ STATUS RULES
         if day < today_day:
-            icon = "🟢"
+            icon = "🟢"   # completed
         elif day == today_day:
-            icon = "🟡"
+            icon = "🟡"   # today
         else:
-            icon = "🔴"   # ✅ upcoming = RED (your request)
+            icon = "🔴"   # upcoming (YOUR REQUEST)
 
         st.sidebar.markdown(
             f"{icon} **{key}**  \n&nbsp;&nbsp;&nbsp;&nbsp;{day} {month}"
         )
 
 
+# ✅ SIDEBAR
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
@@ -102,12 +107,13 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # ✅ LOGO
-        st.markdown(f"""
-        <div style="text-align:center; padding:10px 0 20px 0;">
-            data:image/png;base64,{logo}
-        </div>
-        """, unsafe_allow_html=True)
+        # ✅ LOGO (FIXED)
+        if logo:
+            st.markdown(f"""
+            <div style="text-align:center; padding:10px 0 15px 0;">
+                <img src="data:image/png;base64,{logo}" width="100">
+            </div>
+            """, unsafe_allow_html=True)
 
         # ✅ PROJECT SELECTOR
         st.title("Projects")
