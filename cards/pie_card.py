@@ -24,7 +24,7 @@ def prepare(df):
     return df
 
 
-# ✅ FINAL LOGIC (ONLY CHANGE REQUIRED)
+# ✅ FINAL LOGIC
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
@@ -48,16 +48,19 @@ def render_pie(df):
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
-    summary = df["Status"].value_counts().reindex(
-        ["On Track", "Delayed", "Completed"],
-        fill_value=0
-    )
+    # ✅ REMOVE ZERO VALUES FROM PIE
+    summary = df["Status"].value_counts()
+    summary = summary[summary > 0]
 
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
         "Completed": "#00C853"
     }
+
+    # Keep order but only for existing values
+    order = ["On Track", "Delayed", "Completed"]
+    summary = summary.reindex([k for k in order if k in summary.index])
 
     # =========================
     # PIE CHART
@@ -70,7 +73,7 @@ def render_pie(df):
             textinfo="label+value",
             textfont=dict(color="black", size=13),
             marker=dict(colors=[colors[k] for k in summary.index]),
-            pull=[0.03, 0.03, 0.03]
+            pull=[0.03] * len(summary)
         )]
     )
 
@@ -135,21 +138,21 @@ def render_pie(df):
             )
 
         with col2:
-            st.markdown(f"""
-                <div class="item">
-                    <div class="dot" style="background:#FFD700;"></div>
-                    On Track <span class="value">{summary['On Track']}</span>
-                </div>
 
-                <div class="item">
-                    <div class="dot" style="background:#FF3B30;"></div>
-                    Delayed <span class="value">{summary['Delayed']}</span>
-                </div>
+            # ✅ Dynamically show only existing categories
+            display_labels = {
+                "On Track": "On Track",
+                "Delayed": "Delayed",
+                "Completed": "Completed"
+            }
 
-                <div class="item">
-                    <div class="dot" style="background:#00C853;"></div>
-                    Completed <span class="value">{summary['Completed']}</span>
-                </div>
-            """, unsafe_allow_html=True)
+            for k in summary.index:
+                st.markdown(f"""
+                    <div class="item">
+                        <div class="dot" style="background:{colors[k]};"></div>
+                        {display_labels[k]} <span class="value">{summary[k]}</span>
+                    </div>
+                """, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
+``
