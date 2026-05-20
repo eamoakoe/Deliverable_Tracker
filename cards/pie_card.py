@@ -181,4 +181,3 @@ if not df.empty:
     render_pie(df)
 else:
     st.warning("No data found.")
-``
