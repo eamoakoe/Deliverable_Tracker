@@ -24,19 +24,16 @@ def prepare(df):
     return df
 
 
-# ✅ FIXED LOGIC
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    # 🔴 TRUE DELAY ONLY (0% + past finish)
-    if row["Finish"] < today and row["Activity % Complete"] == 0:
+    if row["Finish"] < today and row["Activity % Complete"] < 100:
         return "Delayed"
 
-    # ✅ Completed replaces Accelerated
-    if row["Activity % Complete"] >= 100:
-        return "Completed"
+    if row["Finish"] > today and row["Activity % Complete"] > 0:
+        return "Accelerated"
 
     return "On Track"
 
@@ -44,31 +41,34 @@ def classify(row, today):
 def render_pie(df):
 
     df = prepare(df)
-    today = pd.Timestamp.today().normalize()
+    today = pd.Timestamp.today()
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
     summary = df["Status"].value_counts().reindex(
-        ["On Track", "Delayed", "Completed"],
+        ["On Track", "Delayed", "Accelerated"],
         fill_value=0
     )
 
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
-        "Completed": "#00C853"
+        "Accelerated": "#00C853"
     }
 
     # =========================
-    # PIE CHART
+    # PIE CHART (BLACK TEXT FIX)
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
+
+            # 🔥 FIX: black text inside chart (your request)
             textinfo="label+value",
             textfont=dict(color="black", size=13),
+
             marker=dict(colors=[colors[k] for k in summary.index]),
             pull=[0.03, 0.03, 0.03]
         )]
@@ -77,10 +77,13 @@ def render_pie(df):
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
         height=380,
+
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
+
         showlegend=False,
-        font=dict(color="black")
+
+        font=dict(color="black")  # 🔥 ensures all labels default to black
     )
 
     # =========================
@@ -119,23 +122,6 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # DELAY TABLE (DEBUG / VALIDATION)
-    # =========================
-    delays = df[df["Status"] == "Delayed"]
-
-    st.markdown(f"### 🔴 Delayed Tasks: {len(delays)}")
-
-    if not delays.empty:
-        st.dataframe(
-            delays[[
-                "Activity Name",
-                "Finish",
-                "Activity % Complete"
-            ]],
-            use_container_width=True
-        )
-
-    # =========================
     # RENDER CARD
     # =========================
     with st.container():
@@ -147,9 +133,8 @@ def render_pie(df):
         with col1:
             st.plotly_chart(
                 fig,
-                width="stretch",
-                config={"displayModeBar": False},
-                key="status_pie"
+                use_container_width=True,
+                config={"displayModeBar": False}
             )
 
         with col2:
@@ -166,7 +151,7 @@ def render_pie(df):
 
                 <div class="item">
                     <div class="dot" style="background:#00C853;"></div>
-                    Completed <span class="value">{summary['Completed']}</span>
+                    Accelerated <span class="value">{summary['Accelerated']}</span>
                 </div>
             """, unsafe_allow_html=True)
 
