@@ -148,4 +148,3 @@ def render_next4weeks_table(df):
     # RENDER
     # =========================
     st.dataframe(styled, use_container_width=True)
-``
