@@ -30,7 +30,7 @@ def classify(row, today):
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    # 🔴 Delayed = past finish AND not 100%
+    # 🔴 Delayed
     if row["Finish"] < today and row["Activity % Complete"] < 100:
         return "Delayed"
 
@@ -48,7 +48,7 @@ def render_pie(df):
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
-    # ✅ REMOVE ZERO VALUES FROM PIE
+    # ✅ Remove zero categories from pie
     summary = df["Status"].value_counts()
     summary = summary[summary > 0]
 
@@ -58,7 +58,6 @@ def render_pie(df):
         "Completed": "#00C853"
     }
 
-    # Keep order but only for existing values
     order = ["On Track", "Delayed", "Completed"]
     summary = summary.reindex([k for k in order if k in summary.index])
 
@@ -87,7 +86,7 @@ def render_pie(df):
     )
 
     # =========================
-    # CARD STYLE (UNCHANGED)
+    # CARD STYLE
     # =========================
     st.markdown("""
         <style>
@@ -122,36 +121,34 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # RENDER CARD (UNCHANGED)
+    # RENDER (NO EXTRA BAR)
     # =========================
-    with st.container():
+    st.markdown('<div class="pie-card">', unsafe_allow_html=True)
 
-        st.markdown('<div class="pie-card">', unsafe_allow_html=True)
+    col1, col2 = st.columns([2.3, 1])
 
-        col1, col2 = st.columns([2.3, 1])
+    with col1:
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
 
-        with col1:
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                config={"displayModeBar": False}
-            )
+    with col2:
 
-        with col2:
+        total = df.shape[0]
 
-            # ✅ Dynamically show only existing categories
-            display_labels = {
-                "On Track": "On Track",
-                "Delayed": "Delayed",
-                "Completed": "Completed"
-            }
+        # ✅ Always show all categories
+        for k in ["On Track", "Delayed", "Completed"]:
 
-            for k in summary.index:
-                st.markdown(f"""
-                    <div class="item">
-                        <div class="dot" style="background:{colors[k]};"></div>
-                        {display_labels[k]} <span class="value">{summary[k]}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+            value = (df["Status"] == k).sum()
+            pct = (value / total * 100) if total > 0 else 0
 
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+                <div class="item">
+                    <div class="dot" style="background:{colors[k]};"></div>
+                    {k} <span class="value">{value} ({pct:.0f}%)</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
