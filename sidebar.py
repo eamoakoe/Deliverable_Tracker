@@ -151,19 +151,19 @@ def render_programme_tracker():
 
         if "Data date" in key:
             bg = "#cfe2f3"   # light blue
-            label = "Data date for Murphy and Sub Prog"
+            label = "Data date for Murphy and Sub-contactor Programme"
 
         elif "PFA" in key:
             bg = "#f4cccc"   # red
-            label = "Sub Submits PFA to Murphy"
+            label = "Sub-contractor Submits PFA to Murphy"
 
         elif "submission to client" in key:
             bg = "#ffe599"   # gold
-            label = "Murphy Prog submission to Client"
+            label = "Murphy Programme submission to Client"
 
         elif "accept / reject" in key:
             bg = "#d9f2d9"   # green
-            label = "Deadline for Murphy to Accept / Reject"
+            label = "Deadline for Murphy to Accept / Reject Programme"
 
         else:
             bg = "#f2f2f2"
