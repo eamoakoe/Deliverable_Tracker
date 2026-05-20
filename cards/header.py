@@ -4,70 +4,109 @@ from datetime import datetime
 
 def render_header():
 
-    now = datetime.now()
-
     st.markdown("""
     <style>
-    .header-container {
+
+    .header-box {
         background: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%);
-        border-radius: 16px;
-        padding: 14px 20px;
-        margin-bottom: 10px;
+        border: 1px solid rgba(45, 106, 79, 0.25);
+        min-height: 90px;
+        border-radius: 14px;
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
     }
 
-    .header-grid {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .left-box {
+        border-radius: 14px;
     }
 
     .title {
-        font-size: 24px;
-        font-weight: 800;
         color: #1b4332;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1.1;
+        margin-bottom: 4px;
+        letter-spacing: 1px;
     }
 
     .subtitle {
-        font-size: 12px;
         color: #2d6a4f;
-        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 600;
     }
 
-    .right {
-        display: flex;
-        gap: 15px;
+    .date-box {
+        color: #1b4332;
+        font-size: 16px;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .status-box {
+        display: inline-flex;
         align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: rgba(45, 106, 79, 0.12);
+        border: 1px solid rgba(45, 106, 79, 0.25);
+        color: #1b4332;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    .pill {
-        background: #dcfce7;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 12px;
-        font-weight: bold;
-        color: #166534;
+    .dot {
+        color: #16a34a;
+        animation: pulse 1.5s infinite;
     }
+
+    @keyframes pulse {
+        0% {opacity:1;}
+        50% {opacity:0.4;}
+        100% {opacity:1;}
+    }
+
+    div[data-testid="stHorizontalBlock"] {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: #f8fdf9;
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="header-container">
-        <div class="header-grid">
+    col1, col2, col3 = st.columns([5, 3, 2], gap="small")
 
-            <div>
-                <div class="title">Design Management Deliverables Dashboard</div>
-                <div class="subtitle">CL31 & CL32 Programmes • Tracking • Forecasting</div>
-            </div>
-
-            <div class="right">
-                <div>📅 {now.strftime('%d %b %Y')}</div>
-                <div class="pill">● Live</div>
-            </div>
-
+    with col1:
+        st.markdown("""
+        <div class="header-box left-box">
+            <div class="title">FL DM PROGRAMME DASHBOARD</div>
+            <div class="subtitle">CL31 vs CL32 • Delivery Tracking • Forecasting</div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
+    with col2:
+        st.markdown(f"""
+        <div class="header-box" style="align-items:center;">
+            <div class="date-box">
+                📅 {datetime.today().strftime('%d %b %Y')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-# ✅ IMPORTANT: CALL IT
-render_header()
+    with col3:
+        st.markdown("""
+        <div class="header-box" style="align-items:center;">
+            <div class="status-box">
+                <span class="dot">●</span>
+                Programme Live
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
