@@ -13,7 +13,7 @@ def get_base64_image(path):
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER (ACTIVITY COLOURS ONLY)
+# ✅ PROGRAMME TRACKER
 def render_programme_tracker():
 
     file_path = "components/contract_submission_dates.xlsx"
@@ -74,13 +74,12 @@ def render_programme_tracker():
         key = row["KEY"]
         day = int(row[month])
 
-        # ✅ FIXED ACTIVITY COLOURS
         if "Data date" in key:
             bg = "#cfe2f3"   # light blue
             label = "Data date"
 
         elif "PFA" in key:
-            bg = "#f4cccc"   # red (soft)
+            bg = "#f4cccc"   # red
             label = "PFA submission"
 
         elif "submission to client" in key:
@@ -95,13 +94,13 @@ def render_programme_tracker():
             bg = "#f2f2f2"
             label = key
 
-        # ✅ STATUS ICON (separate from colour)
+        # ✅ STATUS ICON (independent of colour)
         if day < today_day:
             status = "✅"
         elif day == today_day:
             status = "⚠️"
         else:
-            status = "🔴"
+            status = ""
 
         st.sidebar.markdown(f"""
         <div style="
@@ -119,7 +118,7 @@ def render_programme_tracker():
         """, unsafe_allow_html=True)
 
 
-# ✅ MAIN SIDEBAR
+# ✅ SIDEBAR
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
@@ -146,11 +145,11 @@ def render_sidebar():
 
     with st.sidebar:
 
-        # ✅ LOGO
+        # ✅ LOGO (FIXED PROPERLY)
         if logo:
             st.markdown(f"""
             <div style="text-align:center; padding:10px 0 15px 0;">
-                data:image/png;base64,{logo}
+                <img src="data:image/png;base64,{logo}" width="90">
             </div>
             """, unsafe_allow_html=True)
 
