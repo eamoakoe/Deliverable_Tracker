@@ -151,7 +151,7 @@ def render_programme_tracker():
 
         if "Data date" in key:
             bg = "#cfe2f3"   # light blue
-            label = "Data date for Murphy and Sub-contactor Programme"
+            label = "Data Date for Murphy and Sub-contactor Programme"
 
         elif "PFA" in key:
             bg = "#f4cccc"   # red
@@ -159,7 +159,7 @@ def render_programme_tracker():
 
         elif "submission to client" in key:
             bg = "#ffe599"   # gold
-            label = "Murphy Programme submission to Client"
+            label = "Murphy Programme Submission to Client"
 
         elif "accept / reject" in key:
             bg = "#d9f2d9"   # green
