@@ -4,11 +4,41 @@ import pandas as pd
 
 
 # =========================
-# LOAD CL32 (FIXED FILE PATH)
+# PREP DATA
 # =========================
-def load_data():
-    file_path = "data/Ferry/CL32-May.xlsx"
-    return pd.read_excel(file_path, engine="openpyxl")
+def prepare(df):
+    df = df.copy()
+    df.columns = df.columns.astype(str).str.strip()
+
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+
+    # Your data is already numeric (no % symbol)
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
+
+    return df
+
+
+# =========================
+# UPDATED STATUS LOGIC
+# =========================
+def classify(row, today):
+
+    if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
+        return "On Track"
+
+    # 🔴 Delayed
+    if row["Finish"] < today and row["Activity % Complete"] < 100:
+        return "Delayed"
+
+    # ✅ 🟢 Completed (replaces Accelerated)
+    if row["Activity % Complete"] >= 100:
+        return "Completed"
+
+    return "On Track"
 
 
 # =========================
@@ -16,54 +46,15 @@ def load_data():
 # =========================
 def render_pie(df):
 
-    df = df.copy()
-
-    # Clean column names
-    df.columns = (
-        df.columns.astype(str)
-        .str.strip()
-        .str.replace(r"\s+", " ", regex=True)
-    )
-
-    # Convert Finish date
-    df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
-
-    # ✅ CRITICAL FIX (handles hidden Excel % characters)
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace(r"[^0-9.]", "", regex=True)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
-
+    df = prepare(df)
     today = pd.Timestamp.today()
 
-    # =========================
-    # STATUS LOGIC
-    # =========================
-    df["Status"] = "On Track"
+    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
-    df.loc[
-        (df["Finish"] < today) &
-        (df["Activity % Complete"] < 100),
-        "Status"
-    ] = "Delayed"
-
-    df.loc[
-        df["Activity % Complete"] >= 100,
-        "Status"
-    ] = "Completed"
-
-    # =========================
-    # SUMMARY
-    # =========================
-    order = ["On Track", "Delayed", "Completed"]
-
-    summary = df["Status"].value_counts().reindex(order, fill_value=0)
+    summary = df["Status"].value_counts().reindex(
+        ["On Track", "Delayed", "Completed"],
+        fill_value=0
+    )
 
     colors = {
         "On Track": "#FFD700",
@@ -79,30 +70,91 @@ def render_pie(df):
             labels=summary.index,
             values=summary.values,
             sort=False,
-            texttemplate="%{value}<br>(%{percent})",
-            marker=dict(colors=[colors[k] for k in summary.index])
+            textinfo="label+value",
+            textfont=dict(color="black", size=13),
+            marker=dict(colors=[colors[k] for k in summary.index]),
+            pull=[0.03, 0.03, 0.03]
         )]
     )
 
     fig.update_layout(
-        height=360,
-        margin=dict(l=5, r=5, t=5, b=5),
-        showlegend=False
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=380,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        font=dict(color="black")
     )
 
-    # ✅ FIX: unique key + new width param
-    st.plotly_chart(
-        fig,
-        width="stretch",
-        key="cl32_status_pie"
-    )
+    # =========================
+    # CARD STYLE
+    # =========================
+    st.markdown("""
+        <style>
+        .pie-card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
 
+        .item {
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: black;
+            display: flex;
+            align-items: center;
+        }
 
-# =========================
-# MAIN APP
-# =========================
-st.title("Ferry Tracker (CL32 Only)")
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
 
-df = load_data()
+        .value {
+            font-weight: 700;
+            margin-left: 6px;
+            color: black;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-render_pie(df)
+    # =========================
+    # RENDER
+    # =========================
+    with st.container():
+
+        st.markdown('<div class="pie-card">', unsafe_allow_html=True)
+
+        col1, col2 = st.columns([2.3, 1])
+
+        with col1:
+            st.plotly_chart(
+                fig,
+                width="stretch",   # ✅ updated API
+                config={"displayModeBar": False},
+                key="status_pie"   # ✅ avoids duplicate ID error
+            )
+
+        with col2:
+            st.markdown(f"""
+                <div class="item">
+                    <div class="dot" style="background:#FFD700;"></div>
+                    On Track <span class="value">{summary['On Track']}</span>
+                </div>
+
+                <div class="item">
+                    <div class="dot" style="background:#FF3B30;"></div>
+                    Delayed <span class="value">{summary['Delayed']}</span>
+                </div>
+
+                <div class="item">
+                    <div class="dot" style="background:#00C853;"></div>
+                    Completed <span class="value">{summary['Completed']}</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+``
