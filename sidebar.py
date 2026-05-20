@@ -5,13 +5,12 @@ import datetime
 import os
 
 
-# ✅ LOAD LOGO
 def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ PROGRAMME TRACKER (DATAFRAME VERSION - WORKS IN SIDEBAR)
+# ✅ PROGRAMME TRACKER (COMPACT CARD STYLE)
 def render_programme_tracker():
     file_path = "components/contract_submission_dates.xlsx"
 
@@ -20,68 +19,66 @@ def render_programme_tracker():
         return
 
     df = pd.read_excel(file_path)
-
-    # Clean column names
     df.columns = df.columns.str.strip()
 
-    # Get current month
     today = datetime.datetime.today()
     month = today.strftime("%B")
     today_day = today.day
 
     if month not in df.columns:
-        st.sidebar.warning(f"{month} not found in tracker")
+        st.sidebar.warning(f"{month} not found")
         return
 
     current = df[["KEY", month]].dropna()
 
-    # ✅ Short cleaner labels
+    # ✅ Clean labels
     labels = {
-        "Data date for Murphy & Sub-contractor programme": "Data date",
-        "Sub contractor submits PFA to Murphy": "PFA submission",
-        "Murphy Programme submission to client": "Client submission",
-        "Deadline for Murphy to accept / reject programme": "Accept / Reject"
+        "Data date for Man & Sub-contractor programme": "Data date",
+        "Sub contractor submits PFA to Man": "PFA submission",
+        "Man Programme submission to client": "Client submission",
+        "Deadline for Man to accept / reject programme": "Accept / Reject"
     }
 
-    data = []
+    st.sidebar.markdown("---")
 
+    # ✅ Styled header block
+    st.sidebar.markdown(f"""
+    <div style="
+        background:#0b3d0b;
+        padding:8px;
+        border-radius:6px;
+        text-align:center;
+        color:white;
+        font-weight:600;
+    ">
+        Contract Submission Dates 2026–2027
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.sidebar.markdown(f"**📅 {month} Programme**")
+
+    # ✅ Compact row display (fits sidebar perfectly)
     for _, row in current.iterrows():
         key = labels.get(row["KEY"], row["KEY"])
         day = int(row[month])
 
-        # ✅ Status icons (safe + clean)
+        # ✅ Status logic
         if day < today_day:
-            status = "🟢 Completed"
+            icon = "🟢"
         elif day == today_day:
-            status = "🟡 Today"
+            icon = "🟡"
         else:
-            status = "⚪ Upcoming"
+            icon = "🔴"   # ✅ upcoming = RED (your request)
 
-        data.append({
-            "Activity": key,
-            "Date": day,
-            "Status": status
-        })
-
-    display_df = pd.DataFrame(data)
-
-    # ✅ DISPLAY
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("## 📘 ARUP Contract Submission Dates 2025–2026")
-    st.sidebar.markdown(f"### 📅 {month} Programme")
-
-    st.sidebar.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True
-    )
+        st.sidebar.markdown(
+            f"{icon} **{key}**  \n&nbsp;&nbsp;&nbsp;&nbsp;{day} {month}"
+        )
 
 
-# ✅ SIDEBAR
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
-    # ✅ LIGHT GREEN SIDEBAR STYLE
+    # ✅ SIDEBAR STYLE
     st.markdown("""
     <style>
         [data-testid="stSidebarNav"] {
@@ -108,7 +105,7 @@ def render_sidebar():
         # ✅ LOGO
         st.markdown(f"""
         <div style="text-align:center; padding:10px 0 20px 0;">
-            <img src="data:image/png;base64,{logo}" width="80">
+            data:image/png;base64,{logo}
         </div>
         """, unsafe_allow_html=True)
 
@@ -120,7 +117,8 @@ def render_sidebar():
             ["Ferry PS", "Rossall Outfall", "Flass Lane"]
         )
 
-        # ✅ PROGRAMME TRACKER
+        # ✅ TRACKER
         render_programme_tracker()
 
     return project
+``
