@@ -10,11 +10,25 @@ def get_base64_image(path):
 def render_sidebar():
     logo = get_base64_image("assets/logo.png")
 
+    # ✅ LIGHT GREEN SIDEBAR STYLE
     st.markdown("""
     <style>
-        [data-testid="stSidebarNav"] {display:none;}
+        [data-testid="stSidebarNav"] {
+            display: none;
+        }
+
         section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #08111f 0%, #0b1a2f 100%);
+            background: linear-gradient(180deg, #d4f5d0 0%, #a8e6a3 100%);
+        }
+
+        /* Optional: Improve text visibility */
+        section[data-testid="stSidebar"] .stRadio label {
+            color: #0b3d0b;
+            font-weight: 500;
+        }
+
+        section[data-testid="stSidebar"] h1 {
+            color: #0b3d0b;
         }
     </style>
     """, unsafe_allow_html=True)
