@@ -24,16 +24,17 @@ def prepare(df):
     return df
 
 
+# ✅ FIXED LOGIC
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    # ✅ FIXED DELAY LOGIC (ONLY 0% = delayed when past finish)
+    # 🔴 TRUE DELAY ONLY (0% + past finish)
     if row["Finish"] < today and row["Activity % Complete"] == 0:
         return "Delayed"
 
-    # ✅ Completed logic (your previous change)
+    # ✅ Completed replaces Accelerated
     if row["Activity % Complete"] >= 100:
         return "Completed"
 
@@ -43,7 +44,7 @@ def classify(row, today):
 def render_pie(df):
 
     df = prepare(df)
-    today = pd.Timestamp.today()
+    today = pd.Timestamp.today().normalize()
 
     df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
@@ -59,7 +60,7 @@ def render_pie(df):
     }
 
     # =========================
-    # PIE CHART (UNCHANGED)
+    # PIE CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
@@ -83,7 +84,7 @@ def render_pie(df):
     )
 
     # =========================
-    # CARD STYLE (UNCHANGED)
+    # CARD STYLE
     # =========================
     st.markdown("""
         <style>
@@ -118,7 +119,24 @@ def render_pie(df):
     """, unsafe_allow_html=True)
 
     # =========================
-    # RENDER (UNCHANGED)
+    # DELAY TABLE (DEBUG / VALIDATION)
+    # =========================
+    delays = df[df["Status"] == "Delayed"]
+
+    st.markdown(f"### 🔴 Delayed Tasks: {len(delays)}")
+
+    if not delays.empty:
+        st.dataframe(
+            delays[[
+                "Activity Name",
+                "Finish",
+                "Activity % Complete"
+            ]],
+            use_container_width=True
+        )
+
+    # =========================
+    # RENDER CARD
     # =========================
     with st.container():
 
@@ -129,8 +147,9 @@ def render_pie(df):
         with col1:
             st.plotly_chart(
                 fig,
-                use_container_width=True,
-                config={"displayModeBar": False}
+                width="stretch",
+                config={"displayModeBar": False},
+                key="status_pie"
             )
 
         with col2:
@@ -149,3 +168,6 @@ def render_pie(df):
                     <div class="dot" style="background:#00C853;"></div>
                     Completed <span class="value">{summary['Completed']}</span>
                 </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
