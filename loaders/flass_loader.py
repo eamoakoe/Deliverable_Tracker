@@ -1,3 +1,7 @@
+import pandas as pd
+import os
+
+
 def load_flass():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     base = os.path.join(BASE_DIR, "..", "data", "Flass")
