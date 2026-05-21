@@ -98,7 +98,7 @@ def render_next7days_table(df):
         </div>
 
         <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #ef6c00;">
-            <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
+            <div style="font-size:12px; color:#6b7280;">Critical (Float < 0)</div>
             <div style="font-size:22px; font-weight:700; color:#ef6c00;">{critical}</div>
         </div>
 
@@ -130,5 +130,4 @@ def render_next7days_table(df):
     display_df["Forecast"] = display_df["Forecast"].dt.strftime("%d-%b-%Y")
     display_df["% Complete"] = display_df["% Complete"].round(0).astype(int).astype(str) + "%"
 
-    # ✅ IMPORTANT fix for Streamlit version warning
     st.dataframe(display_df, width="stretch")
