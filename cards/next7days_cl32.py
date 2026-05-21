@@ -215,4 +215,3 @@ def render_next7days_table(df):
     styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
 
     st.write(styled)
-``
