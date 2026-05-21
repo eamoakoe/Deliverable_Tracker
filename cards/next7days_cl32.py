@@ -29,7 +29,7 @@ def _prepare(df):
 
 
 # =========================
-# 7 DAY FILTER
+# FILTER NEXT 7 DAYS
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
@@ -48,30 +48,6 @@ def _get_next7days(df):
     ).dt.days
 
     return upcoming.sort_values("Finish")
-
-
-# =========================
-# KPI CARD FUNCTION
-# =========================
-def kpi_card(title, value, color=None):
-    border = f"border-left:4px solid {color};" if color else ""
-
-    return f"""
-    <div style="
-        flex:1;
-        background:white;
-        padding:12px;
-        border-radius:12px;
-        text-align:center;
-        {border}
-        box-shadow:0 1px 3px rgba(0,0,0,0.1);
-    ">
-        <div style="font-size:12px; color:#6b7280;">{title}</div>
-        <div style="font-size:22px; font-weight:700; color:{color or '#111'};">
-            {value}
-        </div>
-    </div>
-    """
 
 
 # =========================
@@ -103,12 +79,13 @@ def render_next7days_table(df):
         "Activity % Complete": "% Complete"
     }, inplace=True)
 
+    # Format
     display_df["Baseline"] = display_df["Baseline"].dt.strftime("%d-%b-%Y")
     display_df["Forecast"] = display_df["Forecast"].dt.strftime("%d-%b-%Y")
     display_df["% Complete"] = display_df["% Complete"].round(0).astype(int).astype(str) + "%"
 
     # =========================
-    # KPI CALCS
+    # KPI CALCULATIONS
     # =========================
     total = len(display_df)
 
@@ -122,17 +99,36 @@ def render_next7days_table(df):
     critical = (forecast["Total Float"] < 0).sum()
 
     # =========================
-    # ✅ KPI UI (FIXED)
+    # ✅ KPI CARDS (NO HTML BUGS)
     # =========================
     st.markdown(
         f"""
-        <div style="display:flex; gap:12px; margin-bottom:16px">
+        <div style="display:flex; gap:12px; margin-bottom:16px;">
 
-            {kpi_card("Deliverables (7 Days)", total)}
-            {kpi_card("Behind Plan", behind, "#b71c1c")}
-            {kpi_card("On Plan", on_plan, "#0d47a1")}
-            {kpi_card("Ahead", ahead, "#1b5e20")}
-            {kpi_card("Critical (Float < 0)", critical, "#ef6c00")}
+            <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center;">
+                <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
+                <div style="font-size:22px; font-weight:700;">{total}</div>
+            </div>
+
+            <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #b71c1c;">
+                <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
+                <div style="font-size:22px; font-weight:700; color:#b71c1c;">{behind}</div>
+            </div>
+
+            <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #0d47a1;">
+                <div style="font-size:12px; color:#6b7280;">On Plan</div>
+                <div style="font-size:22px; font-weight:700; color:#0d47a1;">{on_plan}</div>
+            </div>
+
+            <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #1b5e20;">
+                <div style="font-size:12px; color:#6b7280;">Ahead</div>
+                <div style="font-size:22px; font-weight:700; color:#1b5e20;">{ahead}</div>
+            </div>
+
+            <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #ef6c00;">
+                <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
+                <div style="font-size:22px; font-weight:700; color:#ef6c00;">{critical}</div>
+            </div>
 
         </div>
         """,
@@ -140,6 +136,6 @@ def render_next7days_table(df):
     )
 
     # =========================
-    # TABLE
+    # TABLE OUTPUT
     # =========================
     st.dataframe(display_df, use_container_width=True)
