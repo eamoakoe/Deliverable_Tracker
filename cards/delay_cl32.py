@@ -3,182 +3,129 @@ import pandas as pd
 
 
 # =========================
-# DATA PREP
+# PREP DATA
 # =========================
 def _prepare(df):
     df = df.copy()
-
     df.columns = df.columns.astype(str).str.strip()
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"], errors="coerce"
-    ).fillna(0)
+    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
 
     return df
 
 
 # =========================
-# FEATURE ENGINEERING (ML-LITE)
+# KEYWORD MAP (EDITABLE)
 # =========================
-def _engineer_features(df):
-
-    today = pd.Timestamp.today().normalize()
-
-    df["Duration"] = (df["Finish"] - df["Start"]).dt.days
-    df["Elapsed"] = (today - df["Start"]).dt.days.clip(lower=0)
-
-    df["Expected %"] = (
-        (df["Elapsed"] / df["Duration"]) * 100
-    ).clip(upper=100)
-
-    df["Efficiency"] = (
-        df["Activity % Complete"] / df["Expected %"]
-    ).replace([float("inf")], 0).fillna(0)
-
-    return df
+MILESTONE_KEYWORDS = {
+    "Design Freeze": ["BIM Execution Plan", "Freeze"],
+    "Design Submission": ["Submission", "Outline Design Pack"],
+    "Client Review": ["Client Review"],
+    "Final Submission": ["Final Submission"]
+}
 
 
 # =========================
-# RISK PANEL
+# EXTRACT MILESTONES
 # =========================
-def render_delivery_intelligence(df):
+def extract_milestones(df):
 
     df = _prepare(df)
-    df = _engineer_features(df)
 
-    if df.empty:
-        return
+    milestones = []
 
-    # ✅ Confidence score
-    score = (
-        (df["Activity % Complete"] > 80).astype(int) +
-        (df["Efficiency"] >= 1).astype(int)
-    ) / 2 * 100
+    for milestone_name, keywords in MILESTONE_KEYWORDS.items():
 
-    confidence = int(score.mean())
+        mask = df["Activity Name"].str.contains(
+            "|".join(keywords),
+            case=False,
+            na=False
+        )
 
-    # ✅ Hidden risks
-    hidden_risk = df[
-        (df["Activity % Complete"] < 75) &
-        (df["Expected %"] > df["Activity % Complete"])
-    ]
+        filtered = df[mask]
 
-    # ✅ Trend
-    trend = int((df["Finish"] - pd.Timestamp.today()).dt.days.mean())
+        if filtered.empty:
+            continue
 
-    # ✅ Driver
-    if (df["Efficiency"] < 0.8).sum() > 2:
-        driver = "Slow Progress"
-    elif (df["Activity % Complete"] < 50).sum() > 2:
-        driver = "Low Completion"
-    else:
-        driver = "Stable"
+        # ✅ take first match (avoids duplicates)
+        row = filtered.iloc[0]
 
-    # =========================
-    # DISPLAY PANEL
-    # =========================
-    st.markdown("### 🤖 Delivery Intelligence (CL32 May)")
+        if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
+            delta = int((row["Finish"] - row["BL1 Finish"]).days)
+        else:
+            delta = None
 
-    col1, col2 = st.columns(2)
+        milestones.append({
+            "Milestone": milestone_name,
+            "Baseline Finish (CL32 May)": row["BL1 Finish"],
+            "Forecast Finish": row["Finish"],
+            "Δ (Days)": delta
+        })
 
-    col1.metric("Confidence", f"{confidence}%")
-    col1.metric("Hidden Risks", len(hidden_risk))
+    ms_df = pd.DataFrame(milestones)
 
-    col2.metric("Trend (Days)", trend)
-    col2.metric("Main Driver", driver)
-
-    # =========================
-    # EXPLANATION (CRITICAL)
-    # =========================
-    st.caption("""
-    **Guide:**
-    • Confidence → likelihood of delivering on time based on progress vs expected  
-    • Hidden Risks → activities that appear on track but are progressing slower than expected  
-    • Trend → overall programme movement (negative = drifting late)  
-    • Main Driver → dominant factor affecting current delivery performance  
-    """)
-
-
-# =========================
-# DELAY TABLE (YOUR ORIGINAL)
-# =========================
-def _get_delayed(df):
-    df = _prepare(df)
-
-    today = pd.Timestamp.today().normalize()
-
-    delayed = df[
-        (df["Finish"].notna()) &
-        (df["Finish"] < today) &
-        (df["Activity % Complete"] < 100)
-    ].copy()
-
-    delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
-
-    return delayed.sort_values("Delay (Days)", ascending=False)
+    return ms_df
 
 
 # =========================
 # RENDER TABLE
 # =========================
-def render_delayed_table(df):
+def render_milestone_table(df):
 
-    # ✅ ADD ML PANEL FIRST
-    render_delivery_intelligence(df)
+    ms_df = extract_milestones(df)
 
-    delayed = _get_delayed(df)
+    st.markdown("### 🎯 Key Milestone Tracking – CL32 May")
 
-    if delayed.empty:
-        st.success("No delayed deliverables 🎯")
+    if ms_df.empty:
+        st.info("No milestones identified")
         return
 
-    display_df = delayed[[
-        "Activity ID",
-        "Activity Name",
-        "Start",
-        "Finish",
-        "Delay (Days)",
-        "Comments"
-    ]].copy()
+    # =========================
+    # FORMAT DATES
+    # =========================
+    ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
+        ms_df["Baseline Finish (CL32 May)"]
+    ).dt.strftime("%d-%b-%Y")
 
-    display_df.rename(columns={
-        "Activity ID": "ID",
-        "Activity Name": "Activity",
-        "Start": "Start Date",
-        "Finish": "Finish Date",
-        "Comments": "Remarks"
-    }, inplace=True)
-
-    display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
-    display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
+    ms_df["Forecast Finish"] = pd.to_datetime(
+        ms_df["Forecast Finish"]
+    ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # COLOUR DELAYS
+    # COLOUR DELTA
     # =========================
-    def colour_delay(val):
-        if val >= 50:
-            return "background-color:#d32f2f;color:white"
-        elif val >= 30:
-            return "background-color:#f57c00;color:white"
-        elif val >= 15:
-            return "background-color:#fbc02d;color:black"
-        else:
-            return "background-color:#c8e6c9;color:black"
+    def colour_delta(val):
+        if val is None:
+            return ""
+        if val < 0:
+            return "background-color:#7f1d1d;color:white;font-weight:bold"
+        elif val > 0:
+            return "background-color:#14532d;color:white;font-weight:bold"
+        return "background-color:#374151;color:white"
 
-    styled = display_df.style.map(colour_delay, subset=["Delay (Days)"])
-
-    st.markdown(
-        f"<span style='color:#d32f2f;font-weight:600;font-size:15px'>🔴 {len(display_df)} Delayed Activities</span>",
-        unsafe_allow_html=True
-    )
+    styled = ms_df.style.map(
+        colour_delta,
+        subset=["Δ (Days)"]
+    ).set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#2b3a55"),
+                ("color", "white"),
+                ("padding", "10px"),
+                ("font-weight", "600")
+            ]
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("background-color", "#1c2233"),
+                ("color", "#f1f1f1"),
+                ("padding", "8px")
+            ]
+        }
+    ])
 
     st.write(styled)
