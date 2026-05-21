@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# DATA PREPARATION
+# DATA PREP
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -20,15 +20,96 @@ def _prepare(df):
     )
 
     df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
+        df["Activity % Complete"], errors="coerce"
     ).fillna(0)
 
     return df
 
 
 # =========================
-# DELAY LOGIC
+# FEATURE ENGINEERING (ML-LITE)
+# =========================
+def _engineer_features(df):
+
+    today = pd.Timestamp.today().normalize()
+
+    df["Duration"] = (df["Finish"] - df["Start"]).dt.days
+    df["Elapsed"] = (today - df["Start"]).dt.days.clip(lower=0)
+
+    df["Expected %"] = (
+        (df["Elapsed"] / df["Duration"]) * 100
+    ).clip(upper=100)
+
+    df["Efficiency"] = (
+        df["Activity % Complete"] / df["Expected %"]
+    ).replace([float("inf")], 0).fillna(0)
+
+    return df
+
+
+# =========================
+# RISK PANEL
+# =========================
+def render_delivery_intelligence(df):
+
+    df = _prepare(df)
+    df = _engineer_features(df)
+
+    if df.empty:
+        return
+
+    # ✅ Confidence score
+    score = (
+        (df["Activity % Complete"] > 80).astype(int) +
+        (df["Efficiency"] >= 1).astype(int)
+    ) / 2 * 100
+
+    confidence = int(score.mean())
+
+    # ✅ Hidden risks
+    hidden_risk = df[
+        (df["Activity % Complete"] < 75) &
+        (df["Expected %"] > df["Activity % Complete"])
+    ]
+
+    # ✅ Trend
+    trend = int((df["Finish"] - pd.Timestamp.today()).dt.days.mean())
+
+    # ✅ Driver
+    if (df["Efficiency"] < 0.8).sum() > 2:
+        driver = "Slow Progress"
+    elif (df["Activity % Complete"] < 50).sum() > 2:
+        driver = "Low Completion"
+    else:
+        driver = "Stable"
+
+    # =========================
+    # DISPLAY PANEL
+    # =========================
+    st.markdown("### 🤖 Delivery Intelligence (CL32 May)")
+
+    col1, col2 = st.columns(2)
+
+    col1.metric("Confidence", f"{confidence}%")
+    col1.metric("Hidden Risks", len(hidden_risk))
+
+    col2.metric("Trend (Days)", trend)
+    col2.metric("Main Driver", driver)
+
+    # =========================
+    # EXPLANATION (CRITICAL)
+    # =========================
+    st.caption("""
+    **Guide:**
+    • Confidence → likelihood of delivering on time based on progress vs expected  
+    • Hidden Risks → activities that appear on track but are progressing slower than expected  
+    • Trend → overall programme movement (negative = drifting late)  
+    • Main Driver → dominant factor affecting current delivery performance  
+    """)
+
+
+# =========================
+# DELAY TABLE (YOUR ORIGINAL)
 # =========================
 def _get_delayed(df):
     df = _prepare(df)
@@ -51,6 +132,9 @@ def _get_delayed(df):
 # =========================
 def render_delayed_table(df):
 
+    # ✅ ADD ML PANEL FIRST
+    render_delivery_intelligence(df)
+
     delayed = _get_delayed(df)
 
     if delayed.empty:
@@ -66,119 +150,35 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
-    # =========================
-    # CLEAN COLUMN NAMES (PRO LOOK)
-    # =========================
     display_df.rename(columns={
         "Activity ID": "ID",
         "Activity Name": "Activity",
         "Start": "Start Date",
         "Finish": "Finish Date",
-        "Delay (Days)": "Delay (Days)",
         "Comments": "Remarks"
     }, inplace=True)
 
-    # =========================
-    # FORMAT DATES
-    # =========================
     display_df["Start Date"] = display_df["Start Date"].dt.strftime("%d-%b-%Y")
     display_df["Finish Date"] = display_df["Finish Date"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # DELAY COLOUR SCALE
+    # COLOUR DELAYS
     # =========================
     def colour_delay(val):
-        try:
-            v = float(val)
+        if val >= 50:
+            return "background-color:#d32f2f;color:white"
+        elif val >= 30:
+            return "background-color:#f57c00;color:white"
+        elif val >= 15:
+            return "background-color:#fbc02d;color:black"
+        else:
+            return "background-color:#c8e6c9;color:black"
 
-            if v >= 50:
-                return "background-color:#d32f2f; color:white; font-weight:600"
-            elif v >= 30:
-                return "background-color:#f57c00; color:white; font-weight:600"
-            elif v >= 15:
-                return "background-color:#fbc02d; color:black; font-weight:600"
-            else:
-                return "background-color:#c8e6c9; color:black; font-weight:600"
-        except:
-            return ""
+    styled = display_df.style.map(colour_delay, subset=["Delay (Days)"])
 
-    # =========================
-    # ROW STRIPING
-    # =========================
-    def stripe_rows(row):
-        return [
-            "background-color:#ffffff" if row.name % 2 == 0 else "background-color:#f7f9fc"
-        ] * len(row)
-
-    # =========================
-    # PROFESSIONAL TABLE STYLE
-    # =========================
-    styled = (
-        display_df.style
-
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "#1e3a8a"),
-                    ("color", "white"),
-                    ("font-size", "12.5px"),
-                    ("font-weight", "700"),
-                    ("text-transform", "uppercase"),
-                    ("letter-spacing", "0.6px"),
-                    ("padding", "10px 8px"),
-                    ("border-bottom", "3px solid #3b82f6"),
-                ]
-            },
-            {
-                "selector": "td",
-                "props": [
-                    ("padding", "8px"),
-                    ("color", "#1f2a44"),
-                    ("border-bottom", "1px solid #e5e7eb")
-                ]
-            },
-            {
-                "selector": "table",
-                "props": [
-                    ("border-collapse", "collapse"),
-                    ("width", "100%"),
-                    ("background-color", "white"),
-                    ("border-radius", "8px"),
-                    ("overflow", "hidden"),
-                    ("box-shadow", "0 1px 3px rgba(0,0,0,0.08)")
-                ]
-            }
-        ])
-
-        # Stripe rows
-        .apply(stripe_rows, axis=1)
-
-        # Colour delay column
-        .map(colour_delay, subset=["Delay (Days)"])
-
-        # Align columns
-        .set_properties(subset=["ID", "Activity", "Remarks"], **{
-            "text-align": "left"
-        })
-        .set_properties(subset=["Start Date", "Finish Date"], **{
-            "text-align": "center"
-        })
-        .set_properties(subset=["Delay (Days)"], **{
-            "text-align": "center",
-            "font-weight": "600"
-        })
-    )
-
-    # =========================
-    # KPI SUMMARY
-    # =========================
     st.markdown(
         f"<span style='color:#d32f2f;font-weight:600;font-size:15px'>🔴 {len(display_df)} Delayed Activities</span>",
         unsafe_allow_html=True
     )
 
-    # =========================
-    # RENDER
-    # =========================
     st.write(styled)
