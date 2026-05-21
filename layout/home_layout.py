@@ -56,7 +56,7 @@ def render_dashboard(df31, df32):
     🟢 Next 7 Days</div>
     """, unsafe_allow_html=True)
 
-    render_next4weeks_table(df32)
+    render_next7days_table(df32)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
