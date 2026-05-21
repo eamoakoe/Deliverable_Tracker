@@ -2,7 +2,7 @@ import streamlit as st
 
 from cards.header import render_header
 from cards.pie_card import render_pie
-from cards.delay_cl32 import render_delayed_table
+from cards.milestone_cl32 import render_milestone_table
 from cards.next7days_cl32 import render_next7days_table
 from cards.table_card import render_table
 
@@ -44,7 +44,7 @@ def render_dashboard(df31, df32):
         🔴 Delayed Deliverables</div>
         """, unsafe_allow_html=True)
 
-        render_delayed_table(df32)
+        render_milestone_table(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
