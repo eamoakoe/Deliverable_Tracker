@@ -17,6 +17,15 @@ def get_latest(folder, prefix):
     return os.path.join(folder, files[-1])
 
 
+def clean_columns(df):
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.replace("\xa0", " ", regex=False)  # removes hidden Excel spaces
+    )
+    return df
+
+
 def load_flass():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     base = os.path.join(BASE_DIR, "..", "data", "Flass")
@@ -33,12 +42,12 @@ def load_flass():
     if not cl32_path:
         raise FileNotFoundError(f"CL32 not found in {base}")
 
-    # ✅ skip first row (Flass files have title row)
+    # ✅ Skip title row (Flass files only)
     cl31 = pd.read_excel(cl31_path, engine="openpyxl", skiprows=1)
     cl32 = pd.read_excel(cl32_path, engine="openpyxl", skiprows=1)
 
-    # ✅ clean column names
-    cl31.columns = cl31.columns.str.strip()
-    cl32.columns = cl32.columns.str.strip()
+    # ✅ Clean columns (critical fix)
+    cl31 = clean_columns(cl31)
+    cl32 = clean_columns(cl32)
 
     return cl31, cl32
