@@ -16,6 +16,7 @@ def _prepare(df):
 
     df["Total Float"] = pd.to_numeric(df["Total Float"], errors="coerce")
 
+    # Clean % complete
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -27,6 +28,7 @@ def _prepare(df):
         errors="coerce"
     ).fillna(0)
 
+    # ✅ Change (force integer)
     df["Change (days)"] = (
         (df["Finish"] - df["BL1 Finish"])
         .dt.days
@@ -59,10 +61,8 @@ def _get_next7days(df):
 # =========================
 def render_next7days_table(df):
 
-    # ✅ ✅ STRONG CL32 MAY LABELLING
-    st.markdown("## 📅 CLAUSE 32 (CL32) – MAY PROGRAMME")
-    st.markdown("### Lookahead: Activities Issuing in Next 7 Days")
-    st.caption("Comparison of CL32 May Baseline vs Current Forecast Finish Dates")
+    st.markdown("### 📅 CL32 May Lookahead – Next 7 Days")
+    st.caption("Baseline vs Forecast Finish (Clause 32 – May Programme)")
 
     df = _get_next7days(df)
 
@@ -71,7 +71,7 @@ def render_next7days_table(df):
         return
 
     # =========================
-    # TABLE STRUCTURE
+    # RENAME FOR CLARITY
     # =========================
     display_df = df[[
         "Activity ID",
@@ -84,13 +84,10 @@ def render_next7days_table(df):
         "Comments"
     ]].copy()
 
-    # ✅ ✅ RENAMED WITH CL32 MAY IN HEADERS
     display_df = display_df.rename(columns={
         "BL1 Finish": "Baseline Finish (CL32 May)",
         "Finish": "Forecast Finish (CL32 May)",
-        "Change (days)": "Δ Change vs CL32 May (days)",
-        "Total Float": "Float (Days)",
-        "Activity % Complete": "% Complete"
+        "Change (days)": "Change vs CL32 Baseline (days)"
     })
 
     # =========================
@@ -106,42 +103,42 @@ def render_next7days_table(df):
     # STATUS
     # =========================
     def get_status(row):
-        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
+        if row["Activity % Complete"] < 100 and row["Total Float"] <= 0:
             return "🔴 At Risk"
-        elif row["Δ Change vs CL32 May (days)"] < 0:
+        elif row["Change vs CL32 Baseline (days)"] < 0:
             return "🟠 Late"
         else:
             return "🟢 OK"
 
-    display_df["Status (CL32 May)"] = display_df.apply(get_status, axis=1)
+    display_df["Status"] = display_df.apply(get_status, axis=1)
 
     # =========================
-    # ML-LITE RISK
+    # ML-LITE RISK INDICATOR
     # =========================
     def get_risk(row):
-        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
+        if row["Activity % Complete"] < 100 and row["Total Float"] <= 0:
             return "🔴 High Risk"
-        elif row["% Complete"] < 75 and row["Δ Change vs CL32 May (days)"] < 0:
+        elif row["Activity % Complete"] < 75 and row["Change vs CL32 Baseline (days)"] < 0:
             return "🟠 Behind Progress"
-        elif row["% Complete"] >= 90 and row["Δ Change vs CL32 May (days)"] < 0:
+        elif row["Activity % Complete"] >= 90 and row["Change vs CL32 Baseline (days)"] < 0:
             return "⚠️ Near Complete but Late"
         else:
             return "🟢 Low Risk"
 
-    display_df["Risk (Forward Look)"] = display_df.apply(get_risk, axis=1)
+    display_df["Risk"] = display_df.apply(get_risk, axis=1)
 
     # =========================
     # KPI SUMMARY
     # =========================
     total = len(display_df)
-    late = (display_df["Δ Change vs CL32 May (days)"] < 0).sum()
-    at_risk = (display_df["Status (CL32 May)"] == "🔴 At Risk").sum()
+    late = (display_df["Change vs CL32 Baseline (days)"] < 0).sum()
+    at_risk = (display_df["Status"] == "🔴 At Risk").sum()
 
     st.markdown(f"""
-    **📊 CL32 MAY – 7 DAY LOOKAHEAD SUMMARY**
+    **Next 7 Days Summary**
     - Total Activities: {total}
-    - Late vs Baseline: {late}
-    - At Risk (Critical): {at_risk}
+    - Late: {late}
+    - At Risk: {at_risk}
     """)
 
     # =========================
@@ -183,7 +180,7 @@ def render_next7days_table(df):
         return ""
 
     # =========================
-    # TABLE STYLE
+    # STYLE TABLE
     # =========================
     styled = display_df.style.set_table_styles([
         {
@@ -196,6 +193,7 @@ def render_next7days_table(df):
                 ("text-transform", "uppercase"),
                 ("padding", "10px"),
                 ("border-bottom", "2px solid #4da3ff"),
+                ("text-align", "left")
             ]
         },
         {
@@ -204,14 +202,16 @@ def render_next7days_table(df):
                 ("padding", "8px"),
                 ("background-color", "#1c2233"),
                 ("color", "#f1f1f1"),
-                ("border-bottom", "1px solid #2a3347")
+                ("border-bottom", "1px solid #2a3347"),
+                ("border-right", "1px solid #2a3347")
             ]
         }
     ])
 
-    styled = styled.map(colour_change, subset=["Δ Change vs CL32 May (days)"])
-    styled = styled.map(colour_float, subset=["Float (Days)"])
-    styled = styled.map(colour_status, subset=["Status (CL32 May)"])
-    styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
+    # Apply colours
+    styled = styled.map(colour_change, subset=["Change vs CL32 Baseline (days)"])
+    styled = styled.map(colour_float, subset=["Total Float"])
+    styled = styled.map(colour_status, subset=["Status"])
+    styled = styled.map(colour_risk, subset=["Risk"])
 
     st.write(styled)
