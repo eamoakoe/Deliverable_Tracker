@@ -29,7 +29,7 @@ def _prepare(df):
 
 
 # =========================
-# ✅ 7-DAY ISSUE FORECAST
+# 7 DAY FILTER
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
@@ -43,7 +43,6 @@ def _get_next7days(df):
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # Change vs baseline
     upcoming["Change (Days)"] = (
         upcoming["Finish"] - upcoming["BL1 Finish"]
     ).dt.days
@@ -52,7 +51,31 @@ def _get_next7days(df):
 
 
 # =========================
-# RENDER TABLE + KPI
+# KPI CARD FUNCTION
+# =========================
+def kpi_card(title, value, color=None):
+    border = f"border-left:4px solid {color};" if color else ""
+
+    return f"""
+    <div style="
+        flex:1;
+        background:white;
+        padding:12px;
+        border-radius:12px;
+        text-align:center;
+        {border}
+        box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    ">
+        <div style="font-size:12px; color:#6b7280;">{title}</div>
+        <div style="font-size:22px; font-weight:700; color:{color or '#111'};">
+            {value}
+        </div>
+    </div>
+    """
+
+
+# =========================
+# RENDER FUNCTION
 # =========================
 def render_next7days_table(df):
 
@@ -67,122 +90,56 @@ def render_next7days_table(df):
         "Activity Name",
         "BL1 Finish",
         "Finish",
-        "Change (Days)",
         "Total Float",
         "Activity % Complete"
     ]].copy()
 
-    # =========================
-    # CLEAN HEADERS
-    # =========================
     display_df.rename(columns={
         "Activity ID": "ID",
         "Activity Name": "Activity",
-        "BL1 Finish": "Baseline Finish",
-        "Finish": "Forecast Finish",
+        "BL1 Finish": "Baseline",
+        "Finish": "Forecast",
         "Total Float": "Float",
         "Activity % Complete": "% Complete"
     }, inplace=True)
 
-    # =========================
-    # FORMAT VALUES
-    # =========================
-    display_df["Baseline Finish"] = display_df["Baseline Finish"].dt.strftime("%d-%b-%Y")
-    display_df["Forecast Finish"] = display_df["Forecast Finish"].dt.strftime("%d-%b-%Y")
+    display_df["Baseline"] = display_df["Baseline"].dt.strftime("%d-%b-%Y")
+    display_df["Forecast"] = display_df["Forecast"].dt.strftime("%d-%b-%Y")
     display_df["% Complete"] = display_df["% Complete"].round(0).astype(int).astype(str) + "%"
 
     # =========================
-    # KPI CALCULATIONS
+    # KPI CALCS
     # =========================
     total = len(display_df)
-    behind = (display_df["Change (Days)"] > 0).sum()
-    on_plan = (display_df["Change (Days)"] == 0).sum()
-    ahead = (display_df["Change (Days)"] < 0).sum()
-    critical = (display_df["Float"] < 0).sum()
+
+    change = (
+        forecast["Finish"] - forecast["BL1 Finish"]
+    ).dt.days
+
+    behind = (change > 0).sum()
+    on_plan = (change == 0).sum()
+    ahead = (change < 0).sum()
+    critical = (forecast["Total Float"] < 0).sum()
 
     # =========================
-    # KPI CARDS
+    # ✅ KPI UI (FIXED)
     # =========================
-    st.markdown(f"""
-    <div style="display:flex; gap:12px; margin-bottom:12px;">
+    st.markdown(
+        f"""
+        <div style="display:flex; gap:12px; margin-bottom:16px">
 
-        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
-            <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
-            <div style="font-size:20px; font-weight:700;">{total}</div>
+            {kpi_card("Deliverables (7 Days)", total)}
+            {kpi_card("Behind Plan", behind, "#b71c1c")}
+            {kpi_card("On Plan", on_plan, "#0d47a1")}
+            {kpi_card("Ahead", ahead, "#1b5e20")}
+            {kpi_card("Critical (Float < 0)", critical, "#ef6c00")}
+
         </div>
-
-        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #b71c1c;">
-            <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
-            <div style="font-size:20px; font-weight:700; color:#b71c1c;">{behind}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #0d47a1;">
-            <div style="font-size:12px; color:#6b7280;">On Plan</div>
-            <div style="font-size:20px; font-weight:700; color:#0d47a1;">{on_plan}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #1b5e20;">
-            <div style="font-size:12px; color:#6b7280;">Ahead</div>
-            <div style="font-size:20px; font-weight:700; color:#1b5e20;">{ahead}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #ef6c00;">
-            <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
-            <div style="font-size:20px; font-weight:700; color:#ef6c00;">{critical}</div>
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    # =========================
-    # COLOUR FUNCTIONS
-    # =========================
-    def colour_delta(val):
-        if val > 0:
-            return "background-color:#fdecea; color:#b71c1c; font-weight:600"
-        elif val < 0:
-            return "background-color:#e8f5e9; color:#1b5e20"
-        return ""
-
-    def colour_float(val):
-        if pd.notna(val):
-            if val < 0:
-                return "background-color:#ffcdd2; color:#b71c1c"
-            elif val <= 5:
-                return "background-color:#fff3e0; color:#ef6c00"
-            else:
-                return "background-color:#e8f5e9; color:#1b5e20"
-        return ""
-
-    def colour_progress(val):
-        try:
-            v = float(val.replace("%", ""))
-            if v >= 80:
-                return "background-color:#e8f5e9; color:#1b5e20"
-            elif v >= 40:
-                return "background-color:#fff3e0; color:#ef6c00"
-            else:
-                return "background-color:#fdecea; color:#b71c1c"
-        except:
-            return ""
-
-    def stripe_rows(row):
-        return [
-            "background-color:#ffffff" if row.name % 2 == 0 else "background-color:#f7f9fc"
-        ] * len(row)
-
-    # =========================
-    # STYLE TABLE
-    # =========================
-    styled = (
-        display_df.style
-        .apply(stripe_rows, axis=1)
-        .map(colour_delta, subset=["Change (Days)"])
-        .map(colour_float, subset=["Float"])
-        .map(colour_progress, subset=["% Complete"])
+        """,
+        unsafe_allow_html=True
     )
 
     # =========================
-    # RENDER TABLE
+    # TABLE
     # =========================
-    st.dataframe(styled, use_container_width=True)
+    st.dataframe(display_df, use_container_width=True)
