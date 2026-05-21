@@ -11,7 +11,7 @@ def get_latest(folder, prefix):
     return os.path.join(folder, files[-1]) if files else None
 
 
-def load_rossall():
+def load_flass():
     base = "data/Flass/"
 
     cl31 = pd.read_excel(get_latest(base, "CL31-RO"), engine="openpyxl")
