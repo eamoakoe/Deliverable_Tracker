@@ -9,6 +9,9 @@ def _prepare(df):
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
+
+    df["Total Float"] = pd.to_numeric(df["Total Float"], errors="coerce")
 
     df["Activity % Complete"] = (
         df["Activity % Complete"]
@@ -21,25 +24,27 @@ def _prepare(df):
         errors="coerce"
     ).fillna(0)
 
+    # 🔹 Calculate change (Forecast vs Baseline)
+    df["Change (days)"] = (df["Finish"] - df["BL1 Finish"]).dt.days
+
     return df
 
 
 # =========================
-# LOOKAHEAD LOGIC (NEXT 7 Days)
+# LOOKAHEAD (NEXT 7 DAYS)
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
 
-    today = pd.Timestamp.today()
-    lookahead = today + pd.Timedelta(days=28)
+    today = pd.Timestamp.today().normalize()
+    lookahead = today + pd.Timedelta(days=7)
 
-    # Activities that overlap next 7-day window
-    next4weeks = df[
-        (df["Start"] <= lookahead) &
-        (df["Finish"] >= today)
+    next7 = df[
+        (df["Finish"] >= today) &
+        (df["Finish"] <= lookahead)
     ].copy()
 
-    return next4weeks.sort_values("Start", ascending=True)
+    return next7.sort_values("Finish", ascending=True)
 
 
 # =========================
@@ -50,40 +55,69 @@ def render_next7days_table(df):
     upcoming = _get_next7days(df)
 
     if upcoming.empty:
-        st.success("No activities in the next 7 days 🎯")
+        st.success("No activities issuing in the next 7 days 🎯")
         return
 
     display_df = upcoming[[
         "Activity ID",
         "Activity Name",
-        "Start",
+        "BL1 Finish",
         "Finish",
+        "Change (days)",
+        "Total Float",
+        "Activity % Complete",
         "Comments"
     ]].copy()
 
     # =========================
-    # DISPLAY FORMATTING ONLY
+    # FORMAT DATES
     # =========================
-    display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
+    display_df["BL1 Finish"] = display_df["BL1 Finish"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # CONSTRAINT COLUMN (SIMPLE FORECAST LABEL)
+    # STATUS COLUMN (SMART ADD)
     # =========================
-    display_df["Constraints"] = "Within 7-day window"
+    def get_status(row):
+        if row["Activity % Complete"] < 100 and row["Total Float"] <= 0:
+            return "🔴 At Risk"
+        elif row["Change (days)"] < 0:
+            return "🟠 Late"
+        else:
+            return "🟢 OK"
 
+    display_df["Status"] = display_df.apply(get_status, axis=1)
 
     # =========================
-    # COLOUR FUNCTION (CONSTRAINT ONLY)
+    # COLOUR FUNCTIONS
     # =========================
-    def colour_constraints(val):
-        if "Within" in str(val):
-            return "background-color:#1e4d2b; color:white; font-weight:bold"
+    def colour_status(val):
+        if "🔴" in str(val):
+            return "background-color:#b00020; color:white; font-weight:bold"
+        elif "🟠" in str(val):
+            return "background-color:#ff9800; color:black; font-weight:bold"
+        elif "🟢" in str(val):
+            return "background-color:#1e7e34; color:white; font-weight:bold"
         return ""
 
+    def colour_change(val):
+        if pd.isna(val):
+            return ""
+        if val < 0:
+            return "background-color:#5c1f1f; color:white"
+        elif val > 0:
+            return "background-color:#1f5c2e; color:white"
+        return ""
+
+    def colour_float(val):
+        if pd.isna(val):
+            return ""
+        if val <= 0:
+            return "background-color:#b00020; color:white"
+        return ""
 
     # =========================
-    # TABLE STYLING (SAME STYLE AS delay_cl32.py)
+    # TABLE STYLING
     # =========================
     styled = display_df.style.set_table_styles([
         {
@@ -94,7 +128,6 @@ def render_next7days_table(df):
                 ("font-size", "13px"),
                 ("font-weight", "600"),
                 ("text-transform", "uppercase"),
-                ("letter-spacing", "1px"),
                 ("padding", "10px"),
                 ("border-bottom", "2px solid #4da3ff"),
                 ("text-align", "left")
@@ -121,9 +154,11 @@ def render_next7days_table(df):
     ])
 
     # =========================
-    # APPLY COLOUR ONLY TO CONSTRAINTS COLUMN
+    # APPLY COLOURS
     # =========================
-    styled = styled.map(colour_constraints, subset=["Constraints"])
+    styled = styled.map(colour_status, subset=["Status"])
+    styled = styled.map(colour_change, subset=["Change (days)"])
+    styled = styled.map(colour_float, subset=["Total Float"])
 
     # =========================
     # RENDER
