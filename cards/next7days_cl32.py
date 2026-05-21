@@ -45,7 +45,7 @@ def _get_next7days(df):
 # =========================
 # RENDER TABLE
 # =========================
-def render_next4weeks_table(df):
+def render_next7days_table(df):
 
     upcoming = _get_next7days(df)
 
