@@ -3,7 +3,7 @@ import streamlit as st
 from cards.header import render_header
 from cards.pie_card import render_pie
 from cards.delay_cl32 import render_delayed_table
-from cards.next4weeks_cl32 import render_next4weeks_table
+from cards.next4weeks_cl32 import render_next7days_table
 from cards.table_card import render_table
 
 
