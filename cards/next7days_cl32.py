@@ -2,17 +2,13 @@ import streamlit as st
 import pandas as pd
 
 
-# =========================
-# DATA PREPARATION
-# =========================
 def _prepare(df):
     df = df.copy()
+
     df.columns = df.columns.astype(str).str.strip()
 
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
-
-    df["Total Float"] = pd.to_numeric(df["Total Float"], errors="coerce")
 
     df["Activity % Complete"] = (
         df["Activity % Complete"]
@@ -21,118 +17,115 @@ def _prepare(df):
     )
 
     df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"], errors="coerce"
+        df["Activity % Complete"],
+        errors="coerce"
     ).fillna(0)
 
     return df
 
 
 # =========================
-# FILTER NEXT 7 DAYS
+# LOOKAHEAD LOGIC (NEXT 7 Days)
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
 
-    today = pd.Timestamp.today().normalize()
-    lookahead = today + pd.Timedelta(days=7)
+    today = pd.Timestamp.today()
+    lookahead = today + pd.Timedelta(days=28)
 
-    upcoming = df[
-        (df["Finish"].notna()) &
-        (df["Finish"] >= today) &
-        (df["Finish"] <= lookahead)
+    # Activities that overlap next 7-day window
+    next4weeks = df[
+        (df["Start"] <= lookahead) &
+        (df["Finish"] >= today)
     ].copy()
 
-    upcoming["Change (Days)"] = (
-        upcoming["Finish"] - upcoming["BL1 Finish"]
-    ).dt.days
-
-    return upcoming.sort_values("Finish")
+    return next4weeks.sort_values("Start", ascending=True)
 
 
 # =========================
-# MAIN RENDER FUNCTION
+# RENDER TABLE
 # =========================
-def render_next7days_table(df):
+def render_next4weeks_table(df):
 
-    forecast = _get_next7days(df)
+    upcoming = _get_next7days(df)
 
-    # DEBUG (optional)
-    # st.write("Rows found:", len(forecast))
-
-    if forecast.empty:
-        st.warning("No deliverables due in next 7 days")
+    if upcoming.empty:
+        st.success("No activities in the next 7 days 🎯")
         return
 
-    # =========================
-    # KPI CALCULATIONS
-    # =========================
-    change = (forecast["Finish"] - forecast["BL1 Finish"]).dt.days
-
-    total = len(forecast)
-    behind = (change > 0).sum()
-    on_plan = (change == 0).sum()
-    ahead = (change < 0).sum()
-    critical = (forecast["Total Float"] < 0).sum()
-
-    # =========================
-    # KPI CARDS
-    # =========================
-    st.markdown(f"""
-    <div style="display:flex; gap:12px; margin-bottom:16px;">
-
-        <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center;">
-            <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
-            <div style="font-size:22px; font-weight:700;">{total}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #b71c1c;">
-            <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
-            <div style="font-size:22px; font-weight:700; color:#b71c1c;">{behind}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #0d47a1;">
-            <div style="font-size:12px; color:#6b7280;">On Plan</div>
-            <div style="font-size:22px; font-weight:700; color:#0d47a1;">{on_plan}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #1b5e20;">
-            <div style="font-size:12px; color:#6b7280;">Ahead</div>
-            <div style="font-size:22px; font-weight:700; color:#1b5e20;">{ahead}</div>
-        </div>
-
-        <div style="flex:1; background:white; padding:12px; border-radius:12px; text-align:center; border-left:4px solid #ef6c00;">
-            <div style="font-size:12px; color:#6b7280;">Critical (Float < 0)</div>
-            <div style="font-size:22px; font-weight:700; color:#ef6c00;">{critical}</div>
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    # =========================
-    # TABLE
-    # =========================
-    display_df = forecast[[
+    display_df = upcoming[[
         "Activity ID",
         "Activity Name",
-        "BL1 Finish",
+        "Start",
         "Finish",
-        "Total Float",
-        "Activity % Complete"
+        "Comments"
     ]].copy()
 
-    display_df.rename(columns={
-        "Activity ID": "ID",
-        "Activity Name": "Activity",
-        "BL1 Finish": "Baseline",
-        "Finish": "Forecast",
-        "Total Float": "Float",
-        "Activity % Complete": "% Complete"
-    }, inplace=True)
+    # =========================
+    # DISPLAY FORMATTING ONLY
+    # =========================
+    display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
+    display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
-    display_df["Baseline"] = display_df["Baseline"].dt.strftime("%d-%b-%Y")
-    display_df["Forecast"] = display_df["Forecast"].dt.strftime("%d-%b-%Y")
-    display_df["% Complete"] = (
-        display_df["% Complete"].round(0).astype(int).astype(str) + "%"
-    )
+    # =========================
+    # CONSTRAINT COLUMN (SIMPLE FORECAST LABEL)
+    # =========================
+    display_df["Constraints"] = "Within 7-day window"
 
-    st.dataframe(display_df, width="stretch")
+
+    # =========================
+    # COLOUR FUNCTION (CONSTRAINT ONLY)
+    # =========================
+    def colour_constraints(val):
+        if "Within" in str(val):
+            return "background-color:#1e4d2b; color:white; font-weight:bold"
+        return ""
+
+
+    # =========================
+    # TABLE STYLING (SAME STYLE AS delay_cl32.py)
+    # =========================
+    styled = display_df.style.set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#2b3a55"),
+                ("color", "white"),
+                ("font-size", "13px"),
+                ("font-weight", "600"),
+                ("text-transform", "uppercase"),
+                ("letter-spacing", "1px"),
+                ("padding", "10px"),
+                ("border-bottom", "2px solid #4da3ff"),
+                ("text-align", "left")
+            ]
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("padding", "8px"),
+                ("background-color", "#1c2233"),
+                ("color", "#f1f1f1"),
+                ("border-bottom", "1px solid #2a3347"),
+                ("border-right", "1px solid #2a3347")
+            ]
+        },
+        {
+            "selector": "table",
+            "props": [
+                ("border-collapse", "collapse"),
+                ("width", "100%"),
+                ("background-color", "#1c2233")
+            ]
+        }
+    ])
+
+    # =========================
+    # APPLY COLOUR ONLY TO CONSTRAINTS COLUMN
+    # =========================
+    styled = styled.map(colour_constraints, subset=["Constraints"])
+
+    # =========================
+    # RENDER
+    # =========================
+    st.write(styled)
