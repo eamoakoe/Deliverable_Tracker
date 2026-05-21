@@ -56,8 +56,11 @@ def render_next7days_table(df):
 
     forecast = _get_next7days(df)
 
+    # DEBUG (optional)
+    # st.write("Rows found:", len(forecast))
+
     if forecast.empty:
-        st.success("No deliverables due in next 7 days 🎯")
+        st.warning("No deliverables due in next 7 days")
         return
 
     # =========================
@@ -72,7 +75,7 @@ def render_next7days_table(df):
     critical = (forecast["Total Float"] < 0).sum()
 
     # =========================
-    # ✅ KPI CARDS (FIXED)
+    # KPI CARDS
     # =========================
     st.markdown(f"""
     <div style="display:flex; gap:12px; margin-bottom:16px;">
@@ -128,6 +131,8 @@ def render_next7days_table(df):
 
     display_df["Baseline"] = display_df["Baseline"].dt.strftime("%d-%b-%Y")
     display_df["Forecast"] = display_df["Forecast"].dt.strftime("%d-%b-%Y")
-    display_df["% Complete"] = display_df["% Complete"].round(0).astype(int).astype(str) + "%"
+    display_df["% Complete"] = (
+        display_df["% Complete"].round(0).astype(int).astype(str) + "%"
+    )
 
     st.dataframe(display_df, width="stretch")
