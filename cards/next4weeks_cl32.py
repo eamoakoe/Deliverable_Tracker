@@ -1,4 +1,16 @@
-import streamlit as stimport stream_datetime(df.get("BL1 Finish"), errors="coerce")
+import streamlit as st
+import pandas as pd
+
+
+# =========================
+# DATA PREPARATION
+# =========================
+def _prepare(df):
+    df = df.copy()
+    df.columns = df.columns.astype(str).str.strip()
+
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    df["BL1 Finish"] = pd.to_datetime(df.get("BL1 Finish"), errors="coerce")
 
     df["Total Float"] = pd.to_numeric(df.get("Total Float"), errors="coerce")
 
@@ -19,7 +31,7 @@ import streamlit as stimport stream_datetime(df.get("BL1 Finish"), errors="coerc
 # =========================
 # ✅ 7-DAY ISSUE FORECAST
 # =========================
-def _get_next4weeks(df):   # name unchanged
+def _get_next7days(df):
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
@@ -42,9 +54,9 @@ def _get_next4weeks(df):   # name unchanged
 # =========================
 # RENDER TABLE + KPI
 # =========================
-def render_next4weeks_table(df):
+def render_next7days_table(df):
 
-    forecast = _get_next4weeks(df)
+    forecast = _get_next7days(df)
 
     if forecast.empty:
         st.success("No deliverables due in next 7 days 🎯")
@@ -89,38 +101,38 @@ def render_next4weeks_table(df):
     critical = (display_df["Float"] < 0).sum()
 
     # =========================
-    # ✅ KPI CARDS (FIXED)
+    # KPI CARDS
     # =========================
     st.markdown(f"""
-<div style="display:flex; gap:12px; margin-bottom:12px;">
+    <div style="display:flex; gap:12px; margin-bottom:12px;">
 
-    <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
-        <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
-        <div style="font-size:20px; font-weight:700;">{total}</div>
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center;">
+            <div style="font-size:12px; color:#6b7280;">Deliverables (7 Days)</div>
+            <div style="font-size:20px; font-weight:700;">{total}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #b71c1c;">
+            <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
+            <div style="font-size:20px; font-weight:700; color:#b71c1c;">{behind}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #0d47a1;">
+            <div style="font-size:12px; color:#6b7280;">On Plan</div>
+            <div style="font-size:20px; font-weight:700; color:#0d47a1;">{on_plan}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #1b5e20;">
+            <div style="font-size:12px; color:#6b7280;">Ahead</div>
+            <div style="font-size:20px; font-weight:700; color:#1b5e20;">{ahead}</div>
+        </div>
+
+        <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #ef6c00;">
+            <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
+            <div style="font-size:20px; font-weight:700; color:#ef6c00;">{critical}</div>
+        </div>
+
     </div>
-
-    <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #b71c1c;">
-        <div style="font-size:12px; color:#6b7280;">Behind Plan</div>
-        <div style="font-size:20px; font-weight:700; color:#b71c1c;">{behind}</div>
-    </div>
-
-    <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #0d47a1;">
-        <div style="font-size:12px; color:#6b7280;">On Plan</div>
-        <div style="font-size:20px; font-weight:700; color:#0d47a1;">{on_plan}</div>
-    </div>
-
-    <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #1b5e20;">
-        <div style="font-size:12px; color:#6b7280;">Ahead</div>
-        <div style="font-size:20px; font-weight:700; color:#1b5e20;">{ahead}</div>
-    </div>
-
-    <div style="flex:1; background:white; padding:10px; border-radius:10px; text-align:center; border-left:4px solid #ef6c00;">
-        <div style="font-size:12px; color:#6b7280;">Critical (Float &lt; 0)</div>
-        <div style="font-size:20px; font-weight:700; color:#ef6c00;">{critical}</div>
-    </div>
-
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     # =========================
     # COLOUR FUNCTIONS
@@ -173,16 +185,4 @@ def render_next4weeks_table(df):
     # =========================
     # RENDER TABLE
     # =========================
-    st.dataframe(styled, width="stretch")
-``
-import pandas as pd
-
-
-# =========================
-# DATA PREPARATION
-# =========================
-def _prepare(df):
-    df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
-
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    st.dataframe(styled, use_container_width=True)
