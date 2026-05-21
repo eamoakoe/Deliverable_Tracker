@@ -61,4 +61,3 @@ def load_flass():
     cl32 = fix_activity_name(cl32)
 
     return cl31, cl32
-``
