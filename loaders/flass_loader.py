@@ -4,7 +4,8 @@ import os
 
 def get_latest(folder, prefix):
     files = [
-        f for f inxlsx")        f for f in os.listdir(folder)
+        f for f in os.listdir(folder)
+        if f.startswith(prefix) and f.endswith(".xlsx")
     ]
 
     if not files:
@@ -17,9 +18,9 @@ def get_latest(folder, prefix):
 def clean_columns(df):
     df.columns = (
         df.columns
-        .astype(str)                  # ✅ ensures no float column names
-        .str.strip()                  # ✅ remove spaces
-        .str.replace("\xa0", " ", regex=False)  # ✅ remove hidden Excel chars
+        .astype(str)
+        .str.strip()
+        .str.replace("\xa0", " ", regex=False)
     )
     return df
 
@@ -35,20 +36,19 @@ def load_flass():
     if not cl32_path:
         raise FileNotFoundError(f"CL32 not found in {base}")
 
-    # ✅ Skip extra header row in Flass files
+    # ✅ skip top row (Flass issue)
     cl31 = pd.read_excel(cl31_path, engine="openpyxl", skiprows=1)
     cl32 = pd.read_excel(cl32_path, engine="openpyxl", skiprows=1)
 
-    # ✅ Clean column names
+    # ✅ clean columns
     cl31 = clean_columns(cl31)
     cl32 = clean_columns(cl32)
 
-    # ✅ Rename columns to match deliverables.py expectations
-    # CL31 uses BL1 Finish but your logic expects BL Project Finish
+    # ✅ fix BL column naming
     if "BL1 Finish" in cl31.columns:
         cl31 = cl31.rename(columns={"BL1 Finish": "BL Project Finish"})
 
-    # ✅ Ensure Activity Name exists EXACTLY
+    # ✅ ensure Activity Name exists
     def fix_activity_name(df):
         if "Activity Name" not in df.columns:
             for col in df.columns:
