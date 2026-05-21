@@ -35,20 +35,20 @@ def render_dashboard(df31, df32):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # DELAYS
+    # MILESTONE
     with col2:
         st.markdown("""
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
         <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        🔴 Delayed Deliverables</div>
+        🔴 Key Milestone Tracking</div>
         """, unsafe_allow_html=True)
 
         render_milestone_table(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # NEXT 4 WEEKS
+    # NEXT 7 DAYS
     st.markdown("""
     <div style="background:white;padding:15px;border-radius:10px;
     box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
