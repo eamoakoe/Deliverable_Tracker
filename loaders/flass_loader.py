@@ -15,6 +15,15 @@ def get_latest(folder, prefix):
     return os.path.join(folder, files[-1])
 
 
+def clean_columns(df):
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.replace("\xa0", " ", regex=False)
+    )
+    return df
+
+
 def load_flass():
     base = "data/Flass/"
 
@@ -26,12 +35,28 @@ def load_flass():
     if not cl32_path:
         raise FileNotFoundError(f"CL32 not found in {base}")
 
-    # ✅ Flass needs this (extra header row)
+    # ✅ Skip title row
     cl31 = pd.read_excel(cl31_path, engine="openpyxl", skiprows=1)
     cl32 = pd.read_excel(cl32_path, engine="openpyxl", skiprows=1)
 
-    # ✅ clean column names
-    cl31.columns = cl31.columns.str.strip()
-    cl32.columns = cl32.columns.str.strip()
+    # ✅ Clean headers
+    cl31 = clean_columns(cl31)
+    cl32 = clean_columns(cl32)
+
+    # ✅ FORCE column names to match deliverables.py
+    cl31 = cl31.rename(columns={
+        "BL1 Finish": "BL Project Finish"   # critical fix
+    })
+
+    # ✅ Ensure Activity Name is exactly correct
+    if "Activity Name" not in cl31.columns:
+        for col in cl31.columns:
+            if "activity" in col.lower() and "name" in col.lower():
+                cl31 = cl31.rename(columns={col: "Activity Name"})
+
+    if "Activity Name" not in cl32.columns:
+        for col in cl32.columns:
+            if "activity" in col.lower() and "name" in col.lower():
+                cl32 = cl32.rename(columns={col: "Activity Name"})
 
     return cl31, cl32
