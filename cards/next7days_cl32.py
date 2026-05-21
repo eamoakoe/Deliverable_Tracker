@@ -26,7 +26,6 @@ def _prepare(df):
         df["Activity % Complete"], errors="coerce"
     ).fillna(0)
 
-    # ✅ Change as whole number
     df["Change (days)"] = (
         (df["Finish"] - df["BL1 Finish"])
         .dt.days
@@ -62,17 +61,17 @@ def render_next7days_table(df):
     df = _get_next7days(df)
 
     # =========================
-    # HEADER PANEL (CL32 MAY)
+    # ✅ GREEN HEADER PANEL
     # =========================
     st.markdown("""
-    <div style="background-color:#1c2233;padding:20px;border-radius:12px;
-                border-left:6px solid #4da3ff;margin-bottom:15px">
+    <div style="background-color:#0f2a1d;padding:20px;border-radius:12px;
+                border-left:6px solid #16a34a;margin-bottom:15px">
 
-    <h2 style="color:white;margin-bottom:5px;">
+    <h2 style="color:#22c55e;margin-bottom:5px;">
     📊 CLAUSE 32 (CL32) – MAY PROGRAMME
     </h2>
 
-    <p style="color:#cbd5e1;font-size:14px;margin:0;">
+    <p style="color:#bbf7d0;font-size:14px;margin:0;">
     Lookahead: Activities Issuing in Next 7 Days<br>
     Comparison of <b>CL32 May Baseline</b> vs <b>Current Forecast Finish</b>
     </p>
@@ -109,7 +108,6 @@ def render_next7days_table(df):
         "Comments"
     ]].copy()
 
-    # ✅ CL32 naming
     display_df = display_df.rename(columns={
         "BL1 Finish": "Baseline Finish (CL32 May)",
         "Finish": "Forecast Finish (CL32 May)",
@@ -141,7 +139,7 @@ def render_next7days_table(df):
     display_df["Status (CL32 May)"] = display_df.apply(status, axis=1)
 
     # =========================
-    # RISK (ML-LITE)
+    # RISK
     # =========================
     def risk(row):
         if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
