@@ -7,57 +7,39 @@ def get_latest(folder, prefix):
         f for f in os.listdir(folder)
         if f.startswith(prefix) and f.endswith(".xlsx")
     ]
-
-    if not files:
-        return None
-
     files.sort()
-    return os.path.join(folder, files[-1])
+    return os.path.join(folder, files[-1]) if files else None
 
 
-def clean_columns(df):
-    df.columns = (
-        df.columns
-        .astype(str)
-        .str.strip()
-        .str.replace("\xa0", " ", regex=False)
-    )
-    return df
-
-
-def load_flass():
+def load_rossall():
     base = "data/Flass/"
 
-    cl31_path = get_latest(base, "CL31-FL")
-    cl32_path = get_latest(base, "CL32-FL")
+    cl31 = pd.read_excel(get_latest(base, "CL31-RO"), engine="openpyxl")
+    cl32 = pd.read_excel(get_latest(base, "CL32-RO"), engine="openpyxl")
 
-    if not cl31_path:
-        raise FileNotFoundError(f"CL31 not found in {base}")
-    if not cl32_path:
-        raise FileNotFoundError(f"CL32 not found in {base}")
+    # ✅ CLEAN COLUMN NAMES (prevents hidden space issues)
+    cl31.columns = cl31.columns.str.strip()
+    cl32.columns = cl32.columns.str.strip()
 
-    # ✅ skip top row (Flass issue)
-    cl31 = pd.read_excel(cl31_path, engine="openpyxl", skiprows=1)
-    cl32 = pd.read_excel(cl32_path, engine="openpyxl", skiprows=1)
+    # ✅ FIX 1: Finish → BL Project Finish
+    if "Finish" in cl31.columns and "BL Project Finish" not in cl31.columns:
+        cl31.rename(columns={"Finish": "BL Project Finish"}, inplace=True)
 
-    # ✅ clean columns
-    cl31 = clean_columns(cl31)
-    cl32 = clean_columns(cl32)
+    # ✅ FIX 2: Ensure Comments column exists (Rossall file doesn't have it)
+    if "Comments" not in cl32.columns:
+        cl32["Comments"] = ""
 
-    # ✅ fix BL column naming
-    if "BL1 Finish" in cl31.columns:
-        cl31 = cl31.rename(columns={"BL1 Finish": "BL Project Finish"})
+    # ✅ FIX 3: Create Activity % Complete
+    if "Activity % Complete" not in cl32.columns:
+        if "Remaining Duration" in cl32.columns:
+            cl32["Remaining Duration"] = pd.to_numeric(
+                cl32["Remaining Duration"], errors="coerce"
+            )
 
-    # ✅ ensure Activity Name exists
-    def fix_activity_name(df):
-        if "Activity Name" not in df.columns:
-            for col in df.columns:
-                col_str = str(col).lower()
-                if "activity" in col_str and "name" in col_str:
-                    df = df.rename(columns={col: "Activity Name"})
-        return df
-
-    cl31 = fix_activity_name(cl31)
-    cl32 = fix_activity_name(cl32)
+            cl32["Activity % Complete"] = cl32["Remaining Duration"].apply(
+                lambda x: 0 if pd.notnull(x) and x > 0 else 100
+            )
+        else:
+            cl32["Activity % Complete"] = 0
 
     return cl31, cl32
