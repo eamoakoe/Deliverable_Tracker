@@ -1,52 +1,51 @@
 import pandas as pd
-import streamlitimport streamlit as st
-# PREP
+P DATAimport streamlit as st
 # =========================
 def prepare(df):
     df = df.copy()
 
-    # ✅ Ensure required columns
+    # Ensure required columns exist
     if "Finish" not in df.columns:
         df["Finish"] = pd.NaT
 
     if "Remaining Duration" not in df.columns:
         df["Remaining Duration"] = "0.00d"
 
+    # Convert finish to datetime
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
     return df
 
 
 # =========================
-# STATUS LOGIC
+# STATUS CLASSIFICATION
 # =========================
 def classify_status(row):
-
     today = pd.Timestamp.today().normalize()
 
     finish = row.get("Finish")
     remaining = row.get("Remaining Duration")
 
-    # ✅ Clean remaining duration
+    # Clean remaining duration
     try:
         remaining_val = float(str(remaining).replace("d", "").strip())
     except:
         remaining_val = None
 
-    # ✅ COMPLETED
+    # ✅ Completed
     if remaining_val == 0:
         return "Completed"
 
-    # ✅ DELAYED
+    # ✅ Delayed
     if pd.notna(finish) and finish < today:
         return "Delayed"
 
-    # ✅ ON TRACK
+    # ✅ On Track
     return "On Track"
 
 
 # =========================
-# DISPLAY
+# RENDER CHART
 # =========================
 def render_pie(df):
 
@@ -56,16 +55,19 @@ def render_pie(df):
 
     df = prepare(df)
 
+    # Apply classification
     df["Status"] = df.apply(classify_status, axis=1)
 
+    # Count values
     summary = df["Status"].value_counts()
 
-    # ✅ Display
+    # Display
     st.subheader("Programme Status")
+
     st.dataframe(summary.rename("Count"))
 
-    # Optional: quick visual
+    # Simple visual
     st.bar_chart(summary)
 
 
-
+# =========================
