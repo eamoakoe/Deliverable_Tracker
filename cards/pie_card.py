@@ -2,54 +2,44 @@ import pandas as pd
 import streamlit as st
 
 
-def prepare(df):
-    df = df.copy()
-
-    if "Finish" not in df.columns:
-        df["Finish"] = pd.NaT
-
-    if "Remaining Duration" not in df.columns:
-        df["Remaining Duration"] = "0.00d"
-
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    return df
-
-
-def classify_status(row):
-    today = pd.Timestamp.today().normalize()
-
-    finish = row.get("Finish")
-    remaining = row.get("Remaining Duration")
-
-    try:
-        remaining_val = float(str(remaining).replace("d", "").strip())
-    except:
-        remaining_val = None
-
-    if remaining_val == 0:
-        return "Completed"
-
-    if pd.notna(finish) and finish < today:
-        return "Delayed"
-
-    return "On Track"
-
-
 def render_pie(df):
+    try:
+        if df is None or df.empty:
+            st.warning("No data available")
+            return
 
-    if df is None or df.empty:
-        st.warning("No data available")
-        return
+        # Ensure columns exist
+        if "Finish" not in df.columns:
+            df["Finish"] = pd.NaT
 
-    df = prepare(df)
+        if "Remaining Duration" not in df.columns:
+            df["Remaining Duration"] = "0.00d"
 
-    df["Status"] = df.apply(classify_status, axis=1)
+        df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    summary = df["Status"].value_counts()
+        today = pd.Timestamp.today().normalize()
 
-    st.subheader("Programme Status")
+        def classify(row):
+            try:
+                remaining = float(str(row["Remaining Duration"]).replace("d", "").strip())
+            except:
+                remaining = None
 
-    st.dataframe(summary.rename("Count"))
+            if remaining == 0:
+                return "Completed"
 
-    st.bar_chart(summary)
+            if pd.notna(row["Finish"]) and row["Finish"] < today:
+                return "Delayed"
+
+            return "On Track"
+
+        df["Status"] = df.apply(classify, axis=1)
+
+        summary = df["Status"].value_counts()
+
+        st.subheader("Programme Status")
+        st.dataframe(summary.rename("Count"))
+        st.bar_chart(summary)
+
+    except Exception as e:
+        st.error(f"Pie chart failed: {e}")
