@@ -1,153 +1,71 @@
-import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
-
-
+import streamlitimport streamlit as st
+# PREP
+# =========================
 def prepare(df):
     df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    # ✅ Ensure required columns
+    if "Finish" not in df.columns:
+        df["Finish"] = pd.NaT
+
+    if "Remaining Duration" not in df.columns:
+        df["Remaining Duration"] = "0.00d"
+
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
 
     return df
 
 
-# ✅ FINAL LOGIC
-def classify(row, today):
+# =========================
+# STATUS LOGIC
+# =========================
+def classify_status(row):
 
-    if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-        return "On Track"
+    today = pd.Timestamp.today().normalize()
 
-    # 🔴 Delayed
-    if row["Finish"] < today and row["Activity % Complete"] < 100:
-        return "Delayed"
+    finish = row.get("Finish")
+    remaining = row.get("Remaining Duration")
 
-    # ✅ Completed
-    if row["Activity % Complete"] >= 100:
+    # ✅ Clean remaining duration
+    try:
+        remaining_val = float(str(remaining).replace("d", "").strip())
+    except:
+        remaining_val = None
+
+    # ✅ COMPLETED
+    if remaining_val == 0:
         return "Completed"
 
+    # ✅ DELAYED
+    if pd.notna(finish) and finish < today:
+        return "Delayed"
+
+    # ✅ ON TRACK
     return "On Track"
 
 
+# =========================
+# DISPLAY
+# =========================
 def render_pie(df):
 
+    if df is None or df.empty:
+        st.warning("No data available")
+        return
+
     df = prepare(df)
-    today = pd.Timestamp.today().normalize()
 
-    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
+    df["Status"] = df.apply(classify_status, axis=1)
 
-    # ✅ Remove zero categories from pie
     summary = df["Status"].value_counts()
-    summary = summary[summary > 0]
 
-    colors = {
-        "On Track": "#FFD700",
-        "Delayed": "#FF3B30",
-        "Completed": "#00C853"
-    }
+    # ✅ Display
+    st.subheader("Programme Status")
+    st.dataframe(summary.rename("Count"))
 
-    order = ["On Track", "Delayed", "Completed"]
-    summary = summary.reindex([k for k in order if k in summary.index])
+    # Optional: quick visual
+    st.bar_chart(summary)
 
-    # =========================
-    # PIE CHART
-    # =========================
-    fig = go.Figure(
-        data=[go.Pie(
-            labels=summary.index,
-            values=summary.values,
-            sort=False,
-            textinfo="label+value",
-            textfont=dict(color="black", size=13),
-            marker=dict(colors=[colors[k] for k in summary.index]),
-            pull=[0.03] * len(summary)
-        )]
-    )
 
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=380,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        showlegend=False,
-        font=dict(color="black")
-    )
 
-    # =========================
-    # CARD STYLE
-    # =========================
-    st.markdown("""
-        <style>
-        .pie-card {
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 16px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-        }
-
-        .item {
-            font-size: 15px;
-            margin-bottom: 14px;
-            color: black;
-            display: flex;
-            align-items: center;
-        }
-
-        .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-
-        .value {
-            font-weight: 700;
-            margin-left: 6px;
-            color: black;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # =========================
-    # RENDER (NO EXTRA BAR)
-    # =========================
-
-    col1, col2 = st.columns([2.3, 1])
-
-    with col1:
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            config={"displayModeBar": False}
-        )
-
-    with col2:
-
-        total = df.shape[0]
-
-        # ✅ Always show all categories
-        for k in ["On Track", "Delayed", "Completed"]:
-
-            value = (df["Status"] == k).sum()
-            pct = (value / total * 100) if total > 0 else 0
-
-            st.markdown(f"""
-                <div class="item">
-                    <div class="dot" style="background:{colors[k]};"></div>
-                    {k} <span class="value">{value} ({pct:.0f}%)</span>
-                </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
