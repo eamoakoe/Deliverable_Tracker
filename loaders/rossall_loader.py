@@ -1,13 +1,5 @@
 import pandas as pd
-import pdfplumber
-import os
-
-
-# -----------------------------
-# PDF EXTRACTION
-# -----------------------------
-def extract_pdf_table(file_path):
-    rows = []
+import rows = []import pdfplumber
 
     if not os.path.exists(file_path):
         print("❌ FILE NOT FOUND:", file_path)
@@ -22,10 +14,9 @@ def extract_pdf_table(file_path):
     df = pd.DataFrame(rows)
 
     if df.empty:
-        print("❌ EMPTY EXTRACTION:", file_path)
         return df
 
-    # ✅ Find header row dynamically
+    # ✅ Detect header
     header_row_index = 0
     for i, row in df.iterrows():
         row_text = " ".join([str(cell) for cell in row if cell])
@@ -39,16 +30,12 @@ def extract_pdf_table(file_path):
     return df
 
 
-# -----------------------------
-# CLEAN DATA
-# -----------------------------
 def clean(df):
     if df.empty:
         return df
 
     df.columns = df.columns.astype(str).str.strip()
 
-    # Remove repeated header rows
     if "Activity ID" in df.columns:
         df = df[df["Activity ID"] != "Activity ID"]
 
@@ -57,21 +44,12 @@ def clean(df):
     return df
 
 
-# -----------------------------
-# MAIN LOADER
-# -----------------------------
 def load_rossall():
 
-    # ✅ PROJECT ROOT
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     cl31_path = os.path.join(BASE_DIR, "data", "Rossall", "CL31-RO-November-2025.pdf")
     cl32_path = os.path.join(BASE_DIR, "data", "Rossall", "CL32-RO-May-2026.pdf")
-
-    # ✅ DEBUG (will show in logs)
-    print("BASE DIR:", BASE_DIR)
-    print("CL31 EXISTS:", os.path.exists(cl31_path))
-    print("CL32 EXISTS:", os.path.exists(cl32_path))
 
     cl31 = extract_pdf_table(cl31_path)
     cl32 = extract_pdf_table(cl32_path)
@@ -79,7 +57,8 @@ def load_rossall():
     cl31 = clean(cl31)
     cl32 = clean(cl32)
 
-    print("CL31 SHAPE:", cl31.shape)
-    print("CL32 SHAPE:", cl32.shape)
-
     return cl31, cl32
+import os
+
+
+def extract_pdf_table(file_path):
