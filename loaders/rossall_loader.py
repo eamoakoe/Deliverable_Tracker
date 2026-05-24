@@ -4,7 +4,7 @@ import os
 
 
 # -----------------------------
-# PDF EXTRACTION (ROBUST + SAFE)
+# PDF EXTRACTION (ROBUST)
 # -----------------------------
 def extract_pdf_table(file_path):
     rows = []
@@ -20,24 +20,19 @@ def extract_pdf_table(file_path):
     if df.empty:
         return pd.DataFrame()
 
-    # ✅ FLEXIBLE HEADER DETECTION
+    # ✅ Header detection (flexible)
     header_row_index = None
 
     for i, row in df.iterrows():
         row_text = " ".join([str(cell) for cell in row if cell])
 
-        if (
-            "Activity ID" in row_text
-            or ("Activity" in row_text and "ID" in row_text)
-        ):
+        if "Activity" in row_text and "ID" in row_text:
             header_row_index = i
             break
 
-    # ✅ FALLBACK IF HEADER NOT FOUND
     if header_row_index is None:
-        header_row_index = 0
+        header_row_index = 0  # fallback
 
-    # ✅ SET HEADER
     df.columns = df.iloc[header_row_index]
     df = df.iloc[header_row_index + 1:].reset_index(drop=True)
 
@@ -45,7 +40,7 @@ def extract_pdf_table(file_path):
 
 
 # -----------------------------
-# FIX COLUMN NAMES (FUZZY MATCH)
+# FIX COLUMN NAMES
 # -----------------------------
 def fix_column_names(df):
     new_cols = {}
@@ -76,6 +71,38 @@ def fix_column_names(df):
 
 
 # -----------------------------
+# ENSURE ACTIVITY NAME EXISTS
+# -----------------------------
+def ensure_full_activity_name(df):
+    # Case 1: already exists
+    if "Activity Name" in df.columns:
+        df["Activity Name"] = df["Activity Name"].fillna("").astype(str).str.strip()
+        return df
+
+    # Case 2: merged column
+    for col in df.columns:
+        col_str = str(col)
+
+        if "Activity ID" in col_str and "Activity Name" in col_str:
+            split_data = df[col].astype(str).str.split(" ", n=1, expand=True)
+
+            df["Activity ID"] = split_data[0]
+
+            if split_data.shape[1] > 1:
+                df["Activity Name"] = split_data[1]
+            else:
+                df["Activity Name"] = ""
+
+            df = df.drop(columns=[col])
+            return df
+
+    # Case 3: fallback (never fail)
+    df["Activity Name"] = ""
+
+    return df
+
+
+# -----------------------------
 # STANDARDISE STRUCTURE
 # -----------------------------
 def standardise(df):
@@ -84,29 +111,29 @@ def standardise(df):
 
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Fix broken column names first
+    # ✅ Fix names
     df = fix_column_names(df)
 
-    # ✅ If still broken → return safely instead of crashing
+    # ✅ Ensure name exists (fix your current error)
+    df = ensure_full_activity_name(df)
+
     if "Activity ID" not in df.columns:
         return pd.DataFrame()
 
-    # Remove repeated header rows
+    # Remove repeated headers
     df = df[df["Activity ID"] != "Activity ID"]
 
-    # Drop empty rows
+    # Drop empty
     df = df.dropna(how="all")
 
-    # Keep only valid activity rows
+    # Keep valid activities only
     df = df[
         df["Activity ID"]
         .astype(str)
         .str.contains(r"AMP|[A-Z0-9\-]+", na=False)
     ]
 
-    # -----------------------------
-    # Handle CL31 vs CL32
-    # -----------------------------
+    # CL31 fallback
     if "BL Start" not in df.columns:
         df["BL Start"] = None
         df["BL Finish"] = None
@@ -116,7 +143,7 @@ def standardise(df):
 
 
 # -----------------------------
-# CLEAN NUMERIC FIELDS
+# CLEAN NUMERIC
 # -----------------------------
 def clean_numeric(df):
     if df.empty:
@@ -138,15 +165,13 @@ def clean_numeric(df):
 
 
 # -----------------------------
-# CLEAN DATE FIELDS
+# CLEAN DATES
 # -----------------------------
 def clean_dates(df):
     if df.empty:
         return df
 
-    date_cols = ["Start", "Finish", "BL Start", "BL Finish"]
-
-    for col in date_cols:
+    for col in ["Start", "Finish", "BL Start", "BL Finish"]:
         if col in df.columns:
             df[col] = (
                 df[col]
@@ -160,17 +185,15 @@ def clean_dates(df):
 
 
 # -----------------------------
-# ADD DERIVED FIELDS
+# DERIVED FIELDS
 # -----------------------------
 def add_fields(df):
     if df.empty:
         return df
 
-    # Ensure Comments
     if "Comments" not in df.columns:
         df["Comments"] = ""
 
-    # Activity % Complete
     if "Activity % Complete" not in df.columns:
         if "Remaining Duration" in df.columns:
             df["Activity % Complete"] = df["Remaining Duration"].apply(
@@ -191,22 +214,18 @@ def load_rossall():
     cl31_path = os.path.join(base, "CL31-RO-November-2025.pdf")
     cl32_path = os.path.join(base, "CL32-RO-May-2026.pdf")
 
-    # ✅ Extract safely
     cl31 = extract_pdf_table(cl31_path)
     cl32 = extract_pdf_table(cl32_path)
 
-    # ✅ Standardise
     cl31 = standardise(cl31)
     cl32 = standardise(cl32)
 
-    # ✅ Clean
     cl31 = clean_numeric(cl31)
     cl32 = clean_numeric(cl32)
 
     cl31 = clean_dates(cl31)
     cl32 = clean_dates(cl32)
 
-    # ✅ Derived fields
     cl31 = add_fields(cl31)
     cl32 = add_fields(cl32)
 
