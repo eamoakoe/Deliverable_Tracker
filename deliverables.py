@@ -1,8 +1,8 @@
 import pandas as pd
 
 
-# =========================
-# SAFE pd.to_datetime(series, errors="coerce", dayfirst=True)# SAFE DATE CONVERSION
+# ================= to_date(series):# =========================
+    return pd.to_datetime(series, errors="coerce", dayfirst=True)
 
 
 # =========================
@@ -10,22 +10,25 @@ import pandas as pd
 # =========================
 def build_deliverables(cl31, cl32):
 
-    # ✅ Safety check
+    # ✅ Safety
     if cl31 is None or cl32 is None:
         return pd.DataFrame()
 
     if cl31.empty or cl32.empty:
         return pd.DataFrame()
 
-    # ✅ Copy to avoid mutation
+    # ✅ Copy data
     df31 = cl31.copy()
     df32 = cl32.copy()
 
     # ✅ Normalise names
+    if "Activity Name" not in df31.columns or "Activity Name" not in df32.columns:
+        return pd.DataFrame()
+
     df31["Deliverable"] = df31["Activity Name"].astype(str).str.strip().str.lower()
     df32["Deliverable"] = df32["Activity Name"].astype(str).str.strip().str.lower()
 
-    # ✅ Convert dates
+    # ✅ Dates
     if "Finish" in df31.columns:
         df31["Finish31"] = to_date(df31["Finish"])
     else:
@@ -43,7 +46,7 @@ def build_deliverables(cl31, cl32):
         how="outer"
     )
 
-    # ✅ Delta calculation
+    # ✅ Delta
     def calc_delta(row):
         if pd.isna(row["Finish31"]) or pd.isna(row["Finish32"]):
             return None
@@ -54,8 +57,6 @@ def build_deliverables(cl31, cl32):
     # ✅ Clean output
     df["Deliverable"] = df["Deliverable"].str.title()
 
-    return df[
-        ["Deliverable", "Finish31", "Finish32", "Delta (Days)"]
-    ]
+    return df[["Deliverable", "Finish31", "Finish32", "Delta (Days)"]]
+# DATE CONVERSION
 # =========================
-def to_date(series):
