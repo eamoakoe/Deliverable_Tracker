@@ -1,8 +1,9 @@
 import pandas as pd
 
 
-# ================= to_date(series):# =========================
-    return pd.to_datetime(series, errors="coerce", dayfirst=True)
+# =========================
+# DATE CONVERSION
+#=True)# =========================
 
 
 # =========================
@@ -10,7 +11,7 @@ import pandas as pd
 # =========================
 def build_deliverables(cl31, cl32):
 
-    # ✅ Safety
+    # ✅ Safety checks
     if cl31 is None or cl32 is None:
         return pd.DataFrame()
 
@@ -21,23 +22,17 @@ def build_deliverables(cl31, cl32):
     df31 = cl31.copy()
     df32 = cl32.copy()
 
-    # ✅ Normalise names
+    # ✅ Ensure required column exists
     if "Activity Name" not in df31.columns or "Activity Name" not in df32.columns:
         return pd.DataFrame()
 
+    # ✅ Normalise names
     df31["Deliverable"] = df31["Activity Name"].astype(str).str.strip().str.lower()
     df32["Deliverable"] = df32["Activity Name"].astype(str).str.strip().str.lower()
 
-    # ✅ Dates
-    if "Finish" in df31.columns:
-        df31["Finish31"] = to_date(df31["Finish"])
-    else:
-        df31["Finish31"] = pd.NaT
-
-    if "Finish" in df32.columns:
-        df32["Finish32"] = to_date(df32["Finish"])
-    else:
-        df32["Finish32"] = pd.NaT
+    # ✅ Convert dates safely
+    df31["Finish31"] = to_date(df31["Finish"]) if "Finish" in df31.columns else pd.NaT
+    df32["Finish32"] = to_date(df32["Finish"]) if "Finish" in df32.columns else pd.NaT
 
     # ✅ Merge
     df = df31[["Deliverable", "Finish31"]].merge(
@@ -46,7 +41,7 @@ def build_deliverables(cl31, cl32):
         how="outer"
     )
 
-    # ✅ Delta
+    # ✅ Delta calculation
     def calc_delta(row):
         if pd.isna(row["Finish31"]) or pd.isna(row["Finish32"]):
             return None
@@ -54,9 +49,8 @@ def build_deliverables(cl31, cl32):
 
     df["Delta (Days)"] = df.apply(calc_delta, axis=1)
 
-    # ✅ Clean output
+    # ✅ Clean
     df["Deliverable"] = df["Deliverable"].str.title()
 
     return df[["Deliverable", "Finish31", "Finish32", "Delta (Days)"]]
-# DATE CONVERSION
-# =========================
+def to_date(series):
