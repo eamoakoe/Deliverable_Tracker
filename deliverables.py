@@ -11,16 +11,45 @@ def build_deliverables(cl31, cl32):
     cl32 = cl32.copy()
 
     # =========================
+    # SAFETY CHECK (prevents crash)
+    # =========================
+    if cl31.empty or cl32.empty:
+        return pd.DataFrame(columns=[
+            "Deliverable",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Delta (Days)",
+            "Change Type",
+            "Status / Comment"
+        ])
+
+    # =========================
     # NORMALISE COLUMNS
     # =========================
     cl31["Deliverable"] = cl31["Activity Name"].astype(str).str.strip()
     cl32["Deliverable"] = cl32["Activity Name"].astype(str).str.strip()
 
+    # Remove blank rows (PDF noise)
+    cl31 = cl31[cl31["Deliverable"] != ""]
+    cl32 = cl32[cl32["Deliverable"] != ""]
+
     # =========================
     # DATE PARSING
     # =========================
-    cl31["CL31 Finish_raw"] = _to_date(cl31["BL Project Finish"])
-    cl32["CL32 Finish_raw"] = _to_date(cl32["Finish"])
+    cl31_finish_col = (
+        "BL Project Finish" if "BL Project Finish" in cl31.columns else "Finish"
+    )
+
+    cl32_finish_col = (
+        "Finish" if "Finish" in cl32.columns else None
+    )
+
+    cl31["CL31 Finish_raw"] = _to_date(cl31[cl31_finish_col])
+
+    if cl32_finish_col:
+        cl32["CL32 Finish_raw"] = _to_date(cl32[cl32_finish_col])
+    else:
+        cl32["CL32 Finish_raw"] = pd.NaT
 
     # =========================
     # ORDER FROM CL31
@@ -50,7 +79,7 @@ def build_deliverables(cl31, cl32):
     df["Delta (Days)"] = df.apply(calc_delta, axis=1)
 
     # =========================
-    # CHANGE TYPE (FIXED ✅)
+    # CHANGE TYPE
     # =========================
     def change_type(row):
         if pd.isna(row["CL31 Finish_raw"]) and pd.notna(row["CL32 Finish_raw"]):
@@ -97,3 +126,4 @@ def build_deliverables(cl31, cl32):
         "Change Type",
         "Status / Comment"
     ]]
+``
