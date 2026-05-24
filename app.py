@@ -1,40 +1,49 @@
 import streamlit as st
 
-from loaders.rossall_loader import load_rossall
 from deliverables import build_deliverables
-from cards.pie_card import render_pie
+from layout.home_layout import render_dashboard
+from sidebar import render_sidebar
 
+from loaders.ferry_loader import load_ferry
+from loaders.rossall_loader import load_rossall
+from loaders.flass_loader import load_flass
+
+
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(layout="wide")
 
-st.title("Rossall Deliverables Tracker")
+
+# =========================
+# SIDEBAR
+# =========================
+project = render_sidebar()
+
 
 # =========================
 # LOAD DATA
 # =========================
-df31, df32 = load_rossall()
+if project == "Ferry PS":
+    df31, df32 = load_ferry()
 
-# =========================
-# DEBUG (VISIBLE)
-# =========================
-st.sidebar.write("CL31 shape:", df31.shape)
-st.sidebar.write("CL32 shape:", df32.shape)
+elif project == "Rossall Outfall":
+    df31, df32 = load_rossall()
+
+elif project == "Flass Lane":
+    df31, df32 = load_flass()
+
 
 # =========================
 # SAFETY CHECK
 # =========================
-if df31.empty or df32.empty:
-    st.error("❌ Data not loading — check files")
+if df31 is None or df32 is None:
+    st.warning(f"No data available for {project}")
     st.stop()
 
+
 # =========================
-# DELIVERABLES
+# YOUR LOGIC (UNCHANGED ✅)
 # =========================
 result = build_deliverables(df31, df32)
-
-st.subheader("Deliverables Comparison")
-st.dataframe(result, width="stretch")
-
-# =========================
-# PROGRAMME STATUS
-# =========================
-render_pie(df32)
+render_dashboard(result, df32)
