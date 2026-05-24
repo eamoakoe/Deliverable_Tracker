@@ -27,13 +27,16 @@ def extract_pdf_table(file_path):
     if df.empty:
         return df
 
-    # Detect header row
-    header_idx = 0
+    # ✅ Detect header row
+    header_idx = None
     for i, row in df.iterrows():
         text = " ".join([str(c) for c in row if c])
-        if "Activity" in text and "ID" in text:
+        if "Activity ID" in text and "Activity Name" in text:
             header_idx = i
             break
+
+    if header_idx is None:
+        return pd.DataFrame()
 
     df.columns = df.iloc[header_idx]
     df = df.iloc[header_idx + 1:].reset_index(drop=True)
@@ -42,56 +45,47 @@ def extract_pdf_table(file_path):
 
 
 # =========================
-# NORMALISE COLUMNS
-# =========================
-def normalise_columns(df):
-    df.columns = df.columns.astype(str).str.strip()
-
-    rename_map = {
-        "Finish Date": "Finish",
-        "Rem Dur": "Remaining Duration"
-    }
-
-    df = df.rename(columns=rename_map)
-
-    return df
-
-
-# =========================
-# CLEAN DATA
+# ✅ UNIVERSAL CLEAN (FINAL)
 # =========================
 def clean(df):
 
     if df.empty:
         return df
 
-    df = normalise_columns(df)
+    # ✅ Standardise column names
+    df.columns = df.columns.astype(str).str.strip()
 
-    df = df.dropna(how="all")
+    rename_map = {
+        "Finish Date": "Finish",
+        "Actual Finish": "Finish",
+        "Original Duration": "Remaining Duration",
+        "Rem Dur": "Remaining Duration"
+    }
 
+    df = df.rename(columns=rename_map)
+
+    # ✅ Remove junk rows
     if "Activity ID" in df.columns:
         df = df[df["Activity ID"] != "Activity ID"]
 
+    df = df.dropna(how="all")
+
     if "Activity Name" in df.columns:
         df = df[df["Activity Name"].notna()]
+    else:
+        return pd.DataFrame()
 
-    return df.reset_index(drop=True)
-
-
-# =========================
-# CLEAN DATES
-# =========================
-def clean_dates(df):
+    # ✅ Convert dates
     if "Finish" in df.columns:
-        df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce", dayfirst=True)
-    return df
+        df["Finish"] = pd.to_datetime(
+            df["Finish"],
+            errors="coerce",
+            dayfirst=True
+        )
 
-
-# =========================
-# CLEAN DURATION
-# =========================
-def clean_duration(df):
+    # ✅ Convert duration (CRITICAL)
     if "Remaining Duration" in df.columns:
+
         df["Remaining Duration"] = (
             df["Remaining Duration"]
             .astype(str)
@@ -99,13 +93,20 @@ def clean_duration(df):
             .str.strip()
         )
 
-        df["Remaining Duration"] = pd.to_numeric(df["Remaining Duration"], errors="coerce")
+        df["Remaining Duration"] = pd.to_numeric(
+            df["Remaining Duration"],
+            errors="coerce"
+        )
 
-    return df
+    else:
+        # ✅ fallback for CL31 cases like Flass
+        df["Remaining Duration"] = None
+
+    return df.reset_index(drop=True)
 
 
 # =========================
-# MAIN LOADER
+# ✅ MAIN LOADER (SIMPLIFIED)
 # =========================
 def load_ferry():
 
@@ -116,12 +117,8 @@ def load_ferry():
 
     cl31 = extract_pdf_table(cl31_path)
     cl31 = clean(cl31)
-    cl31 = clean_dates(cl31)
-    cl31 = clean_duration(cl31)
 
     cl32 = extract_pdf_table(cl32_path)
     cl32 = clean(cl32)
-    cl32 = clean_dates(cl32)
-    cl32 = clean_duration(cl32)
 
     return cl31, cl32
