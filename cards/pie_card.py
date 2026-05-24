@@ -1,10 +1,6 @@
 import pandas as pd
-import streamlit as st
-
-
-# =========================
-# PREP DATA
-# =================["Finish"] = pd.NaT# =========================
+import streamFinish" not in df.columns:import streamlit as st
+        df["Finish"] = pd.NaT
 
     if "Remaining Duration" not in df.columns:
         df["Remaining Duration"] = "0.00d"
@@ -14,9 +10,6 @@ import streamlit as st
     return df
 
 
-# =========================
-# STATUS CLASSIFICATION
-# =========================
 def classify_status(row):
     today = pd.Timestamp.today().normalize()
 
@@ -28,20 +21,15 @@ def classify_status(row):
     except:
         remaining_val = None
 
-    # ✅ Completed
     if remaining_val == 0:
         return "Completed"
 
-    # ✅ Delayed
     if pd.notna(finish) and finish < today:
         return "Delayed"
 
     return "On Track"
 
 
-# =========================
-# RENDER
-# =========================
 def render_pie(df):
 
     if df is None or df.empty:
@@ -59,7 +47,8 @@ def render_pie(df):
     st.dataframe(summary.rename("Count"))
 
     st.bar_chart(summary)
+
+
 def prepare(df):
     df = df.copy()
 
-    if "Finish" not in df.columns:
