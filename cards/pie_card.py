@@ -1,5 +1,11 @@
 import pandas as pd
-import streamFinish" not in df.columns:import streamlit as st
+import streamlit as st
+
+
+def prepare(df):
+    df = df.copy()
+
+    if "Finish" not in df.columns:
         df["Finish"] = pd.NaT
 
     if "Remaining Duration" not in df.columns:
@@ -47,8 +53,3 @@ def render_pie(df):
     st.dataframe(summary.rename("Count"))
 
     st.bar_chart(summary)
-
-
-def prepare(df):
-    df = df.copy()
-
