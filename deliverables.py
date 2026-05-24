@@ -11,9 +11,10 @@ def build_deliverables(cl31, cl32):
     cl32 = cl32.copy()
 
     # =========================
-    # SAFETY CHECK (prevents crash)
+    # SAFETY CHECK
     # =========================
     if cl31.empty or cl32.empty:
+        print("DEBUG: One of the dataframes is empty")
         return pd.DataFrame(columns=[
             "Deliverable",
             "CL31 Finish",
@@ -24,17 +25,32 @@ def build_deliverables(cl31, cl32):
         ])
 
     # =========================
-    # NORMALISE COLUMNS
+    # NORMALISE DELIVERABLES ✅ (CRITICAL FIX)
     # =========================
-    cl31["Deliverable"] = cl31["Activity Name"].astype(str).str.strip()
-    cl32["Deliverable"] = cl32["Activity Name"].astype(str).str.strip()
+    cl31["Deliverable"] = (
+        cl31["Activity Name"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
 
-    # Remove blank rows (PDF noise)
-    cl31 = cl31[cl31["Deliverable"] != ""]
-    cl32 = cl32[cl32["Deliverable"] != ""]
+    cl32["Deliverable"] = (
+        cl32["Activity Name"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    # ✅ DO NOT OVER-FILTER (FIX FOR BLANK SCREEN)
+    cl31 = cl31[cl31["Deliverable"].str.len() > 0]
+    cl32 = cl32[cl32["Deliverable"].str.len() > 0]
+
+    # Debug
+    print("DEBUG: CL31 rows after clean:", len(cl31))
+    print("DEBUG: CL32 rows after clean:", len(cl32))
 
     # =========================
-    # DATE PARSING
+    # DATE HANDLING
     # =========================
     cl31_finish_col = (
         "BL Project Finish" if "BL Project Finish" in cl31.columns else "Finish"
@@ -52,7 +68,7 @@ def build_deliverables(cl31, cl32):
         cl32["CL32 Finish_raw"] = pd.NaT
 
     # =========================
-    # ORDER FROM CL31
+    # ORDER MAP
     # =========================
     order_map = {v: i for i, v in enumerate(cl31["Deliverable"].tolist())}
 
@@ -65,6 +81,26 @@ def build_deliverables(cl31, cl32):
         how="outer"
     )
 
+    print("DEBUG: Rows after merge:", len(df))
+
+    # ✅ CRITICAL: prevent blank result
+    if df.empty:
+        print("DEBUG: Merge returned empty dataframe")
+        print("CL31 sample:", cl31.head())
+        print("CL32 sample:", cl32.head())
+
+        return pd.DataFrame(columns=[
+            "Deliverable",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Delta (Days)",
+            "Change Type",
+            "Status / Comment"
+        ])
+
+    # =========================
+    # SORT
+    # =========================
     df["__order"] = df["Deliverable"].map(order_map)
     df = df.sort_values("__order", na_position="last").drop(columns="__order")
 
@@ -117,6 +153,9 @@ def build_deliverables(cl31, cl32):
 
     df["CL31 Finish"] = df["CL31 Finish_raw"].apply(fmt)
     df["CL32 Finish"] = df["CL32 Finish_raw"].apply(fmt)
+
+    # ✅ Optional: make names readable again
+    df["Deliverable"] = df["Deliverable"].str.title()
 
     return df[[
         "Deliverable",
