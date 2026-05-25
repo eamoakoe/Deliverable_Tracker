@@ -3,94 +3,88 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA
+# PREP DATA (ROBUST TO YOUR FORMAT)
 # =========================
 def _prepare(df):
     df = df.copy()
+
+    # ✅ Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
+    # ✅ Clean Activity ID
+    df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
+
+    # ✅ Clean Finish column (handles A, *, blanks)
+    df["Finish"] = (
+        df["Finish"]
+        .astype(str)
+        .str.replace(r"[A\*]", "", regex=True)
+        .str.strip()
+    )
+
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
 
     return df
 
 
 # =========================
-# DELIVERABLE KEYWORDS
+# ✅ DELIVERABLE DEFINITIONS
 # =========================
-DELIVERABLE_KEYWORDS = {
-    # 🔴 Top-level submissions
-    "Concept Design Submission": [
-        "Submission of shaft concept design"
-    ],
-    "Outline Design Scope Freeze": [
-        "Submission of Outline Design Scope Freeze"
-    ],
-    "Full Outline Design Submission": [
-        "Submission of Full Outline Design Package"
-    ],
-    "Project Completion": [
-        "Planned Project Completion"
+ROSSELL_DELIVERABLES = {
+
+    # 🔥 DESIGN FREEZE (CRITICAL CONTROL POINT)
+    "🔥 DESIGN FREEZE – APPROVED": [
+        "AMP8-DD&B-ROS-OUD-2310"
     ],
 
-    # 🟠 Submission packs
-    "Outline Design Pack Submission": [
-        "Submission of Outline Design Pack"
-    ],
-    "Final Submission": [
-        "Final Submission"
+    # 🔴 Programme milestones
+    "AIO Planned Completion": [
+        "AMP8-DD&B-ROS-MIL-1080"
     ],
 
-    # 🟡 Key reports / governance
-    "GDR Report": ["GDR"],
-    "HAZOP Closeout": ["HAZOP & ALM action and close out"],
-
-    # 🟡 Concept outputs
-    "Concept Drawing Issue": ["Produce 2D conept drawing"],
-    "Pile Design Complete": ["MGE Detailed Pile Design"],
-    "CAT2 Check Complete": ["CAT2 check"],
-
-    # 🟡 Civils deliverables
-    "Civils GA / Key Drawings": [
-        "GA & Long sections",
-        "Shaft penetrations"
-    ],
-    "Civils Detailed Design": [
-        "Cover slab design",
-        "Pipework from MHs to Shaft",
-        "Civils Pipe Design"
+    "AIO Contract Completion": [
+        "AMP8-DD&B-ROS-MIL-1070"
     ],
 
-    # 🟡 Mechanical deliverables
-    "Mechanical Design Pack": [
-        "Pump system curve",
-        "DSEAR Assessment",
-        "Hazard Identification",
-        "Material Take Off"
-    ],
-    "Mechanical Drawings": [
-        "GA Drawing",
-        "Pipework layout"
+    # 🟡 Key reports
+    "Ground Investigation Reports": [
+        "AMP8-DD&B-ROS-ECI-1450",
+        "AMP8-DD&B-ROS-ECI-1430",
+        "AMP8-DD&B-ROS-ECI-1420",
+        "AMP8-DD&B-ROS-ECI-1410",
+        "AMP8-DD&B-ROS-ECI-1400",
+        "AMP8-DD&B-ROS-ECI-1180"
     ],
 
-    # 🟡 Process deliverables
-    "Process Design Pack": [
-        "Basis of Design",
-        "Outline P&IDs",
-        "Control Philosophy"
+    "Ecology Surveys Complete": [
+        "AMP8-DD&B-ROS-ECI-2580"
     ],
 
-    # 🟡 EICA deliverables
-    "EICA Design Pack": [
-        "User Requirement Specification",
-        "Load Schedule",
-        "Power Supply Assessment"
+    # 🔵 Design outputs
+    "Outline Design Complete": [
+        "AMP8-DD&B-ROS-OUD-1000"
     ],
-    "EICA Drawings": [
-        "Single Line Diagrams",
-        "Block Cable Diagrams",
-        "Kiosk Location Plan"
-    ]
+
+    "GI Final Factual": [
+        "AMP8-DD&B-ROS-OUD-2320"
+    ],
+
+    "Detailed Design Complete": [
+        "AMP8-DD&B-ROS-DES-1010"
+    ],
+
+    "Temp Works Design Complete": [
+        "AMP8-DD&B-ROS-TWD-2000"
+    ],
+
+    # ⚙️ Supporting deliverables
+    "GPR Survey Complete": [
+        "AMP8-DD&B-ROS-OUD-2300"
+    ],
+
+    "Piling Design Complete": [
+        "AMP8-DD&B-ROS-OUD-1010"
+    ],
 }
 
 
@@ -103,106 +97,78 @@ def extract_milestones(df):
 
     milestones = []
 
-    for milestone_name, keywords in DELIVERABLE_KEYWORDS.items():
+    for name, ids in ROSSELL_DELIVERABLES.items():
 
-        mask = df["Activity Name"].str.contains(
-            "|".join(keywords),
-            case=False,
-            na=False
-        )
-
-        filtered = df[mask]
+        filtered = df[
+            df["Activity ID"].str.contains(
+                "|".join(ids),
+                na=False
+            )
+        ].copy()
 
         if filtered.empty:
             continue
 
-        # ✅ Take latest (most relevant issue point)
-        row = filtered.sort_values("Finish").iloc[-1]
+        # ✅ Sort by finish (latest = controlling activity)
+        filtered = filtered.sort_values("Finish")
 
-        # ✅ Calculate Δ (days)
-        if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
-            delta = int((row["Finish"] - row["BL1 Finish"]).days)
-        else:
-            delta = None
+        row = filtered.iloc[-1]
 
         milestones.append({
-            "Deliverable": milestone_name,
-            "Baseline Finish (CL32 May)": row["BL1 Finish"],
-            "Forecast Finish": row["Finish"],
-            "Δ (Days)": delta
+            "Deliverable": name,
+            "Activity": row["Activity Name"],
+            "Finish Date": row["Finish"]
         })
 
-    ms_df = pd.DataFrame(milestones)
-
-    if not ms_df.empty:
-        ms_df["Δ (Days)"] = ms_df["Δ (Days)"].fillna(0).astype(int)
-
-    return ms_df
+    return pd.DataFrame(milestones)
 
 
 # =========================
-# RENDER TABLE
+# RENDER
 # =========================
 def render_milestone_table(df):
 
     ms_df = extract_milestones(df)
 
-    st.markdown("## 📦 KEY DELIVERABLE TRACKING – CL32 MAY")
+    st.markdown("## 📦 ROSSALL – KEY DELIVERABLE TRACKING (CL32)")
 
     if ms_df.empty:
-        st.info("No deliverables identified")
+        st.warning("⚠️ No deliverables identified")
         return
 
-    # =========================
-    # FORMAT DATES
-    # =========================
-    ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
-        ms_df["Baseline Finish (CL32 May)"]
+    # ✅ Format date cleanly
+    ms_df["Finish Date"] = pd.to_datetime(
+        ms_df["Finish Date"]
     ).dt.strftime("%d-%b-%Y")
 
-    ms_df["Forecast Finish"] = pd.to_datetime(
-        ms_df["Forecast Finish"]
-    ).dt.strftime("%d-%b-%Y")
+    # ✅ Highlight DESIGN FREEZE
+    def highlight_row(row):
+        if "FREEZE" in row["Deliverable"]:
+            return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
+        return [""] * len(row)
 
-    # =========================
-    # COLOUR Δ COLUMN
-    # =========================
-    def colour_delta(val):
-        if val < 0:
-            return "background-color:#7f1d1d;color:white;font-weight:bold"   # delayed
-        elif val > 0:
-            return "background-color:#14532d;color:white;font-weight:bold"   # early
-        return "background-color:#374151;color:white"  # on baseline
-
-    styled = ms_df.style.map(
-        colour_delta,
-        subset=["Δ (Days)"]
-    ).set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#2b3a55"),
-                ("color", "white"),
-                ("font-weight", "600"),
-                ("padding", "10px"),
-                ("text-transform", "uppercase")
-            ]
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("background-color", "#1c2233"),
-                ("color", "#f1f1f1"),
-                ("padding", "8px")
-            ]
-        },
-        {
-            "selector": "table",
-            "props": [
-                ("width", "100%"),
-                ("border-collapse", "collapse")
-            ]
-        }
-    ])
+    styled = (
+        ms_df.style
+        .apply(highlight_row, axis=1)
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#2b3a55"),
+                    ("color", "white"),
+                    ("font-weight", "600"),
+                    ("padding", "10px"),
+                ]
+            },
+            {
+                "selector": "td",
+                "props": [
+                    ("background-color", "#1c2233"),
+                    ("color", "#f1f1f1"),
+                    ("padding", "8px"),
+                ]
+            }
+        ])
+    )
 
     st.write(styled)
