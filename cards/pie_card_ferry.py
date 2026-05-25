@@ -1,5 +1,10 @@
 import pandas as pd
-import pandas as pd # ---------- CLEAN ----------
+import plotly.graph_objects as go
+
+
+def render_pie_ferry(df, container):
+
+    # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
@@ -7,23 +12,24 @@ import pandas as pd # ---------- CLEAN ----------
     df = df[df["Activity ID"].astype(str).str.startswith("FER-")]
 
     # ✅ Clean % complete properly
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-        .str.strip()
-    )
+    df["Activity % Complete"] = df["Activity % Complete"].astype(str)
+    df["Activity % Complete"] = df["Activity % Complete"].str.replace("%", "", regex=False)
+    df["Activity % Complete"] = df["Activity % Complete"].str.strip()
 
     df["Activity % Complete"] = pd.to_numeric(
         df["Activity % Complete"],
         errors="coerce"
     )
 
-    # ✅ Ignore blanks COMPLETELY
+    # ✅ Ignore blank % rows
     df = df[df["Activity % Complete"].notna()]
 
     # ✅ Clean dates
-    df["Finish"] = pd.to_datetime(df["Finish"], dayfirst=True, errors="coerce")
+    df["Finish"] = pd.to_datetime(
+        df["Finish"],
+        dayfirst=True,
+        errors="coerce"
+    )
 
     today = pd.Timestamp.today().normalize()
 
@@ -49,9 +55,9 @@ import pandas as pd # ---------- CLEAN ----------
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
-    # ✅ Remove empty slices
     summary = summary[summary > 0]
 
+    # ✅ COLORS
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
@@ -64,7 +70,9 @@ import pandas as pd # ---------- CLEAN ----------
             labels=summary.index,
             values=summary.values,
             textinfo="label+value+percent",
-            marker=dict(colors=[colors[k] for k in summary.index])
+            marker=dict(
+                colors=[colors[k] for k in summary.index]
+            )
         )]
     )
 
@@ -74,9 +82,7 @@ import pandas as pd # ---------- CLEAN ----------
         showlegend=False
     )
 
-    container.plotly_chart(fig, width="stretch")
-import plotly.graph_objects as go
-
-
-def render_pie_ferry(df, container):
-
+    container.plotly_chart(
+        fig,
+        width="stretch"
+    )
