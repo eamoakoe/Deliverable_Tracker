@@ -1,10 +1,10 @@
 import pandas as pd
-import plotly.graph_objects as go
+import pandas as_objects as go
 
 
 def render_pie_ferry(df, container):
 
-    # --- Clean data ---
+    # ---------- CLEAN DATA ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
@@ -24,24 +24,32 @@ def render_pie_ferry(df, container):
 
     today = pd.Timestamp.today().normalize()
 
-    # --- Classification ---
+    # ---------- CORRECT LOGIC ----------
     def classify(row):
 
-        if row["Activity % Complete"] >= 100:
+        progress = row["Activity % Complete"]
+        finish = row["Finish"]
+
+        # ✅ COMPLETED (priority)
+        if progress >= 100:
             return "Completed"
 
-        if pd.notna(row["Finish"]) and row["Finish"] < today:
+        # ✅ DELAYED (only if past finish AND not complete)
+        if pd.notna(finish) and finish < today and progress < 100:
             return "Delayed"
 
+        # ✅ ON TRACK
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
-    # --- Summary ---
+    # ---------- SUMMARY ----------
     summary = df["Status"].value_counts()
-    summary = summary.reindex(["On Track", "Delayed", "Completed"]).fillna(0)
+    summary = summary.reindex(
+        ["On Track", "Delayed", "Completed"]
+    ).fillna(0)
 
-    # Remove zero values for cleaner pie
+    # ✅ remove zeros for cleaner pie
     summary = summary[summary > 0]
 
     colors = {
@@ -50,14 +58,16 @@ def render_pie_ferry(df, container):
         "Completed": "#00C853"
     }
 
-    # --- Pie chart ---
+    # ---------- PIE ----------
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
+            sort=False,
             textinfo="label+value+percent",
             textfont=dict(size=11, color="black"),
-            marker=dict(colors=[colors[k] for k in summary.index])
+            marker=dict(colors=[colors[k] for k in summary.index]),
+            pull=[0.02] * len(summary)
         )]
     )
 
@@ -69,5 +79,6 @@ def render_pie_ferry(df, container):
 
     container.plotly_chart(
         fig,
-        use_container_width=True
+        use_container_width=True,
+        config={"displayModeBar": False}
     )
