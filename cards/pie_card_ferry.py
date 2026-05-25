@@ -1,5 +1,6 @@
 import pandas as pd
-import plotly.graph_objects as go = df.columns.str.strip()import plotly.graph_objects as go
+import plotly.graph_objects as go = df.columns.str.strip()
+import plotly.graph_objects as go
 
     # --- Clean dates ---
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
