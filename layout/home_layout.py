@@ -1,7 +1,6 @@
 import streamlit as st
 
 from cards.header import render_header
-from cards.pie_card import render_pie
 from cards.next7days_cl32 import render_next7days_table
 from cards.table_card import render_table
 
@@ -48,19 +47,6 @@ def render_dashboard(df31, df32):
     st.markdown("<br>", unsafe_allow_html=True)
 
     col1, col2 = st.columns([1, 1.2])
-
-    # PIE
-    with col1:
-        st.markdown("""
-        <div style="background:white;padding:15px;border-radius:10px;
-        box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
-        <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        📊 CL32 Deliverable Summary</div>
-        """, unsafe_allow_html=True)
-
-        render_pie(df32)
-
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # ✅ DELIVERABLE TRACKING (AUTO SWITCH)
     with col2:
