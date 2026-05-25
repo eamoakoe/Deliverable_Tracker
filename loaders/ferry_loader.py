@@ -143,4 +143,3 @@ def load_ferry():
     print("✅ CL32 rows:", len(cl32))
 
     return cl31, cl32
-``
