@@ -1,12 +1,4 @@
-import pandas as pd
-import pdfplumber
-import os
-
-
-# =========================
-# ✅ EXTRACT FROM TEXT (REAL FIX)
-# =========================
-def extract_pdf_table(file_path):
+import pandas as pdimport(file_path):
 
     rows = []
 
@@ -26,102 +18,92 @@ def extract_pdf_table(file_path):
 
             for line in lines:
 
-                # ✅ Only capture real activity rows
-                # Ferry IDs always look like AMP8-FPS-XXXX
-                if "AMP8" in line:
+                # ✅ Strict pattern: Activity IDs look like AMP8-FPS-XXXX
+                if re.match(r"AMP\d+-FPS-", line):
 
-                    parts = line.split()
-
-                    rows.append(parts)
+                    rows.append(line.strip())
 
     if not rows:
-        print("No rows extracted from text")
+        print("❌ NO MATCHED ACTIVITY ROWS")
         return pd.DataFrame()
 
-    df = pd.DataFrame(rows)
+    parsed = []
 
-    return df
+    for line in rows:
 
+        parts = line.split()
 
-# =========================
-# ✅ CLEAN DATA (FERRY-SPECIFIC)
-# =========================
-def clean(df):
-
-    if df.empty:
-        return df
-
-    # Drop empty rows
-    df = df.dropna(how="all")
-
-    # ✅ We don't have proper columns yet, so we standardise positions
-    # Based on your PDF structure:
-    # col0 = Activity ID
-    # col1+ = Activity Name (variable length)
-    # last columns = duration + dates
-
-    cleaned_rows = []
-
-    for _, row in df.iterrows():
-
-        values = [str(x) for x in row if pd.notna(x)]
-
-        if len(values) < 5:
+        # ✅ Skip broken lines
+        if len(parts) < 4:
             continue
 
-        # ✅ Extract known structure
-        activity_id = values[0]
+        activity_id = parts[0]
 
-        # Remaining Duration usually looks like "10d"
-        duration = None
+        # ✅ Extract finish date (last valid date-looking token)
         finish = None
 
-        for v in reversed(values):
+        for p in reversed(parts):
+            if re.match(r"\d{2}-[A-Za-z]{3}-\d{2}", p):
+                finish = p
+                break
 
-            if "d" in v:
-                duration = v
+        # ✅ Extract duration (token ending with d)
+        duration = None
+        for p in parts:
+            if p.endswith("d"):
+                duration = p
 
-            if "-" in v and v[0].isdigit():
-                finish = v
+        # ✅ Activity name = everything between ID and duration
+        try:
+            dur_index = parts.index(duration) if duration else len(parts)
+        except:
+            dur_index = len(parts)
 
-        # Activity name = everything between ID and duration
-        name_parts = values[1:-3] if len(values) > 4 else values[1:]
+        name_parts = parts[1:dur_index]
 
         activity_name = " ".join(name_parts)
 
-        cleaned_rows.append({
+        parsed.append({
             "Activity ID": activity_id,
             "Activity Name": activity_name,
             "Remaining Duration": duration,
             "Finish": finish
         })
 
-    df_clean = pd.DataFrame(cleaned_rows)
+    df = pd.DataFrame(parsed)
 
-    # ✅ Convert Finish date
-    if "Finish" in df_clean.columns:
-        df_clean["Finish"] = pd.to_datetime(
-            df_clean["Finish"],
-            errors="coerce",
-            dayfirst=True
-        )
+    return df
 
-    # ✅ Convert duration
-    if "Remaining Duration" in df_clean.columns:
 
-        df_clean["Remaining Duration"] = (
-            df_clean["Remaining Duration"]
-            .astype(str)
-            .str.replace("d", "", regex=False)
-            .str.strip()
-        )
+# =========================
+# ✅ CLEAN DATA (SAFE)
+# =========================
+def clean(df):
 
-        df_clean["Remaining Duration"] = pd.to_numeric(
-            df_clean["Remaining Duration"],
-            errors="coerce"
-        )
+    if df.empty:
+        return df
 
-    return df_clean
+    # Convert Finish
+    df["Finish"] = pd.to_datetime(
+        df["Finish"],
+        errors="coerce",
+        dayfirst=True
+    )
+
+    # Convert duration
+    df["Remaining Duration"] = (
+        df["Remaining Duration"]
+        .astype(str)
+        .str.replace("d", "", regex=False)
+        .str.strip()
+    )
+
+    df["Remaining Duration"] = pd.to_numeric(
+        df["Remaining Duration"],
+        errors="coerce"
+    )
+
+    return df
 
 
 # =========================
@@ -134,16 +116,18 @@ def load_ferry():
     cl31_path = os.path.join(base, "CL31.pdf")
     cl32_path = os.path.join(base, "CL32.pdf")
 
-    # ✅ CL31
-    cl31 = extract_pdf_table(cl31_path)
-    cl31 = clean(cl31)
+    cl31 = clean(extract_pdf_table(cl31_path))
+    cl32 = clean(extract_pdf_table(cl32_path))
 
-    print("CL31 rows:", len(cl31))
-
-    # ✅ CL32
-    cl32 = extract_pdf_table(cl32_path)
-    cl32 = clean(cl32)
-
-    print("CL32 rows:", len(cl32))
+    print("✅ CL31 rows:", len(cl31))
+    print("✅ CL32 rows:", len(cl32))
 
     return cl31, cl32
+import pdfplumber
+import os
+import re
+
+
+# =========================
+# ✅ EXTRACT + PARSE CORRECTLY
+# =========================
