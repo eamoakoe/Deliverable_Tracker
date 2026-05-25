@@ -1,12 +1,14 @@
 import pandas as pd
-import plotly.graph(df, container):
 import plotly.graph_objects as go
+
+
+def render_pie_ferry(df, container):
 
     # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Clean Activity ID (handles leading spaces)
+    # ✅ Fix Activity ID (remove spaces)
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
     # ✅ Keep only real activities
@@ -49,7 +51,7 @@ import plotly.graph_objects as go
         if progress >= 100:
             return "Completed"
 
-        # ✅ Delayed (ONLY if past finish AND not complete)
+        # ✅ Delayed (only if finish exists AND in the past)
         if pd.notna(finish) and finish < today and progress < 100:
             return "Delayed"
 
@@ -65,7 +67,7 @@ import plotly.graph_objects as go
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
-    # ✅ Remove zero values (cleaner pie)
+    # ✅ Remove zero values
     summary = summary[summary > 0]
 
     # ---------- COLORS ----------
@@ -81,7 +83,9 @@ import plotly.graph_objects as go
             labels=summary.index,
             values=summary.values,
             textinfo="label+value+percent",
-            marker=dict(colors=[colors[k] for k in summary.index]),
+            marker=dict(
+                colors=[colors[k] for k in summary.index]
+            ),
             sort=False
         )]
     )
@@ -92,9 +96,4 @@ import plotly.graph_objects as go
         showlegend=False
     )
 
-    container.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-
+    container.plotly_chart(fig, width="stretch")
