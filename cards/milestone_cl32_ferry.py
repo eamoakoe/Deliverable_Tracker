@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (ROBUST)
+# PREP DATA
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -12,7 +12,7 @@ def _prepare(df):
     # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Clean P6 dates (remove A / *)
+    # ✅ Clean P6 dates (remove A, *)
     for col in ["Finish", "BL1 Finish"]:
         df[col] = (
             df[col]
@@ -26,60 +26,66 @@ def _prepare(df):
 
 
 # =========================
-# ✅ FINAL FERRY DELIVERABLES (EXEC LEVEL)
+# ✅ FERRY DELIVERABLES (FROM YOUR WBS)
 # =========================
 FERRY_DELIVERABLES = {
 
-    # 🔴 Programme stage gates
+    # 🔴 Stage gates (from Planned Dates)
     "Concept Design Submission": ["FER-PD-1000"],
     "Outline Design Scope Freeze": ["FER-PD-1010"],
     "Full Outline Design Submission": ["FER-PD-1020"],
     "Project Completion": ["FER-PD-1030"],
 
-    # 🟠 Client submissions / approvals
+    # 🟠 Client submissions
     "Outline Design Pack Submission": ["FER-REV-1000"],
-    "Client Review Complete (Outline)": ["FER-REV-1010"],
+    "Client Review (Outline)": ["FER-REV-1010"],
     "Detailed Design Submission": ["FER-REV-1020"],
-    "Client Review Complete (Detailed)": ["FER-REV-1030"],
+    "Client Review (Detailed)": ["FER-REV-1030"],
     "Final Submission": ["FER-REV-1050"],
 
-    # 🟡 Key reports
+    # 🟡 Reports (from Deliverables → Geotechnical / Process)
     "Geotechnical Report (GDR)": ["FER-GEO-1010"],
     "Client Review of GDR": ["FER-GEO-1020"],
     "HAZOP Closeout": ["FER-PRO-1040"],
 
-    # 🔵 Concept design outputs
+    # 🔵 Concept Design (only real outputs)
     "Concept Drawing Issue": ["FER-CSD-1060"],
     "Pile Design Complete": ["FER-CSD-1070"],
 
-    # 🟣 Disciplines (simplified)
+    # 🟣 Discipline Deliverables (FINAL outputs only)
+
+    # Civils (Detailed outputs)
     "Civils Design Complete": [
-        "FER-CIV-1070",
-        "FER-CIV-1110",
-        "FER-CIV-1150"
+        "FER-CIV-1070",  # Cover slab
+        "FER-CIV-1110",  # Pipework to shaft
+        "FER-CIV-1150"   # Pipe design
     ],
 
+    # Mechanical (documents)
     "Mechanical Design Complete": [
-        "FER-MEC-1020",
-        "FER-MEC-1030",
-        "FER-MEC-1040"
+        "FER-MEC-1030",  # DSEAR
+        "FER-MEC-1040",  # Hazard plan
+        "FER-MEC-1050"   # MTO
     ],
 
+    # Mechanical (drawings)
     "Mechanical Drawings Issued": [
         "FER-MEC-1060",
         "FER-MEC-1110"
     ],
 
+    # Process
     "Process Design Complete": [
-        "FER-PRO-1010",
-        "FER-PRO-1000",
-        "FER-PRO-1020"
+        "FER-PRO-1010",  # BoD
+        "FER-PRO-1000",  # P&IDs
+        "FER-PRO-1020"   # Control Philosophy
     ],
 
+    # EICA
     "EICA Design Complete": [
-        "FER-EICA-1000",
-        "FER-EICA-1040",
-        "FER-EICA-1070"
+        "FER-EICA-1000",  # URS
+        "FER-EICA-1040",  # Power
+        "FER-EICA-1070"   # SLD
     ],
 }
 
@@ -95,7 +101,7 @@ def extract_milestones(df):
 
     for name, activity_ids in FERRY_DELIVERABLES.items():
 
-        # ✅ Flexible matching (handles suffixes/spaces)
+        # ✅ Flexible match (handles spaces/suffixes)
         filtered = df[
             df["Activity ID"].str.contains(
                 "|".join(activity_ids),
@@ -106,14 +112,14 @@ def extract_milestones(df):
         if filtered.empty:
             continue
 
-        # ✅ Use Finish → fallback to baseline
+        # ✅ Use Finish, fallback to baseline
         filtered["Sort Date"] = filtered["Finish"].fillna(filtered["BL1 Finish"])
 
         filtered = filtered.sort_values("Sort Date")
 
         row = filtered.iloc[-1]
 
-        # ✅ Calculate variance
+        # ✅ Variance
         if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
             delta = int((row["Finish"] - row["BL1 Finish"]).days)
         else:
@@ -121,7 +127,7 @@ def extract_milestones(df):
 
         milestones.append({
             "Deliverable": name,
-            "Activity": row["Activity Name"],  # ✅ traceability
+            "Activity": row["Activity Name"],
             "Baseline Finish (CL32 May)": row["BL1 Finish"],
             "Forecast Finish": row["Finish"],
             "Δ (Days)": delta
@@ -145,12 +151,10 @@ def render_milestone_table(df):
     st.markdown("## 📦 FERRY – KEY DELIVERABLE TRACKING (CL32)")
 
     if ms_df.empty:
-        st.warning("⚠️ No deliverables identified – check Activity IDs match mapping")
+        st.warning("⚠️ No deliverables identified – check Activity ID mapping")
         return
 
-    # =========================
-    # FORMAT DATES
-    # =========================
+    # ✅ Format dates
     ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
         ms_df["Baseline Finish (CL32 May)"]
     ).dt.strftime("%d-%b-%Y")
@@ -159,9 +163,7 @@ def render_milestone_table(df):
         ms_df["Forecast Finish"]
     ).dt.strftime("%d-%b-%Y")
 
-    # =========================
-    # COLOUR Δ COLUMN
-    # =========================
+    # ✅ Colour Δ
     def colour_delta(val):
         if val < 0:
             return "background-color:#7f1d1d;color:white;font-weight:bold"
