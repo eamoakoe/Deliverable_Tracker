@@ -206,4 +206,3 @@ def render_milestone_table(df):
     ])
 
     st.write(styled)
-``
