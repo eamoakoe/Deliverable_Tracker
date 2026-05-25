@@ -16,20 +16,86 @@ def _prepare(df):
 
 
 # =========================
-# MILESTONE KEYWORDS
+# DELIVERABLE KEYWORDS
 # =========================
-MILESTONE_KEYWORDS = {
-    "Design Freeze": ["BIM Execution Plan"],
-    "GDR": ["GDR"],
-    "Client Review (GDR)": ["Client Review of GDR"],
-    "Client Review (Design Pack)": ["Client Review of Design Pack"],
-    "Outline Design Submission": ["Submission of Outline Design Pack"],
-    "Final Submission": ["Final Submission"]
+DELIVERABLE_KEYWORDS = {
+    # 🔴 Top-level submissions
+    "Concept Design Submission": [
+        "Submission of shaft concept design"
+    ],
+    "Outline Design Scope Freeze": [
+        "Submission of Outline Design Scope Freeze"
+    ],
+    "Full Outline Design Submission": [
+        "Submission of Full Outline Design Package"
+    ],
+    "Project Completion": [
+        "Planned Project Completion"
+    ],
+
+    # 🟠 Submission packs
+    "Outline Design Pack Submission": [
+        "Submission of Outline Design Pack"
+    ],
+    "Final Submission": [
+        "Final Submission"
+    ],
+
+    # 🟡 Key reports / governance
+    "GDR Report": ["GDR"],
+    "HAZOP Closeout": ["HAZOP & ALM action and close out"],
+
+    # 🟡 Concept outputs
+    "Concept Drawing Issue": ["Produce 2D conept drawing"],
+    "Pile Design Complete": ["MGE Detailed Pile Design"],
+    "CAT2 Check Complete": ["CAT2 check"],
+
+    # 🟡 Civils deliverables
+    "Civils GA / Key Drawings": [
+        "GA & Long sections",
+        "Shaft penetrations"
+    ],
+    "Civils Detailed Design": [
+        "Cover slab design",
+        "Pipework from MHs to Shaft",
+        "Civils Pipe Design"
+    ],
+
+    # 🟡 Mechanical deliverables
+    "Mechanical Design Pack": [
+        "Pump system curve",
+        "DSEAR Assessment",
+        "Hazard Identification",
+        "Material Take Off"
+    ],
+    "Mechanical Drawings": [
+        "GA Drawing",
+        "Pipework layout"
+    ],
+
+    # 🟡 Process deliverables
+    "Process Design Pack": [
+        "Basis of Design",
+        "Outline P&IDs",
+        "Control Philosophy"
+    ],
+
+    # 🟡 EICA deliverables
+    "EICA Design Pack": [
+        "User Requirement Specification",
+        "Load Schedule",
+        "Power Supply Assessment"
+    ],
+    "EICA Drawings": [
+        "Single Line Diagrams",
+        "Block Cable Diagrams",
+        "Kiosk Location Plan"
+    ]
 }
 
 
 # =========================
-# EXTRACT MILESTONES
+# EXTRACT DELIVERABLES
 # =========================
 def extract_milestones(df):
 
@@ -37,7 +103,7 @@ def extract_milestones(df):
 
     milestones = []
 
-    for milestone_name, keywords in MILESTONE_KEYWORDS.items():
+    for milestone_name, keywords in DELIVERABLE_KEYWORDS.items():
 
         mask = df["Activity Name"].str.contains(
             "|".join(keywords),
@@ -50,17 +116,17 @@ def extract_milestones(df):
         if filtered.empty:
             continue
 
-        # ✅ take first match only
-        row = filtered.iloc[0]
+        # ✅ Take latest (most relevant issue point)
+        row = filtered.sort_values("Finish").iloc[-1]
 
-        # ✅ Calculate Δ (whole number only)
+        # ✅ Calculate Δ (days)
         if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
             delta = int((row["Finish"] - row["BL1 Finish"]).days)
         else:
             delta = None
 
         milestones.append({
-            "Milestone": milestone_name,
+            "Deliverable": milestone_name,
             "Baseline Finish (CL32 May)": row["BL1 Finish"],
             "Forecast Finish": row["Finish"],
             "Δ (Days)": delta
@@ -81,10 +147,10 @@ def render_milestone_table(df):
 
     ms_df = extract_milestones(df)
 
-    st.markdown("## 🎯 KEY MILESTONE TRACKING – CL32 MAY")
+    st.markdown("## 📦 KEY DELIVERABLE TRACKING – CL32 MAY")
 
     if ms_df.empty:
-        st.info("No milestones identified")
+        st.info("No deliverables identified")
         return
 
     # =========================
@@ -140,3 +206,4 @@ def render_milestone_table(df):
     ])
 
     st.write(styled)
+``
