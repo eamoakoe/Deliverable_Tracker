@@ -4,13 +4,17 @@ import plotly.graph_objects as go
 
 def render_pie_ferry(df, container):
 
-    # ---------- CLEAN DATA ----------
+    # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    # ✅ Keep only real activities
+    df = df[df["Activity ID"].astype(str).str.startswith("FER-")]
 
+    # ✅ Clean dates
+    df["Finish"] = pd.to_datetime(df["Finish"], dayfirst=True, errors="coerce")
+
+    # ✅ Clean % complete
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -20,7 +24,10 @@ def render_pie_ferry(df, container):
     df["Activity % Complete"] = pd.to_numeric(
         df["Activity % Complete"],
         errors="coerce"
-    ).fillna(0)
+    )
+
+    # ✅ Ignore blank % rows
+    df = df[df["Activity % Complete"].notna()]
 
     today = pd.Timestamp.today().normalize()
 
@@ -30,15 +37,15 @@ def render_pie_ferry(df, container):
         progress = row["Activity % Complete"]
         finish = row["Finish"]
 
-        # ✅ COMPLETED (priority)
+        # ✅ Completed
         if progress >= 100:
             return "Completed"
 
-        # ✅ DELAYED (only if past finish AND not complete)
+        # ✅ Delayed (only if past finish AND not complete)
         if pd.notna(finish) and finish < today and progress < 100:
             return "Delayed"
 
-        # ✅ ON TRACK
+        # ✅ On Track
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
@@ -49,7 +56,7 @@ def render_pie_ferry(df, container):
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
-    # ✅ remove zeros for cleaner pie
+    # ✅ Remove zero slices (cleaner pie)
     summary = summary[summary > 0]
 
     colors = {
@@ -66,8 +73,7 @@ def render_pie_ferry(df, container):
             sort=False,
             textinfo="label+value+percent",
             textfont=dict(size=11, color="black"),
-            marker=dict(colors=[colors[k] for k in summary.index]),
-            pull=[0.02] * len(summary)
+            marker=dict(colors=[colors[k] for k in summary.index])
         )]
     )
 
@@ -79,6 +85,5 @@ def render_pie_ferry(df, container):
 
     container.plotly_chart(
         fig,
-        use_container_width=True,
-        config={"displayModeBar": False}
+        width="stretch"
     )
