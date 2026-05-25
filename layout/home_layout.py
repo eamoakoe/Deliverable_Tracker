@@ -2,18 +2,45 @@ import streamlit as st
 
 from cards.header import render_header
 from cards.pie_card import render_pie
-from cards.milestone_cl32 import render_milestone_table
 from cards.next7days_cl32 import render_next7days_table
 from cards.table_card import render_table
 
+# ✅ Import all milestone modules
+from cards.milestone_cl32_ferry import render_milestone_table as ferry_ms
+from cards.milestone_cl32_flass import render_milestone_table as flass_ms
+from cards.milestone_cl32_rossall import render_milestone_table as rossall_ms
+
 
 # =========================
-# ✅ DASHBOARD ONLY (NO SIDEBAR)
+# DETECT ASSET
+# =========================
+def detect_asset(df):
+
+    if "Activity ID" not in df.columns:
+        return "Unknown"
+
+    ids = df["Activity ID"].astype(str)
+
+    if ids.str.contains("FER-").any():
+        return "Ferry"
+    elif ids.str.contains("FLA").any() or ids.str.contains("FLASS").any():
+        return "Flass"
+    elif ids.str.contains("ROS").any():
+        return "Rossall"
+    else:
+        return "Unknown"
+
+
+# =========================
+# DASHBOARD
 # =========================
 def render_dashboard(df31, df32):
 
     if df32 is None or df32.empty:
         st.stop()
+
+    # ✅ Detect which asset this is
+    asset = detect_asset(df32)
 
     # HEADER
     render_header()
@@ -35,16 +62,23 @@ def render_dashboard(df31, df32):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # MILESTONE
+    # ✅ DELIVERABLE TRACKING (AUTO SWITCH)
     with col2:
-        st.markdown("""
+        st.markdown(f"""
         <div style="background:white;padding:15px;border-radius:10px;
         box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:15px;">
         <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        🔴 Key Milestone Tracking</div>
+        🔴 Key Deliverable Tracking – {asset}</div>
         """, unsafe_allow_html=True)
 
-        render_milestone_table(df32)
+        if asset == "Ferry":
+            ferry_ms(df32)
+        elif asset == "Flass":
+            flass_ms(df32)
+        elif asset == "Rossall":
+            rossall_ms(df32)
+        else:
+            st.warning("No deliverable logic defined for this dataset")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
