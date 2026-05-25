@@ -1,9 +1,10 @@
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.graph_objects as go
 
 
 def render_pie_ferry(df, container):
 
+    # --- Clean data ---
     df = df.copy()
     df.columns = df.columns.str.strip()
 
@@ -23,18 +24,24 @@ def render_pie_ferry(df, container):
 
     today = pd.Timestamp.today().normalize()
 
+    # --- Status logic ---
     def classify(row):
         if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
             return "On Track"
+
         if row["Finish"] < today and row["Activity % Complete"] < 100:
             return "Delayed"
+
         if row["Activity % Complete"] >= 100:
             return "Completed"
+
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
+    # --- Summary ---
     summary = df["Status"].value_counts()
+    summary = summary.reindex(["On Track", "Delayed", "Completed"]).fillna(0)
 
     colors = {
         "On Track": "#FFD700",
@@ -42,23 +49,20 @@ def render_pie_ferry(df, container):
         "Completed": "#00C853"
     }
 
-    order = ["On Track", "Delayed", "Completed"]
-    summary = summary.reindex([k for k in order if k in summary.index])
-
+    # --- Pie chart ---
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
-            sort=False,
-            textinfo="none",
-            marker=dict(colors=[colors[k] for k in summary.index]),
+            textinfo="label+percent",
+            hoverinfo="label+value+percent",
+            marker=dict(colors=[colors[k] for k in summary.index])
         )]
     )
 
     fig.update_layout(
         height=220,
         margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
         showlegend=False
     )
 

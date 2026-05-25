@@ -1,46 +1,64 @@
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.graph_objects as go
 
 
 def render_pie_rossall(df, container):
 
     df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
+    df.columns = df.columns.str.strip()
 
     # ✅ Clean dates
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    df["Start"] = pd.to_datetime(df.get("Start"), errors="coerce")
+    df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
 
-    # ✅ Clean % complete
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
+    # ✅ OPTIONAL: % complete (may not exist)
+    if "Activity % Complete" in df.columns:
+        df["Activity % Complete"] = (
+            df["Activity % Complete"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+        )
+        df["Activity % Complete"] = pd.to_numeric(
+            df["Activity % Complete"], errors="coerce"
+        ).fillna(0)
+    else:
+        df["Activity % Complete"] = None  # placeholder
 
     today = pd.Timestamp.today().normalize()
 
-    # ✅ Status logic
+    # ✅ Status logic (handles missing % complete)
     def classify(row):
-        if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
+
+        finish = row["Finish"]
+        progress = row["Activity % Complete"]
+
+        # ✅ If no finish date → treat as On Track
+        if pd.isna(finish):
             return "On Track"
 
-        if row["Finish"] < today and row["Activity % Complete"] < 100:
-            return "Delayed"
+        # ✅ If % exists → use normal logic
+        if pd.notna(progress):
 
-        if row["Activity % Complete"] >= 100:
-            return "Completed"
+            if finish < today and progress < 100:
+                return "Delayed"
 
-        return "On Track"
+            if progress >= 100:
+                return "Completed"
+
+            return "On Track"
+
+        # ✅ If NO % complete → use DATE-ONLY logic
+        else:
+
+            if finish < today:
+                return "Delayed"
+
+            return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
     summary = df["Status"].value_counts()
+    summary = summary.reindex(["On Track", "Delayed", "Completed"]).fillna(0)
 
     colors = {
         "On Track": "#FFD700",
@@ -48,26 +66,16 @@ def render_pie_rossall(df, container):
         "Completed": "#00C853"
     }
 
-    order = ["On Track", "Delayed", "Completed"]
-    summary = summary.reindex([k for k in order if k in summary.index])
-
-    # ✅ Pie chart
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
-            sort=False,
-            textinfo="none",
-            marker=dict(colors=[colors[k] for k in summary.index]),
+            textinfo="label+percent",
+            hoverinfo="label+value+percent",
+            marker=dict(colors=[colors[k] for k in summary.index])
         )]
     )
 
-    # ✅ Sidebar layout
-    fig.update_layout(
-        height=220,
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        showlegend=False
-    )
+    fig.update_layout(height=220, showlegend=False)
 
     container.plotly_chart(fig, use_container_width=True)
