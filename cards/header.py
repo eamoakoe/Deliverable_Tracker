@@ -8,39 +8,39 @@ def render_header():
     <style>
 
     .header-box {
-        background: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%);
-        border: 1px solid rgba(45, 106, 79, 0.25);
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         min-height: 95px;
         border-radius: 16px;
         padding: 20px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
         transition: all 0.2s ease;
     }
 
     .header-box:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }
 
     .title {
-        color: #1b4332;
+        color: white;
         font-size: 26px;
         font-weight: 900;
         letter-spacing: 1px;
     }
 
     .subtitle {
-        color: #2d6a4f;
+        color: rgba(255,255,255,0.85);
         font-size: 13px;
         font-weight: 600;
         margin-top: 4px;
     }
 
     .date-box {
-        color: #1b4332;
+        color: white;
         font-size: 16px;
         font-weight: 800;
         text-align: center;
@@ -53,9 +53,9 @@ def render_header():
         gap: 8px;
         padding: 10px 14px;
         border-radius: 12px;
-        background: rgba(45, 106, 79, 0.12);
-        border: 1px solid rgba(45, 106, 79, 0.25);
-        color: #1b4332;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: white;
         font-size: 13px;
         font-weight: 700;
     }
@@ -64,8 +64,8 @@ def render_header():
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #16a34a;
-        box-shadow: 0 0 6px #16a34a;
+        background: #22c55e;
+        box-shadow: 0 0 6px #22c55e;
         animation: pulse 1.5s infinite;
     }
 
@@ -79,7 +79,7 @@ def render_header():
         position: sticky;
         top: 0;
         z-index: 999;
-        background: #f8fdf9;
+        background: #fff;
         padding-top: 8px;
         padding-bottom: 8px;
     }
