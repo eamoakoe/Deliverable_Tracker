@@ -3,7 +3,11 @@ import base64
 import pandas as pd
 import datetime
 import os
-import plotly.graph_objects as go
+
+# ✅ IMPORT PIE CARDS
+from cards.pie_card_ferry import render_pie_ferry
+from cards.pie_card_flass import render_pie_flass
+from cards.pie_card_rossall import render_pie_rossall
 
 
 # =========================
@@ -14,72 +18,6 @@ def get_base64_image(path):
         return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
-
-
-# =========================
-# ✅ PIE CHART (SIDEBAR OPTIMISED)
-# =========================
-def render_pie(df, container):
-
-    df = df.copy()
-    df.columns = df.columns.str.strip()
-
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
-
-    today = pd.Timestamp.today().normalize()
-
-    def classify(row):
-        if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-            return "On Track"
-        if row["Finish"] < today and row["Activity % Complete"] < 100:
-            return "Delayed"
-        if row["Activity % Complete"] >= 100:
-            return "Completed"
-        return "On Track"
-
-    df["Status"] = df.apply(classify, axis=1)
-
-    summary = df["Status"].value_counts()
-
-    colors = {
-        "On Track": "#FFD700",
-        "Delayed": "#FF3B30",
-        "Completed": "#00C853"
-    }
-
-    order = ["On Track", "Delayed", "Completed"]
-    summary = summary.reindex([k for k in order if k in summary.index])
-
-    fig = go.Figure(
-        data=[go.Pie(
-            labels=summary.index,
-            values=summary.values,
-            sort=False,
-            textinfo="none",
-            marker=dict(colors=[colors[k] for k in summary.index]),
-        )]
-    )
-
-    fig.update_layout(
-        height=220,  # ✅ smaller for sidebar
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        showlegend=False
-    )
-
-    container.plotly_chart(fig, use_container_width=True)
 
 
 # =========================
@@ -129,14 +67,12 @@ def render_next_deadline():
     key = next_item["KEY"]
     day = int(next_item[month])
 
-    label = key
-
     st.sidebar.markdown("---")
 
     st.sidebar.markdown(f"""
     <div style="background:#ffffff;padding:8px;border-radius:6px;border-left:5px solid #e53935;">
         <b>🎯 Next Deadline</b><br>
-        {label}<br>
+        {key}<br>
         → <b>{day} {month}</b><br>
         ⏳ In {min_days} day(s)
     </div>
@@ -195,7 +131,7 @@ def render_sidebar(df_ferry, df_flass, df_rossall):
         if logo:
             st.markdown(f"""
             <div style="text-align:center;">
-                <img src="data:image/png;base64,{logo}" width="90">
+                <img src="data:image/png;base64,{logo}" width="100">
             </div>
             """, unsafe_allow_html=True)
 
@@ -208,22 +144,22 @@ def render_sidebar(df_ferry, df_flass, df_rossall):
         )
 
         # =========================
-        # ✅ PROGRAMME STATUS (PINES HERE 🔥)
+        # ✅ PROGRAMME STATUS 🔥 (BEST POSITION)
         # =========================
         st.markdown("---")
         st.markdown("## 📊 Programme Status")
 
         st.markdown("### 🚢 Ferry")
-        render_pie(df_ferry, st.sidebar)
+        render_pie_ferry(df_ferry, st.sidebar)
 
         st.markdown("### 🏗️ Flass")
-        render_pie(df_flass, st.sidebar)
+        render_pie_flass(df_flass, st.sidebar)
 
         st.markdown("### 🌊 Rossall")
-        render_pie(df_rossall, st.sidebar)
+        render_pie_rossall(df_rossall, st.sidebar)
 
         # =========================
-        # ✅ TRACKER + DEADLINE
+        # ✅ DETAIL + ALERT
         # =========================
         render_programme_tracker()
         render_next_deadline()
