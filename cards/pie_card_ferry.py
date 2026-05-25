@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas as_objects as go
+import plotly.graph_objects as go
 
 
 def render_pie_ferry(df, container):
