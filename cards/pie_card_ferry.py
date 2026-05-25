@@ -11,20 +11,20 @@ def render_pie_ferry(df, container):
     # ✅ Keep only real activities
     df = df[df["Activity ID"].astype(str).str.startswith("FER-")]
 
-    # ✅ Clean % complete properly
-    df["Activity % Complete"] = df["Activity % Complete"].astype(str)
-    df["Activity % Complete"] = df["Activity % Complete"].str.replace("%", "", regex=False)
-    df["Activity % Complete"] = df["Activity % Complete"].str.strip()
+    # ✅ Clean % complete (DO NOT drop yet)
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+        .str.strip()
+    )
 
     df["Activity % Complete"] = pd.to_numeric(
         df["Activity % Complete"],
         errors="coerce"
     )
 
-    # ✅ Ignore blank % rows
-    df = df[df["Activity % Complete"].notna()]
-
-    # ✅ Clean dates
+    # ✅ Clean Finish date
     df["Finish"] = pd.to_datetime(
         df["Finish"],
         dayfirst=True,
@@ -33,21 +33,36 @@ def render_pie_ferry(df, container):
 
     today = pd.Timestamp.today().normalize()
 
-    # ---------- LOGIC ----------
+    # ---------- CLASSIFICATION ----------
     def classify(row):
 
         progress = row["Activity % Complete"]
         finish = row["Finish"]
 
+        # ✅ IGNORE rows without % (key rule)
+        if pd.isna(progress):
+            return None
+
+        # ✅ COMPLETED
         if progress >= 100:
             return "Completed"
 
+        # ✅ DELAYED (only if past finish AND not complete)
         if pd.notna(finish) and finish < today and progress < 100:
             return "Delayed"
 
+        # ✅ ON TRACK
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
+
+    # ✅ Remove ignored rows AFTER logic
+    df = df[df["Status"].notna()]
+
+    # ✅ Safety fallback (prevents blank output)
+    if df.empty:
+        container.warning("No valid activities with % complete")
+        return
 
     # ---------- SUMMARY ----------
     summary = df["Status"].value_counts()
@@ -55,9 +70,10 @@ def render_pie_ferry(df, container):
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
+    # ✅ Remove zero values for cleaner pie
     summary = summary[summary > 0]
 
-    # ✅ COLORS
+    # ---------- COLORS ----------
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
@@ -69,10 +85,10 @@ def render_pie_ferry(df, container):
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
+            sort=False,
             textinfo="label+value+percent",
-            marker=dict(
-                colors=[colors[k] for k in summary.index]
-            )
+            textfont=dict(size=11),
+            marker=dict(colors=[colors[k] for k in summary.index])
         )]
     )
 
