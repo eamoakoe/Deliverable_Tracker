@@ -1,18 +1,15 @@
-import pandas as pd
+import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
 
-def render_pie_ferry(df, container):
-
-    # --- Copy & clean columns ---
+def prepare(df):
     df = df.copy()
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.astype(str).str.strip()
 
-    # --- Clean dates ---
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # --- Clean % complete ---
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -20,87 +17,137 @@ def render_pie_ferry(df, container):
     )
 
     df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"], errors="coerce"
+        df["Activity % Complete"],
+        errors="coerce"
     ).fillna(0)
 
-    today = pd.Timestamp.today().normalize()
+    return df
 
-    # --- Status classification ---
-    def classify(row):
 
-        progress = row["Activity % Complete"]
-        finish = row["Finish"]
+# ✅ FINAL LOGIC
+def classify(row, today):
 
-        if progress >= 100:
-            return "Completed"
-
-        if pd.notna(finish) and finish < today:
-            return "Delayed"
-
+    if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    df["Status"] = df.apply(classify, axis=1)
+    # 🔴 Delayed
+    if row["Finish"] < today and row["Activity % Complete"] < 100:
+        return "Delayed"
 
-    # --- Summary ---
+    # ✅ Completed
+    if row["Activity % Complete"] >= 100:
+        return "Completed"
+
+    return "On Track"
+
+
+def render_pie(df):
+
+    df = prepare(df)
+    today = pd.Timestamp.today().normalize()
+
+    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
+
+    # ✅ Remove zero categories from pie
     summary = df["Status"].value_counts()
-    summary = summary.reindex(
-        ["On Track", "Delayed", "Completed"]
-    ).fillna(0)
+    summary = summary[summary > 0]
 
-    total = int(summary.sum())
-
-    # --- Colours ---
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
         "Completed": "#00C853"
     }
 
+    order = ["On Track", "Delayed", "Completed"]
+    summary = summary.reindex([k for k in order if k in summary.index])
+
     # =========================
-    # ✅ DONUT CHART (clean)
+    # PIE CHART
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
-            textinfo="none",
+            sort=False,
+            textinfo="label+value",
+            textfont=dict(color="black", size=13),
             marker=dict(colors=[colors[k] for k in summary.index]),
-            hole=0.5
+            pull=[0.03] * len(summary)
         )]
     )
 
     fig.update_layout(
-        height=180,
-        margin=dict(l=0, r=0, t=0, b=0),
-        showlegend=False
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=380,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        font=dict(color="black")
     )
 
-    container.plotly_chart(fig, use_container_width=True)
+    # =========================
+    # CARD STYLE
+    # =========================
+    st.markdown("""
+        <style>
+        .pie-card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+
+        .item {
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: black;
+            display: flex;
+            align-items: center;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .value {
+            font-weight: 700;
+            margin-left: 6px;
+            color: black;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     # =========================
-    # ✅ LEGEND (key fix)
+    # RENDER (NO EXTRA BAR)
     # =========================
-    for status in ["On Track", "Delayed", "Completed"]:
 
-        value = int(summary[status])
-        pct = (value / total * 100) if total > 0 else 0
+    col1, col2 = st.columns([2.3, 1])
 
-        container.markdown(f"""
-        <div style="display:flex; justify-content:space-between;
-                    align-items:center; font-size:12px; margin-bottom:4px;">
+    with col1:
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
 
-            <div style="display:flex; align-items:center;">
-                <div style="
-                    width:10px;
-                    height:10px;
-                    border-radius:50%;
-                    background:{colors[status]};
-                    margin-right:6px;">
+    with col2:
+
+        total = df.shape[0]
+
+        # ✅ Always show all categories
+        for k in ["On Track", "Delayed", "Completed"]:
+
+            value = (df["Status"] == k).sum()
+            pct = (value / total * 100) if total > 0 else 0
+
+            st.markdown(f"""
+                <div class="item">
+                    <div class="dot" style="background:{colors[k]};"></div>
+                    {k} <span class="value">{value} ({pct:.0f}%)</span>
                 </div>
-                {status}
-            </div>
+            """, unsafe_allow_html=True)
 
-            <div><b>{value}</b> ({pct:.0f}%)</div>
-
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
