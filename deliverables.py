@@ -1,49 +1,99 @@
 import pandas as pd
 
 
-def to_date(series):
+def _to_date(series):
     return pd.to_datetime(series, errors="coerce", dayfirst=True)
 
 
 def build_deliverables(cl31, cl32):
 
-    # Safety
-    if cl31 is None or cl32 is None:
-        return pd.DataFrame()
+    cl31 = cl31.copy()
+    cl32 = cl32.copy()
 
-    if cl31.empty or cl32.empty:
-        return pd.DataFrame()
+    # =========================
+    # NORMALISE COLUMNS
+    # =========================
+    cl31["Deliverable"] = cl31["Activity Name"].astype(str).str.strip()
+    cl32["Deliverable"] = cl32["Activity Name"].astype(str).str.strip()
 
-    df31 = cl31.copy()
-    df32 = cl32.copy()
+    # =========================
+    # DATE PARSING
+    # =========================
+    cl31["CL31 Finish_raw"] = _to_date(cl31["BL Project Finish"])
+    cl32["CL32 Finish_raw"] = _to_date(cl32["Finish"])
 
-    # Ensure column exists
-    if "Activity Name" not in df31.columns or "Activity Name" not in df32.columns:
-        return pd.DataFrame()
+    # =========================
+    # ORDER FROM CL31
+    # =========================
+    order_map = {v: i for i, v in enumerate(cl31["Deliverable"].tolist())}
 
-    # Normalise names
-    df31["Deliverable"] = df31["Activity Name"].astype(str).str.strip().str.lower()
-    df32["Deliverable"] = df32["Activity Name"].astype(str).str.strip().str.lower()
-
-    # Dates
-    df31["Finish31"] = to_date(df31["Finish"]) if "Finish" in df31.columns else pd.NaT
-    df32["Finish32"] = to_date(df32["Finish"]) if "Finish" in df32.columns else pd.NaT
-
-    # Merge
-    df = df31[["Deliverable", "Finish31"]].merge(
-        df32[["Deliverable", "Finish32"]],
+    # =========================
+    # MERGE
+    # =========================
+    df = cl31[["Deliverable", "CL31 Finish_raw"]].merge(
+        cl32[["Deliverable", "CL32 Finish_raw"]],
         on="Deliverable",
         how="outer"
     )
 
-    # Delta
+    df["__order"] = df["Deliverable"].map(order_map)
+    df = df.sort_values("__order", na_position="last").drop(columns="__order")
+
+    # =========================
+    # DELTA
+    # =========================
     def calc_delta(row):
-        if pd.isna(row["Finish31"]) or pd.isna(row["Finish32"]):
+        if pd.isna(row["CL31 Finish_raw"]) or pd.isna(row["CL32 Finish_raw"]):
             return None
-        return (row["Finish32"] - row["Finish31"]).days
+        return int((row["CL32 Finish_raw"] - row["CL31 Finish_raw"]).days)
 
     df["Delta (Days)"] = df.apply(calc_delta, axis=1)
 
-    df["Deliverable"] = df["Deliverable"].str.title()
+    # =========================
+    # CHANGE TYPE (FIXED ✅)
+    # =========================
+    def change_type(row):
+        if pd.isna(row["CL31 Finish_raw"]) and pd.notna(row["CL32 Finish_raw"]):
+            return "NEW"
+        if pd.notna(row["CL31 Finish_raw"]) and pd.isna(row["CL32 Finish_raw"]):
+            return "REMOVED"
+        if row["Delta (Days)"] is None:
+            return "UNCHANGED"
+        if row["Delta (Days)"] > 0:
+            return "DELAYED"
+        if row["Delta (Days)"] < 0:
+            return "EARLY"
+        return "UNCHANGED"
 
-    return df
+    df["Change Type"] = df.apply(change_type, axis=1)
+
+    # =========================
+    # COMMENTS
+    # =========================
+    comment_map = {
+        "NEW": "Added scope in CL32",
+        "REMOVED": "Removed from CL32",
+        "DELAYED": "Shifted later, coordination required",
+        "EARLY": "Pulled forward",
+        "UNCHANGED": "Stable"
+    }
+
+    df["Status / Comment"] = df["Change Type"].map(comment_map)
+
+    # =========================
+    # FORMAT
+    # =========================
+    def fmt(x):
+        return x.strftime("%d-%b-%y") if pd.notna(x) else "-"
+
+    df["CL31 Finish"] = df["CL31 Finish_raw"].apply(fmt)
+    df["CL32 Finish"] = df["CL32 Finish_raw"].apply(fmt)
+
+    return df[[
+        "Deliverable",
+        "CL31 Finish",
+        "CL32 Finish",
+        "Delta (Days)",
+        "Change Type",
+        "Status / Comment"
+    ]]
