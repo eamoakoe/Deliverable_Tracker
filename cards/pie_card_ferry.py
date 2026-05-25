@@ -1,6 +1,12 @@
 import pandas as pd
-import plotly.graph_objects as go = df.columns.str.strip()
 import plotly.graph_objects as go
+
+
+def render_pie_ferry(df, container):
+
+    # --- Copy & clean columns ---
+    df = df.copy()
+    df.columns = df.columns.str.strip()
 
     # --- Clean dates ---
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
@@ -19,7 +25,7 @@ import plotly.graph_objects as go
 
     today = pd.Timestamp.today().normalize()
 
-    # ✅ Correct classification
+    # --- Status classification ---
     def classify(row):
 
         progress = row["Activity % Complete"]
@@ -35,14 +41,15 @@ import plotly.graph_objects as go
 
     df["Status"] = df.apply(classify, axis=1)
 
-    # ✅ Clean summary
+    # --- Summary ---
     summary = df["Status"].value_counts()
     summary = summary.reindex(
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
-    total = summary.sum()
+    total = int(summary.sum())
 
+    # --- Colours ---
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
@@ -50,15 +57,15 @@ import plotly.graph_objects as go
     }
 
     # =========================
-    # ✅ CLEAN DONUT (no labels inside)
+    # ✅ DONUT CHART (clean)
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
-            textinfo="none",           # ✅ remove clutter
+            textinfo="none",
             marker=dict(colors=[colors[k] for k in summary.index]),
-            hole=0.5                   # ✅ donut = cleaner look
+            hole=0.5
         )]
     )
 
@@ -71,7 +78,7 @@ import plotly.graph_objects as go
     container.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # ✅ LEGEND WITH BULLETS + VALUES (KEY FIX)
+    # ✅ LEGEND (key fix)
     # =========================
     for status in ["On Track", "Delayed", "Completed"]:
 
@@ -79,22 +86,17 @@ import plotly.graph_objects as go
         pct = (value / total * 100) if total > 0 else 0
 
         container.markdown(f"""
-        <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            font-size:12px;
-            margin-bottom:4px;
-        ">
+        <div style="display:flex; justify-content:space-between;
+                    align-items:center; font-size:12px; margin-bottom:4px;">
 
-            <div style="display:flex;align-items:center;">
+            <div style="display:flex; align-items:center;">
                 <div style="
                     width:10px;
                     height:10px;
                     border-radius:50%;
                     background:{colors[status]};
-                    margin-right:6px;
-                "></div>
+                    margin-right:6px;">
+                </div>
                 {status}
             </div>
 
@@ -102,8 +104,3 @@ import plotly.graph_objects as go
 
         </div>
         """, unsafe_allow_html=True)
-
-
-def render_pie_ferry(df, container):
-
-    df = df.copy()
