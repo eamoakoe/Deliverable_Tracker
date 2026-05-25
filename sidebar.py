@@ -1,5 +1,5 @@
 import streamlit as st
-import stream64
+import base64
 import os
 
 # ✅ IMPORT LOADERS
