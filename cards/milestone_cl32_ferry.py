@@ -3,16 +3,16 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (FIXED)
+# PREP DATA (ROBUST)
 # =========================
 def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Clean Activity IDs
+    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Clean P6 date formatting (remove A, *, etc.)
+    # ✅ Clean P6 dates (remove A / *)
     for col in ["Finish", "BL1 Finish"]:
         df[col] = (
             df[col]
@@ -26,16 +26,17 @@ def _prepare(df):
 
 
 # =========================
-# FERRY DELIVERABLE MAP
+# ✅ FINAL FERRY DELIVERABLES (EXEC LEVEL)
 # =========================
 FERRY_DELIVERABLES = {
-    # 🔴 Programme level
+
+    # 🔴 Programme stage gates
     "Concept Design Submission": ["FER-PD-1000"],
     "Outline Design Scope Freeze": ["FER-PD-1010"],
     "Full Outline Design Submission": ["FER-PD-1020"],
     "Project Completion": ["FER-PD-1030"],
 
-    # 🟠 Client deliverables
+    # 🟠 Client submissions / approvals
     "Outline Design Pack Submission": ["FER-REV-1000"],
     "Client Review Complete (Outline)": ["FER-REV-1010"],
     "Detailed Design Submission": ["FER-REV-1020"],
@@ -44,57 +45,47 @@ FERRY_DELIVERABLES = {
 
     # 🟡 Key reports
     "Geotechnical Report (GDR)": ["FER-GEO-1010"],
-    "HAZOP Complete": ["FER-PRO-1030"],
+    "Client Review of GDR": ["FER-GEO-1020"],
     "HAZOP Closeout": ["FER-PRO-1040"],
 
-    # 🟡 Concept outputs
+    # 🔵 Concept design outputs
     "Concept Drawing Issue": ["FER-CSD-1060"],
     "Pile Design Complete": ["FER-CSD-1070"],
-    "CAT2 Check Complete": ["FER-CSD-1080"],
 
-    # 🔵 Civils
-    "Civils Key Drawings": ["FER-CIV-1020", "FER-CIV-1050"],
-    "Civils Detailed Design": ["FER-CIV-1070", "FER-CIV-1110", "FER-CIV-1150"],
+    # 🟣 Disciplines (simplified)
+    "Civils Design Complete": [
+        "FER-CIV-1070",
+        "FER-CIV-1110",
+        "FER-CIV-1150"
+    ],
 
-    # 🟣 Mechanical
-    "Mechanical Design Pack": [
+    "Mechanical Design Complete": [
         "FER-MEC-1020",
         "FER-MEC-1030",
-        "FER-MEC-1040",
-        "FER-MEC-1050"
+        "FER-MEC-1040"
     ],
-    "Mechanical Drawings Issue": [
+
+    "Mechanical Drawings Issued": [
         "FER-MEC-1060",
-        "FER-MEC-1070",
-        "FER-MEC-1080",
-        "FER-MEC-1090",
-        "FER-MEC-1100",
         "FER-MEC-1110"
     ],
 
-    # 🟤 Process
-    "Process Design Pack": [
+    "Process Design Complete": [
         "FER-PRO-1010",
         "FER-PRO-1000",
         "FER-PRO-1020"
     ],
 
-    # 🟢 EICA
-    "EICA Design Documents": [
+    "EICA Design Complete": [
         "FER-EICA-1000",
-        "FER-EICA-1020",
-        "FER-EICA-1040"
-    ],
-    "EICA Drawings Issue": [
-        "FER-EICA-1070",
-        "FER-EICA-1080",
-        "FER-EICA-1090"
+        "FER-EICA-1040",
+        "FER-EICA-1070"
     ],
 }
 
 
 # =========================
-# EXTRACT DELIVERABLES (FIXED)
+# EXTRACT DELIVERABLES
 # =========================
 def extract_milestones(df):
 
@@ -104,7 +95,7 @@ def extract_milestones(df):
 
     for name, activity_ids in FERRY_DELIVERABLES.items():
 
-        # ✅ Robust match (handles variations in ID formatting)
+        # ✅ Flexible matching (handles suffixes/spaces)
         filtered = df[
             df["Activity ID"].str.contains(
                 "|".join(activity_ids),
@@ -115,14 +106,14 @@ def extract_milestones(df):
         if filtered.empty:
             continue
 
-        # ✅ Use Finish if available, otherwise fallback to baseline
+        # ✅ Use Finish → fallback to baseline
         filtered["Sort Date"] = filtered["Finish"].fillna(filtered["BL1 Finish"])
 
         filtered = filtered.sort_values("Sort Date")
 
         row = filtered.iloc[-1]
 
-        # ✅ Calculate variance safely
+        # ✅ Calculate variance
         if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
             delta = int((row["Finish"] - row["BL1 Finish"]).days)
         else:
@@ -130,7 +121,7 @@ def extract_milestones(df):
 
         milestones.append({
             "Deliverable": name,
-            "Source Activity": row["Activity Name"],  # ✅ useful traceability
+            "Activity": row["Activity Name"],  # ✅ traceability
             "Baseline Finish (CL32 May)": row["BL1 Finish"],
             "Forecast Finish": row["Finish"],
             "Δ (Days)": delta
@@ -154,7 +145,7 @@ def render_milestone_table(df):
     st.markdown("## 📦 FERRY – KEY DELIVERABLE TRACKING (CL32)")
 
     if ms_df.empty:
-        st.info("No deliverables identified")
+        st.warning("⚠️ No deliverables identified – check Activity IDs match mapping")
         return
 
     # =========================
@@ -178,28 +169,29 @@ def render_milestone_table(df):
             return "background-color:#14532d;color:white;font-weight:bold"
         return "background-color:#374151;color:white"
 
-    styled = ms_df.style.map(
-        colour_delta,
-        subset=["Δ (Days)"]
-    ).set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#2b3a55"),
-                ("color", "white"),
-                ("font-weight", "600"),
-                ("padding", "10px"),
-                ("text-transform", "uppercase")
-            ]
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("background-color", "#1c2233"),
-                ("color", "#f1f1f1"),
-                ("padding", "8px")
-            ]
-        }
-    ])
+    styled = (
+        ms_df.style
+        .map(colour_delta, subset=["Δ (Days)"])
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#2b3a55"),
+                    ("color", "white"),
+                    ("font-weight", "600"),
+                    ("padding", "10px"),
+                    ("text-transform", "uppercase")
+                ]
+            },
+            {
+                "selector": "td",
+                "props": [
+                    ("background-color", "#1c2233"),
+                    ("color", "#f1f1f1"),
+                    ("padding", "8px")
+                ]
+            }
+        ])
+    )
 
     st.write(styled)
