@@ -2,9 +2,9 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-def prepare(df):
+def render Clean data ---def render_pie_ferry(df, container):
     df = df.copy()
-    df.columns = df.columns.astype(str).str.strip()
+    df.columns = df.columns.str.strip()
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
@@ -20,37 +20,32 @@ def prepare(df):
         errors="coerce"
     ).fillna(0)
 
-    return df
-
-
-def classify(row, today):
-
-    if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-        return "On Track"
-
-    if row["Finish"] < today and row["Activity % Complete"] < 100:
-        return "Delayed"
-
-    if row["Activity % Complete"] >= 100:
-        return "Completed"
-
-    return "On Track"
-
-
-def render_pie_ferry(df, container):
-
-    df = prepare(df)
     today = pd.Timestamp.today().normalize()
 
-    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
+    # --- Classification ---
+    def classify(row):
 
+        progress = row["Activity % Complete"]
+        finish = row["Finish"]
+
+        if progress >= 100:
+            return "Completed"
+
+        if pd.notna(finish) and finish < today:
+            return "Delayed"
+
+        return "On Track"
+
+    df["Status"] = df.apply(classify, axis=1)
+
+    # --- Summary ---
     summary = df["Status"].value_counts()
+    summary = summary.reindex(
+        ["On Track", "Delayed", "Completed"]
+    ).fillna(0)
 
-    # ✅ Ensure consistent order
-    order = ["On Track", "Delayed", "Completed"]
-    summary = summary.reindex(order).fillna(0)
-
-    total = df.shape[0]
+    # ✅ Remove zero slices (important for readability)
+    summary = summary[summary > 0]
 
     colors = {
         "On Track": "#FFD700",
@@ -59,21 +54,28 @@ def render_pie_ferry(df, container):
     }
 
     # =========================
-    # ✅ PIE (clean for sidebar)
+    # ✅ PIE (labels INSIDE)
     # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-            textinfo="none",  # ✅ no clutter
-            marker=dict(colors=[colors[k] for k in summary.index])
+
+            # ✅ THIS IS THE KEY LINE
+            textinfo="label+value+percent",
+
+            textfont=dict(size=11, color="black"),
+
+            marker=dict(colors=[colors[k] for k in summary.index]),
+
+            pull=[0.02] * len(summary)  # subtle separation
         )]
     )
 
     fig.update_layout(
-        height=200,
-        margin=dict(l=0, r=0, t=0, b=0),
+        height=240,   # slightly bigger so labels fit
+        margin=dict(l=5, r=5, t=5, b=5),
         showlegend=False
     )
 
@@ -83,35 +85,3 @@ def render_pie_ferry(df, container):
         config={"displayModeBar": False}
     )
 
-    # =========================
-    # ✅ LEGEND (clean + stable)
-    # =========================
-    for k in ["On Track", "Delayed", "Completed"]:
-
-        value = int(summary[k])
-        pct = (value / total * 100) if total > 0 else 0
-
-        container.markdown(
-            f"""
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                font-size:13px;
-                margin-bottom:6px;
-            ">
-                <div style="display:flex; align-items:center;">
-                    <div style="
-                        width:10px;
-                        height:10px;
-                        border-radius:50%;
-                        background:{colors[k]};
-                        margin-right:6px;
-                    "></div>
-                    {k}
-                </div>
-                <div><b>{value}</b> ({pct:.0f}%)</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
