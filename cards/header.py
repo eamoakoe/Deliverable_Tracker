@@ -3,96 +3,118 @@ from datetime import datetime
 
 
 def render_header():
-    today = datetime.today().strftime('%d %b %Y')
 
-    # ✅ STYLING
     st.markdown("""
     <style>
 
-    .header-card {
-        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-        border: 1px solid rgba(16,185,129,0.25);
+    .header-box {
+        background: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%);
+        border: 1px solid rgba(45, 106, 79, 0.25);
+        min-height: 95px;
         border-radius: 16px;
-        padding: 18px 22px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-        margin-bottom: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+        transition: all 0.2s ease;
     }
 
-    .header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .header-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.12);
     }
 
     .title {
-        font-size: 22px;
-        font-weight: 800;
-        color: #064e3b;
-        margin-bottom: 4px;
+        color: #1b4332;
+        font-size: 26px;
+        font-weight: 900;
+        letter-spacing: 1px;
     }
 
     .subtitle {
-        font-size: 13px;
-        color: #047857;
-    }
-
-    .right {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 20px;
-        background: #d1fae5;
-        border: 1px solid rgba(16,185,129,0.25);
+        color: #2d6a4f;
         font-size: 13px;
         font-weight: 600;
-        color: #065f46;
+        margin-top: 4px;
+    }
+
+    .date-box {
+        color: #1b4332;
+        font-size: 16px;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .status-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(45, 106, 79, 0.12);
+        border: 1px solid rgba(45, 106, 79, 0.25);
+        color: #1b4332;
+        font-size: 13px;
+        font-weight: 700;
     }
 
     .dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #22c55e;
-        box-shadow: 0 0 6px #22c55e;
+        background: #16a34a;
+        box-shadow: 0 0 6px #16a34a;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% {opacity:1;}
+        50% {opacity:0.4;}
+        100% {opacity:1;}
+    }
+
+    div[data-testid="stHorizontalBlock"] {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: #f8fdf9;
+        padding-top: 8px;
+        padding-bottom: 8px;
     }
 
     </style>
     """, unsafe_allow_html=True)
 
-    # ✅ SINGLE CARD WITH EVERYTHING INSIDE
-    st.markdown(f"""
-    <div class="header-card">
+    col1, col2, col3 = st.columns([5, 3, 2], gap="small")
 
-        <div class="header-row">
-
-            <!-- LEFT -->
-            <div>
-                <div class="title">DESIGN PROGRAMME DASHBOARD</div>
-                <div class="subtitle">CL31 & CL32 • Delivery Tracking • Forecasting</div>
-            </div>
-
-            <!-- RIGHT -->
-            <div class="right">
-
-                <div class="pill">
-                    📅 {today}
-                </div>
-
-                <div class="pill">
-                    <div class="dot"></div>
-                    Programme Live
-                </div>
-
-            </div>
-
+    # ✅ LEFT
+    with col1:
+        st.markdown("""
+        <div class="header-box">
+            <div class="title">UU DESIGN PROGRAMME DASHBOARD</div>
+            <div class="subtitle">CL31 & CL32 • Delivery Tracking • Forecasting</div>
         </div>
+        """, unsafe_allow_html=True)
 
-    </div>
-    """, unsafe_allow_html=True)
+    # ✅ DATE
+    with col2:
+        st.markdown(f"""
+        <div class="header-box" style="align-items:center;">
+            <div class="date-box">
+                📅 {datetime.today().strftime('%d %b %Y')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ✅ STATUS
+    with col3:
+        st.markdown("""
+        <div class="header-box" style="align-items:center;">
+            <div class="status-box">
+                <div class="dot"></div>
+                Programme Live
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
