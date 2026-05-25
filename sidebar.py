@@ -3,9 +3,12 @@ import base64
 import pandas as pd
 import datetime
 import os
+import plotly.graph_objects as go
 
 
+# =========================
 # ✅ LOAD LOGO
+# =========================
 def get_base64_image(path):
     if not os.path.exists(path):
         return ""
@@ -13,7 +16,75 @@ def get_base64_image(path):
         return base64.b64encode(f.read()).decode()
 
 
-# ✅ NEXT DEADLINE CARD
+# =========================
+# ✅ PIE CHART (SIDEBAR OPTIMISED)
+# =========================
+def render_pie(df, container):
+
+    df = df.copy()
+    df.columns = df.columns.str.strip()
+
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
+
+    today = pd.Timestamp.today().normalize()
+
+    def classify(row):
+        if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
+            return "On Track"
+        if row["Finish"] < today and row["Activity % Complete"] < 100:
+            return "Delayed"
+        if row["Activity % Complete"] >= 100:
+            return "Completed"
+        return "On Track"
+
+    df["Status"] = df.apply(classify, axis=1)
+
+    summary = df["Status"].value_counts()
+
+    colors = {
+        "On Track": "#FFD700",
+        "Delayed": "#FF3B30",
+        "Completed": "#00C853"
+    }
+
+    order = ["On Track", "Delayed", "Completed"]
+    summary = summary.reindex([k for k in order if k in summary.index])
+
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=summary.index,
+            values=summary.values,
+            sort=False,
+            textinfo="none",
+            marker=dict(colors=[colors[k] for k in summary.index]),
+        )]
+    )
+
+    fig.update_layout(
+        height=220,  # ✅ smaller for sidebar
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False
+    )
+
+    container.plotly_chart(fig, use_container_width=True)
+
+
+# =========================
+# ✅ NEXT DEADLINE
+# =========================
 def render_next_deadline():
 
     file_path = "components/contract_submission_dates.xlsx"
@@ -58,28 +129,12 @@ def render_next_deadline():
     key = next_item["KEY"]
     day = int(next_item[month])
 
-    # ✅ Clean labels
-    if "Data date" in key:
-        label = "Data date"
-    elif "PFA" in key:
-        label = "PFA submission"
-    elif "submission to client" in key:
-        label = "Client submission"
-    elif "accept / reject" in key:
-        label = "Accept / Reject"
-    else:
-        label = key
+    label = key
 
     st.sidebar.markdown("---")
 
-    # ✅ CARD DISPLAY
     st.sidebar.markdown(f"""
-    <div style="
-        background:#ffffff;
-        padding:8px;
-        border-radius:6px;
-        border-left:5px solid #e53935;
-    ">
+    <div style="background:#ffffff;padding:8px;border-radius:6px;border-left:5px solid #e53935;">
         <b>🎯 Next Deadline</b><br>
         {label}<br>
         → <b>{day} {month}</b><br>
@@ -88,13 +143,14 @@ def render_next_deadline():
     """, unsafe_allow_html=True)
 
 
-# ✅ PROGRAMME TRACKER (COLOUR-CODED TABLE)
+# =========================
+# ✅ PROGRAMME TRACKER
+# =========================
 def render_programme_tracker():
 
     file_path = "components/contract_submission_dates.xlsx"
 
     if not os.path.exists(file_path):
-        st.sidebar.warning("Tracker file missing")
         return
 
     df = pd.read_excel(file_path)
@@ -105,126 +161,41 @@ def render_programme_tracker():
     today_day = today.day
 
     if month not in df.columns:
-        st.sidebar.warning(f"{month} not in tracker")
         return
 
     current = df[["KEY", month]].dropna()
 
     st.sidebar.markdown("---")
-
-    # ✅ HEADER
-    st.sidebar.markdown("""
-    <div style="
-        background:#0b3d0b;
-        padding:8px;
-        border-radius:6px;
-        text-align:center;
-        color:white;
-        font-weight:600;
-        font-size:13px;
-    ">
-        📘 ARUP Contract Submission Dates 2025–2026
-    </div>
-    """, unsafe_allow_html=True)
-
     st.sidebar.markdown(f"**📅 {month} Programme**")
 
-    # ✅ TABLE HEADER
-    st.sidebar.markdown("""
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        font-weight:600;
-        padding:4px 6px;
-        border-bottom:1px solid #ccc;
-        font-size:12px;
-    ">
-        <span>Activity</span>
-        <span>Date</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ✅ ROWS (YOUR EXACT COLOUR RULES)
     for _, row in current.iterrows():
         key = row["KEY"]
         day = int(row[month])
 
-        if "Data date" in key:
-            bg = "#cfe2f3"   # light blue
-            label = "Data Date for Murphy and Sub-contactor Programme"
-
-        elif "PFA" in key:
-            bg = "#f4cccc"   # red
-            label = "Sub-contractor Submits PFA to Murphy"
-
-        elif "submission to client" in key:
-            bg = "#ffe599"   # gold
-            label = "Murphy Programme Submission to Client"
-
-        elif "accept / reject" in key:
-            bg = "#d9f2d9"   # green
-            label = "Deadline for Murphy to Accept / Reject Programme"
-
-        else:
-            bg = "#f2f2f2"
-            label = key
-
-        # ✅ STATUS ICON
-        if day < today_day:
-            status = "✅"
-        elif day == today_day:
-            status = "⚠️"
-        else:
-            status = ""
+        status = "✅" if day < today_day else ("⚠️" if day == today_day else "")
 
         st.sidebar.markdown(f"""
-        <div style="
-            display:flex;
-            justify-content:space-between;
-            background:{bg};
-            padding:6px;
-            margin:2px 0;
-            border-radius:4px;
-            font-size:12px;
-        ">
-            <span>{label}</span>
+        <div style="display:flex;justify-content:space-between;background:#f2f2f2;padding:6px;margin:2px 0;border-radius:4px;font-size:12px;">
+            <span>{key}</span>
             <span><b>{day}</b> {status}</span>
         </div>
         """, unsafe_allow_html=True)
 
 
-# ✅ SIDEBAR
-def render_sidebar():
+# =========================
+# ✅ SIDEBAR MAIN
+# =========================
+def render_sidebar(df_ferry, df_flass, df_rossall):
+
     logo = get_base64_image("assets/logo.png")
-
-    st.markdown("""
-    <style>
-        [data-testid="stSidebarNav"] {
-            display: none;
-        }
-
-        section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #d4f5d0 0%, #a8e6a3 100%);
-        }
-
-        section[data-testid="stSidebar"] .stRadio label {
-            color: #0b3d0b;
-            font-weight: 500;
-        }
-
-        section[data-testid="stSidebar"] h1 {
-            color: #0b3d0b;
-        }
-    </style>
-    """, unsafe_allow_html=True)
 
     with st.sidebar:
 
         # ✅ LOGO
         if logo:
             st.markdown(f"""
-            <div style="text-align:center; padding:10px 0 15px 0;">
-                <img src="data:image/png;base64,{logo}" width="100">
+            <div style="text-align:center;">
+                <img src="data:image/png;base64,{logo}" width="90">
             </div>
             """, unsafe_allow_html=True)
 
@@ -236,10 +207,25 @@ def render_sidebar():
             ["Ferry PS", "Rossall Outfall", "Flass Lane"]
         )
 
-        # ✅ TRACKER
-        render_programme_tracker()
+        # =========================
+        # ✅ PROGRAMME STATUS (PINES HERE 🔥)
+        # =========================
+        st.markdown("---")
+        st.markdown("## 📊 Programme Status")
 
-        # ✅ NEXT DEADLINE
+        st.markdown("### 🚢 Ferry")
+        render_pie(df_ferry, st.sidebar)
+
+        st.markdown("### 🏗️ Flass")
+        render_pie(df_flass, st.sidebar)
+
+        st.markdown("### 🌊 Rossall")
+        render_pie(df_rossall, st.sidebar)
+
+        # =========================
+        # ✅ TRACKER + DEADLINE
+        # =========================
+        render_programme_tracker()
         render_next_deadline()
 
     return project
