@@ -3,14 +3,24 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA
+# PREP DATA (FIXED)
 # =========================
 def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
+    # ✅ Clean Activity IDs
+    df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
+
+    # ✅ Clean P6 date formatting (remove A, *, etc.)
+    for col in ["Finish", "BL1 Finish"]:
+        df[col] = (
+            df[col]
+            .astype(str)
+            .str.replace(r"[A\*]", "", regex=True)
+            .str.strip()
+        )
+        df[col] = pd.to_datetime(df[col], errors="coerce")
 
     return df
 
@@ -25,35 +35,28 @@ FERRY_DELIVERABLES = {
     "Full Outline Design Submission": ["FER-PD-1020"],
     "Project Completion": ["FER-PD-1030"],
 
-    # 🟠 Client submission / approvals
+    # 🟠 Client deliverables
     "Outline Design Pack Submission": ["FER-REV-1000"],
     "Client Review Complete (Outline)": ["FER-REV-1010"],
     "Detailed Design Submission": ["FER-REV-1020"],
     "Client Review Complete (Detailed)": ["FER-REV-1030"],
     "Final Submission": ["FER-REV-1050"],
 
-    # 🟡 Key reports / governance
+    # 🟡 Key reports
     "Geotechnical Report (GDR)": ["FER-GEO-1010"],
     "HAZOP Complete": ["FER-PRO-1030"],
     "HAZOP Closeout": ["FER-PRO-1040"],
 
-    # 🟡 Concept design outputs
+    # 🟡 Concept outputs
     "Concept Drawing Issue": ["FER-CSD-1060"],
     "Pile Design Complete": ["FER-CSD-1070"],
     "CAT2 Check Complete": ["FER-CSD-1080"],
 
-    # 🔵 Civils deliverables
-    "Civils Key Drawings": [
-        "FER-CIV-1020",
-        "FER-CIV-1050"
-    ],
-    "Civils Detailed Design": [
-        "FER-CIV-1070",
-        "FER-CIV-1110",
-        "FER-CIV-1150"
-    ],
+    # 🔵 Civils
+    "Civils Key Drawings": ["FER-CIV-1020", "FER-CIV-1050"],
+    "Civils Detailed Design": ["FER-CIV-1070", "FER-CIV-1110", "FER-CIV-1150"],
 
-    # 🟣 Mechanical deliverables
+    # 🟣 Mechanical
     "Mechanical Design Pack": [
         "FER-MEC-1020",
         "FER-MEC-1030",
@@ -69,14 +72,14 @@ FERRY_DELIVERABLES = {
         "FER-MEC-1110"
     ],
 
-    # 🟤 Process deliverables
+    # 🟤 Process
     "Process Design Pack": [
         "FER-PRO-1010",
         "FER-PRO-1000",
         "FER-PRO-1020"
     ],
 
-    # 🟢 EICA deliverables
+    # 🟢 EICA
     "EICA Design Documents": [
         "FER-EICA-1000",
         "FER-EICA-1020",
@@ -91,7 +94,7 @@ FERRY_DELIVERABLES = {
 
 
 # =========================
-# EXTRACT DELIVERABLES
+# EXTRACT DELIVERABLES (FIXED)
 # =========================
 def extract_milestones(df):
 
@@ -101,15 +104,25 @@ def extract_milestones(df):
 
     for name, activity_ids in FERRY_DELIVERABLES.items():
 
-        filtered = df[df["Activity ID"].isin(activity_ids)]
+        # ✅ Robust match (handles variations in ID formatting)
+        filtered = df[
+            df["Activity ID"].str.contains(
+                "|".join(activity_ids),
+                na=False
+            )
+        ].copy()
 
         if filtered.empty:
             continue
 
-        # ✅ Take latest finish (represents final issued deliverable)
-        row = filtered.sort_values("Finish").iloc[-1]
+        # ✅ Use Finish if available, otherwise fallback to baseline
+        filtered["Sort Date"] = filtered["Finish"].fillna(filtered["BL1 Finish"])
 
-        # ✅ Calculate variance
+        filtered = filtered.sort_values("Sort Date")
+
+        row = filtered.iloc[-1]
+
+        # ✅ Calculate variance safely
         if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
             delta = int((row["Finish"] - row["BL1 Finish"]).days)
         else:
@@ -117,6 +130,7 @@ def extract_milestones(df):
 
         milestones.append({
             "Deliverable": name,
+            "Source Activity": row["Activity Name"],  # ✅ useful traceability
             "Baseline Finish (CL32 May)": row["BL1 Finish"],
             "Forecast Finish": row["Finish"],
             "Δ (Days)": delta
