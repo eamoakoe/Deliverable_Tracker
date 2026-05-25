@@ -78,4 +78,4 @@ def render_sidebar():
 
     # ✅ Return project for main page logic
     return project
-``
+
