@@ -3,112 +3,110 @@ from datetime import datetime
 
 
 def render_header():
-
     st.markdown("""
     <style>
 
-    .header-box {
-        background: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%);
-        border: 1px solid rgba(45, 106, 79, 0.25);
-        min-height: 90px;
-        border-radius: 14px;
-        padding: 18px 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-    }
-
-    .left-box {
-        border-radius: 14px;
-    }
-
-    .title {
-        color: #1b4332;
-        font-size: 26px;
-        font-weight: 900;
-        line-height: 1.1;
-        margin-bottom: 4px;
-        letter-spacing: 1px;
-    }
-
-    .subtitle {
-        color: #2d6a4f;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .date-box {
-        color: #1b4332;
-        font-size: 16px;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    .status-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 14px;
-        border-radius: 10px;
-        background: rgba(45, 106, 79, 0.12);
-        border: 1px solid rgba(45, 106, 79, 0.25);
-        color: #1b4332;
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .dot {
-        color: #16a34a;
-        animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-        0% {opacity:1;}
-        50% {opacity:0.4;}
-        100% {opacity:1;}
+    /* ===== HEADER CONTAINER ===== */
+    .header-container {
+        backdrop-filter: blur(12px);
+        background: linear-gradient(135deg, rgba(240, 253, 244, 0.9), rgba(220, 252, 231, 0.9));
+        border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+        padding: 14px 18px;
+        border-radius: 0 0 14px 14px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
     }
 
     div[data-testid="stHorizontalBlock"] {
         position: sticky;
         top: 0;
         z-index: 999;
-        background: #f8fdf9;
-        padding-top: 6px;
-        padding-bottom: 6px;
+    }
+
+    /* ===== TITLE ===== */
+    .title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #064e3b;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+
+    .subtitle {
+        font-size: 12px;
+        font-weight: 500;
+        color: #047857;
+    }
+
+    /* ===== RIGHT ITEMS ===== */
+    .info-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        background: rgba(16, 185, 129, 0.12);
+        color: #065f46;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .info-pill:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* STATUS DOT */
+    .dot {
+        height: 8px;
+        width: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 8px #22c55e;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% {opacity: 1;}
+        50% {opacity: 0.4;}
+        100% {opacity: 1;}
+    }
+
+    /* ALIGNMENT FIX */
+    .right-box {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        height: 100%;
     }
 
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([5, 3, 2], gap="small")
+    col1, col2 = st.columns([6, 4])
 
-    # ✅ LEFT
+    # ✅ LEFT: TITLE
     with col1:
         st.markdown("""
-        <div class="header-box left-box">
+        <div class="header-container">
             <div class="title">UU DESIGN PROGRAMME DASHBOARD</div>
             <div class="subtitle">CL31 & CL32 • Delivery Tracking • Forecasting</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ DATE
+    # ✅ RIGHT: DATE + STATUS INLINE
     with col2:
         st.markdown(f"""
-        <div class="header-box" style="align-items:center;">
-            <div class="date-box">
+        <div class="header-container right-box">
+            <div class="info-pill">
                 📅 {datetime.today().strftime('%d %b %Y')}
             </div>
-        </div>
-        """, unsafe_allow_html=True)
 
-    # ✅ STATUS
-    with col3:
-        st.markdown("""
-        <div class="header-box" style="align-items:center;">
-            <div class="status-box">
-                <span class="dot">●</span>
+            <div class="info-pill">
+                <span class="dot"></span>
                 Programme Live
             </div>
         </div>
