@@ -1,21 +1,99 @@
 import streamlit as st
 from datetime import datetime
+import pandas as pd
 
 
-def render_header():
+# =========================
+# ✅ DELIVERABLE HELPERS
+# =========================
+
+def get_next_deliverable(df):
+
+    df = df.copy()
+    df["Finish"] = pd.to_datetime(df["Finish"], dayfirst=True, errors="coerce")
+
+    if "Activity % Complete" in df.columns:
+        df = df[df["Activity % Complete"] < 100]
+
+    df = df[df["Finish"].notna()].sort_values("Finish")
+
+    if not df.empty:
+        row = df.iloc[0]
+        finish = row["Finish"]
+        today = pd.Timestamp.today().normalize()
+
+        status = " 🔴" if finish < today else ""
+
+        return f"{row['Activity Name']} – {finish.strftime('%d %b')}{status}"
+
+    return "—"
+
+
+def get_next_deliverable_rossall(df):
+
+    df = df.copy()
+
+    df["Finish"] = pd.to_datetime(
+        df["Finish"].astype(str).str.replace("A", "").str.replace("*", ""),
+        dayfirst=True,
+        errors="coerce"
+    )
+
+    df["Remaining Duration"] = (
+        df["Remaining Duration"]
+        .astype(str)
+        .str.replace("d", "", regex=False)
+        .str.strip()
+    )
+
+    df["Remaining Duration"] = pd.to_numeric(
+        df["Remaining Duration"], errors="coerce"
+    ).fillna(0)
+
+    df = df[df["Remaining Duration"] > 0]
+    df = df[df["Finish"].notna()].sort_values("Finish")
+
+    if not df.empty:
+        row = df.iloc[0]
+        finish = row["Finish"]
+        today = pd.Timestamp.today().normalize()
+
+        status = " 🔴" if finish < today else ""
+
+        return f"{row['Activity Name']} – {finish.strftime('%d %b')}{status}"
+
+    return "—"
+
+
+def format_next_deliverables(ferry_df=None, flass_df=None, rossall_df=None):
+
+    lines = []
+
+    def line(name, value):
+        return f"<b>{name}</b> → {value}"
+
+    if ferry_df is not None:
+        lines.append(line("Ferry", get_next_deliverable(ferry_df)))
+
+    if flass_df is not None:
+        lines.append(line("Flass", get_next_deliverable(flass_df)))
+
+    if rossall_df is not None:
+        lines.append(line("Rossall", get_next_deliverable_rossall(rossall_df)))
+
+    return "<br>".join(lines)
+
+
+# =========================
+# ✅ HEADER
+# =========================
+def render_header(ferry_df=None, flass_df=None, rossall_df=None):
+
+    next_text = format_next_deliverables(ferry_df, flass_df, rossall_df)
 
     st.markdown("""
     <style>
 
-    /* ===== HEADER CONTAINER ===== */
-    .header-container {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 10px;
-    }
-
-    /* ===== CARD STYLE ===== */
     .header-box {
         background: linear-gradient(135deg, #047857 0%, #065f46 100%);
         border-radius: 16px;
@@ -34,7 +112,6 @@ def render_header():
         box-shadow: 0 10px 22px rgba(0,0,0,0.18);
     }
 
-    /* ===== TITLE ===== */
     .title {
         font-size: 22px;
         font-weight: 900;
@@ -45,10 +122,8 @@ def render_header():
         font-size: 13px;
         opacity: 0.85;
         margin-top: 4px;
-        font-weight: 500;
     }
 
-    /* ===== KPI STYLE ===== */
     .kpi-title {
         font-size: 12px;
         opacity: 0.8;
@@ -56,11 +131,10 @@ def render_header():
     }
 
     .kpi-value {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: 800;
     }
 
-    /* ===== STATUS BADGE ===== */
     .status-box {
         display: inline-flex;
         align-items: center;
@@ -88,23 +162,12 @@ def render_header():
         100% {opacity:1;}
     }
 
-    /* ===== STICKY HEADER ===== */
-    div[data-testid="stHorizontalBlock"] {
-        position: sticky;
-        top: 0;
-        z-index: 999;
-        background: #fff;
-        padding-top: 8px;
-        padding-bottom: 8px;
-    }
-
     </style>
     """, unsafe_allow_html=True)
 
-    # ✅ HEADER LAYOUT
-    col1, col2, col3, col4 = st.columns([2, 1, 1, 1], gap="small")
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 2], gap="small")
 
-    # ✅ MAIN TITLE
+    # ✅ TITLE
     with col1:
         st.markdown("""
         <div class="header-box">
@@ -113,7 +176,7 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ DATE KPI
+    # ✅ DATE
     with col2:
         st.markdown(f"""
         <div class="header-box">
@@ -122,7 +185,7 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ STATUS KPI
+    # ✅ STATUS
     with col3:
         st.markdown("""
         <div class="header-box">
@@ -134,11 +197,13 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ PLACEHOLDER KPI (you can replace later)
+    # ✅ ✅ KEY DELIVERABLES PANEL
     with col4:
-        st.markdown("""
+        st.markdown(f"""
         <div class="header-box">
-            <div class="kpi-title">Overview</div>
-            <div class="kpi-value">—</div>
+            <div class="kpi-title">🎯 Key Upcoming Deliverables</div>
+            <div style="font-size:14px;font-weight:700;line-height:1.6;">
+                {next_text}
+            </div>
         </div>
         """, unsafe_allow_html=True)
