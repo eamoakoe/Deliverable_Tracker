@@ -120,7 +120,7 @@ def extract_milestones(df):
 
 
 # =========================
-# ✅ RENDER TABLE (FINAL)
+# RENDER TABLE
 # =========================
 def render_milestone_table(df):
 
@@ -140,65 +140,77 @@ def render_milestone_table(df):
     ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # ✅ STYLING
+    # ✅ STYLING FUNCTIONS
     # =========================
 
-    # Δ column highlight only
+    # Delta colours
     def colour_delta(val):
         if val < 0:
-            return "background-color:#fdecea;color:#b91c1c;font-weight:600"
+            return "background-color:#7f1d1d;color:white;font-weight:700"
         elif val > 0:
-            return "background-color:#ecfdf5;color:#047857;font-weight:600"
-        return "color:#374151"
+            return "background-color:#14532d;color:white;font-weight:700"
+        return "background-color:#374151;color:white"
 
+    # Zebra rows
+    def zebra_rows(row):
+        idx = row.name
+        return [
+            'background-color:#141926' if idx % 2 == 0 else 'background-color:#1c2233'
+        ] * len(row)
+
+    # Highlight late rows
+    def highlight_late(row):
+        if row["Δ (Days)"] < 0:
+            return ['background-color:#3b0a0a'] * len(row)
+        return [''] * len(row)
+
+
+    # =========================
+    # ✅ APPLY STYLING
+    # =========================
     styled = (
         ms_df.style
-
-        # ✅ subtle zebra rows
-        .apply(lambda x: [
-            'background-color:#fafafa' if i % 2 == 0 else 'background-color:#ffffff'
-            for i in range(len(x))
-        ], axis=0)
-
-        # ✅ highlight Δ only
+        .apply(zebra_rows, axis=1)
+        .apply(highlight_late, axis=1)
         .map(colour_delta, subset=["Δ (Days)"])
-
-        # ✅ header + grid styling
         .set_table_styles([
 
+            # HEADER
             {
                 "selector": "th",
                 "props": [
-                    ("background-color", "#065f46"),  # matches header
+                    ("background-color", "#0f172a"),
                     ("color", "white"),
                     ("font-weight", "700"),
                     ("padding", "10px"),
-                    ("border", "1px solid #d1d5db"),
-                    ("font-size", "12px"),
-                    ("text-transform", "uppercase")
+                    ("border", "1px solid #2e3b55"),
+                    ("text-transform", "uppercase"),
+                    ("font-size", "12px")
                 ]
             },
 
+            # CELLS
             {
                 "selector": "td",
                 "props": [
                     ("padding", "8px"),
-                    ("border", "1px solid #e5e7eb"),
-                    ("color", "#111827"),
+                    ("border", "1px solid #2e3b55"),
+                    ("color", "#e5e7eb"),
                     ("font-size", "13px")
                 ]
             },
 
+            # TABLE BORDER
             {
                 "selector": "table",
                 "props": [
                     ("border-collapse", "collapse"),
                     ("width", "100%"),
-                    ("border", "1px solid #d1d5db")
+                    ("border", "1px solid #2e3b55")
                 ]
             }
         ])
     )
 
-    # ✅ Render
+    # ✅ Render styled table
     st.write(styled)
