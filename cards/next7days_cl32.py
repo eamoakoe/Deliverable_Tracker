@@ -14,27 +14,17 @@ def _prepare(df):
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
     df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
 
-    # ✅ FLOAT → whole number
-    df["Total Float"] = (
-        pd.to_numeric(df["Total Float"], errors="coerce")
-        .fillna(0)
-        .round(0)
-        .astype(int)
-    )
+    df["Total Float"] = pd.to_numeric(df["Total Float"], errors="coerce")
 
-    # ✅ % COMPLETE → whole number
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
         .str.replace("%", "", regex=False)
     )
 
-    df["Activity % Complete"] = (
-        pd.to_numeric(df["Activity % Complete"], errors="coerce")
-        .fillna(0)
-        .round(0)
-        .astype(int)
-    )
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"], errors="coerce"
+    ).fillna(0)
 
     df["Change (days)"] = (
         (df["Finish"] - df["BL1 Finish"])
@@ -57,8 +47,7 @@ def _get_next7days(df):
 
     df = df[
         (df["Finish"] >= today) &
-        (df["Finish"] <= lookahead) &
-        (df["Activity % Complete"] < 100)   # ✅ remove completed
+        (df["Finish"] <= lookahead)
     ].copy()
 
     return df.sort_values("Finish")
@@ -75,8 +64,16 @@ def render_next7days_table(df):
         st.success("✅ No activities issuing in the next 7 days")
         return
 
+    late_flag = (df["Change (days)"] < 0).any()
+    risk_flag = ((df["Activity % Complete"] < 100) & (df["Total Float"] <= 0)).any()
+
+    if late_flag or risk_flag:
+        st.warning("⚠️ Some activities issuing in the next 7 days are behind the CL32 May baseline or at risk")
+    else:
+        st.info("✅ Activities issuing in the next 7 days are aligned with the CL32 May programme")
+
     # =========================
-    # TABLE
+    # TABLE STRUCTURE
     # =========================
     display_df = df[[
         "Activity ID",
@@ -89,7 +86,6 @@ def render_next7days_table(df):
         "Comments"
     ]].copy()
 
-    # ✅ KEEP YOUR FULL LABELS (they will wrap now)
     display_df = display_df.rename(columns={
         "BL1 Finish": "Baseline Finish (CL32 May)",
         "Finish": "Forecast Finish (CL32 May)",
@@ -107,52 +103,98 @@ def render_next7days_table(df):
     display_df["Forecast Finish (CL32 May)"] = \
         pd.to_datetime(display_df["Forecast Finish (CL32 May)"]).dt.strftime("%d-%b-%Y")
 
-    # ✅ optional: show % sign (clean)
-    display_df["% Complete"] = display_df["% Complete"].astype(str) + "%"
+    # =========================
+    # STATUS COLUMN
+    # =========================
+    def status(row):
+        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
+            return "🔴 At Risk"
+        elif row["Δ Change vs CL32 May (days)"] < 0:
+            return "🟠 Late"
+        else:
+            return "🟢 OK"
+
+    display_df["Status (CL32 May)"] = display_df.apply(status, axis=1)
 
     # =========================
-    # STYLING (NO SCROLL ✅)
+    # RISK
+    # =========================
+    def risk(row):
+        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
+            return "🔴 High Risk"
+        elif row["% Complete"] < 75 and row["Δ Change vs CL32 May (days)"] < 0:
+            return "🟠 Behind Progress"
+        elif row["% Complete"] >= 90 and row["Δ Change vs CL32 May (days)"] < 0:
+            return "⚠️ Near Complete but Late"
+        else:
+            return "🟢 Low Risk"
+
+    display_df["Risk (Forward Look)"] = display_df.apply(risk, axis=1)
+
+    # =========================
+    # COLOUR FUNCTIONS
+    # =========================
+    def colour_change(val):
+        if val < 0:
+            return "background-color:#7f1d1d;color:white;font-weight:bold"
+        elif val > 0:
+            return "background-color:#14532d;color:white;font-weight:bold"
+        return "background-color:#374151;color:white"
+
+    def colour_float(val):
+        if pd.isna(val):
+            return ""
+        if val <= 0:
+            return "background-color:#b00020;color:white"
+        return ""
+
+    def colour_status(val):
+        if "🔴" in val:
+            return "background-color:#b00020;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "🟢" in val:
+            return "background-color:#1e7e34;color:white"
+        return ""
+
+    def colour_risk(val):
+        if "🔴" in val:
+            return "background-color:#7f1d1d;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "⚠️" in val:
+            return "background-color:#facc15;color:black"
+        elif "🟢" in val:
+            return "background-color:#14532d;color:white"
+        return ""
+
+    # =========================
+    # STYLE TABLE
     # =========================
     styled = display_df.style.set_table_styles([
-
-        # ✅ HEADERS WRAP
         {
             "selector": "th",
             "props": [
                 ("background-color", "#2b3a55"),
                 ("color", "white"),
                 ("font-weight", "600"),
-                ("padding", "8px"),
-                ("font-size", "12px"),
-                ("white-space", "normal"),   # ✅ enables multi-line
-                ("line-height", "1.2"),
-                ("text-align", "center")
+                ("padding", "10px")
             ]
         },
-
-        # ✅ CELLS WRAP
         {
             "selector": "td",
             "props": [
                 ("background-color", "#1c2233"),
                 ("color", "#f1f1f1"),
-                ("padding", "6px"),
-                ("font-size", "12px"),
-                ("white-space", "normal"),
-                ("word-wrap", "break-word"),
-                ("max-width", "160px")   # ✅ prevents expansion
-            ]
-        },
-
-        # ✅ FORCE TABLE FIT WIDTH
-        {
-            "selector": "table",
-            "props": [
-                ("width", "100%"),
-                ("table-layout", "fixed")   # ✅ CRITICAL (removes scrollbar)
+                ("padding", "8px")
             ]
         }
     ])
 
-    # ✅ Render properly (keeps layout)
+    styled = styled.map(colour_change, subset=["Δ Change vs CL32 May (days)"])
+    styled = styled.map(colour_float, subset=["Float (Days)"])
+    styled = styled.map(colour_status, subset=["Status (CL32 May)"])
+    styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
+
+    # ✅ ONLY CHANGE → removes scrollbar
     st.markdown(styled.to_html(), unsafe_allow_html=True)
