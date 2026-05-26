@@ -104,7 +104,7 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 📊 PROGRAMME TRACKER (BLUE CARD)
+    # ✅ PROGRAMME TRACKER (BLUE CARD)
     # =========================
     st.markdown("""
     <div style="
@@ -120,7 +120,7 @@ def render_dashboard(df31, df32):
         font-weight:800;
         margin-bottom:10px;
     ">
-        📊 Programme Tracker (CL31 / CL32)
+        Programme Tracker (CL31 / CL32)
     </div>
     """, unsafe_allow_html=True)
 
