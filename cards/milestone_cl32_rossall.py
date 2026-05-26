@@ -1,16 +1,17 @@
 import streamlit as st
 import pandas as pd
 
-render_milestone_table = render_design_table
+
 # =========================
 # PREP DATA (DESIGN SAFE)
 # =========================
 def _prepare(df):
     df = df.copy()
 
+    # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Fix IDs
+    # ✅ Fix Activity ID (CRITICAL)
     df["Activity ID"] = (
         df["Activity ID"]
         .astype(str)
@@ -46,8 +47,7 @@ def _prepare(df):
         errors="coerce"
     )
 
-    # ✅ KEY: Design management date logic
-    # ALWAYS take the latest available date (most reliable for design outputs)
+    # ✅ KEY: take latest available date
     df["Date"] = df[["Start", "Finish"]].max(axis=1)
 
     return df
@@ -58,19 +58,16 @@ def _prepare(df):
 # =========================
 ROSSELL_DESIGN = {
 
-    # 🔥 TRUE DESIGN FREEZE (what YOU care about)
     "🔥 DESIGN FREEZE (Ready for Construction)": [
-        "AMP8-DD&B-ROS-OUD-2310",  # NH Approval
-        "AMP8-DD&B-ROS-OUD-2320",  # GI Final Factual
-        "AMP8-DD&B-ROS-DES-1010"   # Detailed Design
+        "AMP8-DD&B-ROS-OUD-2310",
+        "AMP8-DD&B-ROS-OUD-2320",
+        "AMP8-DD&B-ROS-DES-1010"
     ],
 
-    # 🔴 EXTERNAL CONTROL
     "National Highways Approval": [
         "AMP8-DD&B-ROS-OUD-2310"
     ],
 
-    # 🟡 GROUND INVESTIGATION (DESIGN DRIVER)
     "GI Reports Complete": [
         "AMP8-DD&B-ROS-ECI-1450",
         "AMP8-DD&B-ROS-ECI-1430",
@@ -84,7 +81,6 @@ ROSSELL_DESIGN = {
         "AMP8-DD&B-ROS-OUD-2320"
     ],
 
-    # 🔵 DESIGN PROGRESSION
     "Outline Design Complete": [
         "AMP8-DD&B-ROS-OUD-1000"
     ],
@@ -97,7 +93,6 @@ ROSSELL_DESIGN = {
         "AMP8-DD&B-ROS-TWD-2000"
     ],
 
-    # ⚙️ DESIGN INPUTS
     "GPR Survey Complete": [
         "AMP8-DD&B-ROS-OUD-2300"
     ],
@@ -132,7 +127,7 @@ def extract_design(df):
         if filtered.empty:
             continue
 
-        # ✅ Take latest = controlling design output
+        # ✅ controlling latest activity
         row = filtered.sort_values("Date").iloc[-1]
 
         results.append({
@@ -160,13 +155,13 @@ def render_design_table(df):
     if design_df.empty:
         return
 
-    # ✅ Sort by actual design sequence
+    # Sort by logical design progression
     design_df = design_df.sort_values("Date")
 
     # Format dates
     design_df["Date"] = design_df["Date"].dt.strftime("%d-%b-%Y")
 
-    # ✅ Highlight design risk zones
+    # ✅ Highlight key design states
     def highlight(row):
         if "FREEZE" in row["Deliverable"]:
             return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
@@ -201,3 +196,8 @@ def render_design_table(df):
     )
 
     st.write(styled)
+
+
+# ✅ ✅ CRITICAL FIX FOR IMPORT ERROR
+# MUST BE LAST LINE IN FILE
+render_milestone_table = render_design_table
