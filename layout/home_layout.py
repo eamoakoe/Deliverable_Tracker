@@ -48,7 +48,7 @@ def render_dashboard(df31, df32):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ DELIVERABLE TRACKING (FULL WIDTH)
+    # ✅ DELIVERABLES / MILESTONES
     # =========================
     st.markdown(f"""
     <div style="
@@ -59,7 +59,7 @@ def render_dashboard(df31, df32):
         margin-bottom:15px;
     ">
     <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        🔴 Key Deliverable Tracking – {asset}
+        🚩 Critical Milestones & Deliverables – {asset}
     </div>
     """, unsafe_allow_html=True)
 
@@ -75,7 +75,7 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ NEXT 7 DAYS
+    # ✅ LOOKAHEAD (NEXT 7 DAYS)
     # =========================
     st.markdown("""
     <div style="
@@ -86,7 +86,7 @@ def render_dashboard(df31, df32):
         margin-bottom:15px;
     ">
     <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        🟢 Next 7 Days
+        📆 Short-Term Lookahead (Next 7 Days)
     </div>
     """, unsafe_allow_html=True)
 
@@ -95,7 +95,7 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ REGISTER (CL31 / CL32)
+    # ✅ CL31 & CL32 TRACKER
     # =========================
     st.markdown("""
     <div style="
@@ -106,7 +106,7 @@ def render_dashboard(df31, df32):
         margin-bottom:15px;
     ">
     <div style="font-size:16px;font-weight:600;margin-bottom:10px;">
-        📋 CL31 & CL32 Tracker
+        📊 CL31 & CL32 Programme Tracker
     </div>
     """, unsafe_allow_html=True)
 
