@@ -4,78 +4,107 @@ import plotly.graph_objects as go
 
 def render_pie_rossall(df, container):
 
+    # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Clean dates
-    df["Start"] = pd.to_datetime(df.get("Start"), errors="coerce")
-    df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
+    # ✅ Clean Activity ID
+    df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ OPTIONAL: % complete (may not exist)
-    if "Activity % Complete" in df.columns:
-        df["Activity % Complete"] = (
-            df["Activity % Complete"]
-            .astype(str)
-            .str.replace("%", "", regex=False)
-        )
-        df["Activity % Complete"] = pd.to_numeric(
-            df["Activity % Complete"], errors="coerce"
-        ).fillna(0)
-    else:
-        df["Activity % Complete"] = None  # placeholder
+    # ✅ Keep only real activities (has ID)
+    df = df[df["Activity ID"].notna()]
+    df = df[df["Activity ID"].str.len() > 0]
+
+    # ✅ Remove summary rows (no ID pattern)
+    df = df[df["Activity ID"].str.contains("ROS", na=False)]
+
+    # ✅ Clean Remaining Duration
+    df["Remaining Duration"] = (
+        df["Remaining Duration"]
+        .astype(str)
+        .str.replace("d", "", regex=False)
+        .str.strip()
+    )
+
+    df["Remaining Duration"] = pd.to_numeric(
+        df["Remaining Duration"], errors="coerce"
+    ).fillna(0)
+
+    # ✅ Clean Finish date
+    df["Finish"] = pd.to_datetime(
+        df["Finish"].astype(str).str.replace("A", "").str.replace("*", ""),
+        dayfirst=True,
+        errors="coerce"
+    ).dt.normalize()
+
+    # ✅ Detect ACTUALS (key!)
+    df["Is_Actual"] = df["Start"].astype(str).str.contains("A", na=False) | \
+                      df["Finish"].astype(str).str.contains("A", na=False)
 
     today = pd.Timestamp.today().normalize()
 
-    # ✅ Status logic (handles missing % complete)
+    # ---------- CLASSIFICATION ----------
     def classify(row):
 
         finish = row["Finish"]
-        progress = row["Activity % Complete"]
+        remaining = row["Remaining Duration"]
+        is_actual = row["Is_Actual"]
 
-        # ✅ If no finish date → treat as On Track
-        if pd.isna(finish):
-            return "On Track"
+        # ✅ Completed
+        if is_actual:
+            return "Completed"
 
-        # ✅ If % exists → use normal logic
-        if pd.notna(progress):
+        # ✅ Delayed
+        if pd.notna(finish) and finish < today and remaining > 0:
+            return "Delayed"
 
-            if finish < today and progress < 100:
-                return "Delayed"
-
-            if progress >= 100:
-                return "Completed"
-
-            return "On Track"
-
-        # ✅ If NO % complete → use DATE-ONLY logic
-        else:
-
-            if finish < today:
-                return "Delayed"
-
-            return "On Track"
+        # ✅ On Track
+        return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
-    summary = df["Status"].value_counts()
-    summary = summary.reindex(["On Track", "Delayed", "Completed"]).fillna(0)
+    # ---------- DEBUG ----------
+    print("\nRossall Breakdown:")
+    print(df["Status"].value_counts())
 
+    # ---------- SUMMARY ----------
+    summary = df["Status"].value_counts()
+
+    summary = summary.reindex(
+        ["On Track", "Delayed", "Completed"]
+    ).fillna(0)
+
+    summary = summary[summary > 0]
+
+    # ---------- COLORS ----------
     colors = {
         "On Track": "#FFD700",
         "Delayed": "#FF3B30",
         "Completed": "#00C853"
     }
 
+    # ---------- PIE ----------
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
-            textinfo="label+percent",
-            hoverinfo="label+value+percent",
-            marker=dict(colors=[colors[k] for k in summary.index])
+
+            # ✅ FULL TEXT LIKE FERRY
+            textinfo="label+value+percent",
+            textposition="inside",
+            insidetextorientation="auto",
+
+            marker=dict(colors=[colors[k] for k in summary.index]),
+            sort=False
         )]
     )
 
-    fig.update_layout(height=220, showlegend=False)
+    fig.update_traces(textfont_size=14)
 
-    container.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(
+        height=240,
+        margin=dict(l=5, r=5, t=5, b=5),
+        showlegend=False
+    )
+
+    container.plotly_chart(fig, width="stretch")
