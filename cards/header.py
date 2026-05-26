@@ -34,7 +34,7 @@ def get_next_deliverable_rossall(df):
     df = df.copy()
 
     df["Finish"] = pd.to_datetime(
-        df["Finish"].astype(str).str.replace("A", "").str.replace("*", ""),
+        df["Finish"].astype(str).str.replace("A", "", regex=False).str.replace("*", "", regex=False),
         dayfirst=True,
         errors="coerce"
     )
@@ -165,6 +165,7 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
     </style>
     """, unsafe_allow_html=True)
 
+    # ✅ LAYOUT
     col1, col2, col3, col4 = st.columns([2, 1, 1, 2], gap="small")
 
     # ✅ TITLE
@@ -178,26 +179,32 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
 
     # ✅ DATE
     with col2:
-        st.markdown(f"""
-        <div class="header-box">
-            <div class="kpi-title">📅 Today</div>
-            <div class="kpi-value">{datetime.today().strftime('%d %b %Y')}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="header-box">
+                <div class="kpi-title">📅 Today</div>
+                <div class="kpi-value">{datetime.today().strftime('%d %b %Y')}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # ✅ STATUS
     with col3:
-        st.markdown("""
-        <div class="header-box">
-            <div class="kpi-title">Status</div>
-            <div class="status-box">
-                <div class="dot"></div>
-                Programme Live
+        st.markdown(
+            """
+            <div class="header-box">
+                <div class="kpi-title">Status</div>
+                <div class="status-box">
+                    <div class="dot"></div>
+                    Programme Live
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # ✅ ✅ FIXED DELIVERABLE PANEL (NO ESCAPE ISSUE)
+    # ✅ ✅ DELIVERABLES PANEL (FIXED)
     with col4:
         st.markdown(
             f"""
@@ -208,5 +215,5 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
                 </div>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
