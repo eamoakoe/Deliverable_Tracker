@@ -8,10 +8,18 @@ import pandas as pd
 def _prepare(df):
     df = df.copy()
 
+    # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
-    df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
+    # ✅ Clean Activity ID (CRITICAL FIX)
+    df["Activity ID"] = (
+        df["Activity ID"]
+        .astype(str)
+        .str.replace("&amp;", "&", regex=False)  # FIX HTML encoding
+        .str.strip()
+    )
 
+    # ✅ Clean Finish column
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -25,65 +33,59 @@ def _prepare(df):
 
 
 # =========================
-# ✅ DESIGN DELIVERABLES (ROSSALL ONLY)
+# ✅ DESIGN DELIVERABLES (CLEAN IDs - NO HTML)
 # =========================
 ROSSELL_DELIVERABLES = {
 
-    # 🔥 DESIGN FREEZE (REAL CONTROL POINT = approvals + GI + design outputs)
     "🔥 DESIGN FREEZE – VERIFIED": [
-        "AMP8-DD&amp;B-ROS-OUD-2310",  # NH Approval
-        "AMP8-DD&amp;B-ROS-OUD-2320",  # GI Final Factual
-        "AMP8-DD&amp;B-ROS-DES-1010"   # Detailed Design Complete
+        "AMP8-DD&B-ROS-OUD-2310",
+        "AMP8-DD&B-ROS-OUD-2320",
+        "AMP8-DD&B-ROS-DES-1010"
     ],
 
-    # 🔴 EXTERNAL APPROVALS (CRITICAL RISKS)
     "National Highways Approval": [
-        "AMP8-DD&amp;B-ROS-OUD-2310"
+        "AMP8-DD&B-ROS-OUD-2310"
     ],
 
-    # 🟡 GROUND INVESTIGATION (DRIVES DESIGN MATURITY)
     "GI Reports Complete (All Shafts)": [
-        "AMP8-DD&amp;B-ROS-ECI-1450",
-        "AMP8-DD&amp;B-ROS-ECI-1430",
-        "AMP8-DD&amp;B-ROS-ECI-1420",
-        "AMP8-DD&amp;B-ROS-ECI-1410",
-        "AMP8-DD&amp;B-ROS-ECI-1400",
-        "AMP8-DD&amp;B-ROS-ECI-1180"
+        "AMP8-DD&B-ROS-ECI-1450",
+        "AMP8-DD&B-ROS-ECI-1430",
+        "AMP8-DD&B-ROS-ECI-1420",
+        "AMP8-DD&B-ROS-ECI-1410",
+        "AMP8-DD&B-ROS-ECI-1400",
+        "AMP8-DD&B-ROS-ECI-1180"
     ],
 
     "GI Final Factual Complete": [
-        "AMP8-DD&amp;B-ROS-OUD-2320"
+        "AMP8-DD&B-ROS-OUD-2320"
     ],
 
-    # 🔵 CORE DESIGN STAGES
     "Outline Design Complete": [
-        "AMP8-DD&amp;B-ROS-OUD-1000"
+        "AMP8-DD&B-ROS-OUD-1000"
     ],
 
     "Detailed Design Complete": [
-        "AMP8-DD&amp;B-ROS-DES-1010"
+        "AMP8-DD&B-ROS-DES-1010"
     ],
 
     "Temporary Works Design Complete": [
-        "AMP8-DD&amp;B-ROS-TWD-2000"
+        "AMP8-DD&B-ROS-TWD-2000"
     ],
 
-    # ⚙️ SUPPORTING DESIGN INPUTS
     "GPR Survey Complete": [
-        "AMP8-DD&amp;B-ROS-OUD-2300"
+        "AMP8-DD&B-ROS-OUD-2300"
     ],
 
     "Piling Design Complete": [
-        "AMP8-DD&amp;B-ROS-OUD-1010"
+        "AMP8-DD&B-ROS-OUD-1010"
     ],
 
     "Tunnel / Alignment Decisions Complete": [
-        "AMP8-DD&amp;B-ROS-OUD-2180"
+        "AMP8-DD&B-ROS-OUD-2180"
     ],
 
-    # 🌿 CONSENTS / CONSTRAINT INPUTS (DESIGN RISKS)
-    "Ecology Surveys & Constraints Complete": [
-        "AMP8-DD&amp;B-ROS-ECI-2580"
+    "Ecology Surveys Complete": [
+        "AMP8-DD&B-ROS-ECI-2580"
     ],
 }
 
@@ -99,9 +101,8 @@ def extract_milestones(df):
 
     for name, ids in ROSSELL_DELIVERABLES.items():
 
-        filtered = df[
-            df["Activity ID"].str.contains("|".join(ids), na=False)
-        ].copy()
+        # ✅ EXACT MATCH (no regex issues)
+        filtered = df[df["Activity ID"].isin(ids)].copy()
 
         if filtered.empty:
             continue
@@ -116,7 +117,14 @@ def extract_milestones(df):
             "Finish Date": row["Finish"]
         })
 
-    return pd.DataFrame(milestones)
+    result = pd.DataFrame(milestones)
+
+    # ✅ FALLBACK: if still empty, show debug info
+    if result.empty:
+        st.warning("⚠️ No matches found — showing sample Activity IDs below for debugging")
+        st.write(df[["Activity ID", "Activity Name"]].head(20))
+
+    return result
 
 
 # =========================
@@ -127,7 +135,6 @@ def render_milestone_table(df):
     ms_df = extract_milestones(df)
 
     if ms_df.empty:
-        st.warning("⚠️ No design deliverables identified")
         return
 
     ms_df = ms_df.sort_values("Finish Date")
@@ -136,7 +143,7 @@ def render_milestone_table(df):
         ms_df["Finish Date"]
     ).dt.strftime("%d-%b-%Y")
 
-    # ✅ Highlight critical design freeze & approvals
+    # ✅ Highlight key rows
     def highlight_row(row):
         if "FREEZE" in row["Deliverable"]:
             return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
