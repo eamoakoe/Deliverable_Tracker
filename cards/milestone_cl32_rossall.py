@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (DESIGN SAFE)
+# PREP DATA (ROBUST + FLEXIBLE)
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -11,7 +11,7 @@ def _prepare(df):
     # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Fix Activity ID (CRITICAL)
+    # ✅ Fix Activity ID encoding
     df["Activity ID"] = (
         df["Activity ID"]
         .astype(str)
@@ -19,42 +19,33 @@ def _prepare(df):
         .str.strip()
     )
 
-    # ✅ Clean Start
-    df["Start"] = (
-        df["Start"]
-        .astype(str)
-        .str.replace(r"[A\*]", "", regex=True)
-        .str.strip()
-    )
+    # ✅ Clean date text (handles A, *, blanks, weird spaces)
+    def clean_date(col):
+        return (
+            df[col]
+            .astype(str)
+            .str.replace(r"[A\*]", "", regex=True)
+            .str.replace(r"\s+", " ", regex=True)
+            .str.strip()
+            .replace("", pd.NA)
+        )
 
-    df["Start"] = pd.to_datetime(
-        df["Start"],
-        format="%d-%b-%y",
-        errors="coerce"
-    )
+    df["Start"] = clean_date("Start")
+    df["Finish"] = clean_date("Finish")
 
-    # ✅ Clean Finish
-    df["Finish"] = (
-        df["Finish"]
-        .astype(str)
-        .str.replace(r"[A\*]", "", regex=True)
-        .str.strip()
-    )
+    # ✅ Flexible parsing (handles Jan, Feb etc automatically)
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce", dayfirst=True)
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce", dayfirst=True)
 
-    df["Finish"] = pd.to_datetime(
-        df["Finish"],
-        format="%d-%b-%y",
-        errors="coerce"
-    )
-
-    # ✅ KEY: take latest available date
-    df["Date"] = df[["Start", "Finish"]].max(axis=1)
+    # ✅ DESIGN LOGIC (CRITICAL)
+    # → Always use Finish if available, else Start
+    df["Date"] = df["Finish"].combine_first(df["Start"])
 
     return df
 
 
 # =========================
-# DESIGN DELIVERABLES ONLY
+# DESIGN DELIVERABLES (ROSSALL)
 # =========================
 ROSSELL_DESIGN = {
 
@@ -127,7 +118,18 @@ def extract_design(df):
         if filtered.empty:
             continue
 
-        # ✅ controlling latest activity
+        # ✅ Use latest valid date (controls multi-activity deliverables)
+        filtered = filtered.dropna(subset=["Date"])
+
+        if filtered.empty:
+            # still append empty row so you SEE gaps
+            results.append({
+                "Deliverable": name,
+                "Activity": "⚠ No valid date",
+                "Date": pd.NaT
+            })
+            continue
+
         row = filtered.sort_values("Date").iloc[-1]
 
         results.append({
@@ -155,13 +157,15 @@ def render_design_table(df):
     if design_df.empty:
         return
 
-    # Sort by logical design progression
+    # Sort chronologically
     design_df = design_df.sort_values("Date")
 
-    # Format dates
+    # Format date safely
     design_df["Date"] = design_df["Date"].dt.strftime("%d-%b-%Y")
 
-    # ✅ Highlight key design states
+    design_df["Date"] = design_df["Date"].fillna("⚠ Missing")
+
+    # ✅ Highlight key design controls
     def highlight(row):
         if "FREEZE" in row["Deliverable"]:
             return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
@@ -169,6 +173,8 @@ def render_design_table(df):
             return ["background-color:#b45309;color:white"] * len(row)
         if "GI" in row["Deliverable"]:
             return ["background-color:#1d4ed8;color:white"] * len(row)
+        if "⚠" in row["Date"]:
+            return ["background-color:#7c2d12;color:white"] * len(row)
         return [""] * len(row)
 
     styled = (
@@ -198,6 +204,5 @@ def render_design_table(df):
     st.write(styled)
 
 
-# ✅ ✅ CRITICAL FIX FOR IMPORT ERROR
-# MUST BE LAST LINE IN FILE
+# ✅ ✅ CRITICAL IMPORT FIX (KEEP LAST)
 render_milestone_table = render_design_table
