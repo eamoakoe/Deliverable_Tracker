@@ -63,7 +63,7 @@ def render_dashboard(df31, df32):
         font-weight:800;
         margin-bottom:10px;
     ">
-        🎯 {asset} — Key Deliverables (CL32)
+        {asset} — Key Deliverables (CL32)
     </div>
     """, unsafe_allow_html=True)
 
