@@ -8,13 +8,13 @@ def render_pie_ferry(df, container):
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Fix Activity ID (remove spaces)
+    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Keep only real activities
+    # ✅ Keep only ferry activities
     df = df[df["Activity ID"].str.startswith("FER-")]
 
-    # ✅ Clean % complete
+    # ✅ Clean % Complete
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -27,7 +27,10 @@ def render_pie_ferry(df, container):
         errors="coerce"
     )
 
-    # ✅ Clean Finish date
+    # ✅ Replace missing progress with 0
+    df["Activity % Complete"] = df["Activity % Complete"].fillna(0)
+
+    # ✅ Clean Finish Date
     df["Finish"] = pd.to_datetime(
         df["Finish"],
         dayfirst=True,
@@ -41,7 +44,7 @@ def render_pie_ferry(df, container):
 
     today = pd.Timestamp.today().normalize()
 
-    # ---------- LOGIC ----------
+    # ---------- CLASSIFICATION ----------
     def classify(row):
 
         progress = row["Activity % Complete"]
@@ -51,14 +54,30 @@ def render_pie_ferry(df, container):
         if progress >= 100:
             return "Completed"
 
-        # ✅ Delayed (only if finish exists AND in the past)
-        if pd.notna(finish) and finish < today and progress < 100:
+        # ✅ If finish missing → treat as On Track (or change to "Unknown" if needed)
+        if pd.isna(finish):
+            return "On Track"
+
+        # ✅ Delayed (past finish & not completed)
+        if finish < today and progress < 100:
             return "Delayed"
 
-        # ✅ On Track
+        # ✅ Otherwise
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
+
+    # ---------- DEBUG (VERY IMPORTANT) ----------
+    # Shows you exactly how rows are classified
+    debug_sample = df[[
+        "Activity ID",
+        "Activity % Complete",
+        "Finish",
+        "Status"
+    ]].head(20)
+
+    print("\n=== DEBUG SAMPLE ===")
+    print(debug_sample)
 
     # ---------- SUMMARY ----------
     summary = df["Status"].value_counts()
