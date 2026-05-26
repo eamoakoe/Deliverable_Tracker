@@ -3,12 +3,11 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (ROBUST + FLEXIBLE)
+# PREP DATA (ROBUST PARSING)
 # =========================
 def _prepare(df):
     df = df.copy()
 
-    # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
     # ✅ Fix Activity ID encoding
@@ -19,33 +18,44 @@ def _prepare(df):
         .str.strip()
     )
 
-    # ✅ Clean date text (handles A, *, blanks, weird spaces)
-    def clean_date(col):
-        return (
-            df[col]
-            .astype(str)
+    # ✅ ROBUST DATE PARSER (CRITICAL FIX)
+    def parse_dates(series):
+        cleaned = (
+            series.astype(str)
             .str.replace(r"[A\*]", "", regex=True)
-            .str.replace(r"\s+", " ", regex=True)
             .str.strip()
             .replace("", pd.NA)
         )
 
-    df["Start"] = clean_date("Start")
-    df["Finish"] = clean_date("Finish")
+        # Try strict (fast + correct)
+        dt_strict = pd.to_datetime(
+            cleaned,
+            format="%d-%b-%y",
+            errors="coerce"
+        )
 
-    # ✅ Flexible parsing (handles Jan, Feb etc automatically)
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce", dayfirst=True)
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce", dayfirst=True)
+        # Fallback for anything not parsed
+        dt_fallback = pd.to_datetime(
+            cleaned,
+            errors="coerce",
+            dayfirst=True
+        )
 
-    # ✅ DESIGN LOGIC (CRITICAL)
-    # → Always use Finish if available, else Start
+        # ✅ Combine both
+        return dt_strict.combine_first(dt_fallback)
+
+    # ✅ Apply parsing
+    df["Start"] = parse_dates(df["Start"])
+    df["Finish"] = parse_dates(df["Finish"])
+
+    # ✅ DESIGN TRUTH: USE FINISH FIRST
     df["Date"] = df["Finish"].combine_first(df["Start"])
 
     return df
 
 
 # =========================
-# DESIGN DELIVERABLES (ROSSALL)
+# DESIGN DELIVERABLES
 # =========================
 ROSSELL_DESIGN = {
 
@@ -103,7 +113,7 @@ ROSSELL_DESIGN = {
 
 
 # =========================
-# EXTRACT DESIGN DELIVERABLES
+# EXTRACT DESIGN DATA
 # =========================
 def extract_design(df):
 
@@ -118,11 +128,10 @@ def extract_design(df):
         if filtered.empty:
             continue
 
-        # ✅ Use latest valid date (controls multi-activity deliverables)
+        # ✅ Only keep valid dates
         filtered = filtered.dropna(subset=["Date"])
 
         if filtered.empty:
-            # still append empty row so you SEE gaps
             results.append({
                 "Deliverable": name,
                 "Activity": "⚠ No valid date",
@@ -130,6 +139,7 @@ def extract_design(df):
             })
             continue
 
+        # ✅ Use latest FINISH (design completion)
         row = filtered.sort_values("Date").iloc[-1]
 
         results.append({
@@ -138,13 +148,7 @@ def extract_design(df):
             "Date": row["Date"]
         })
 
-    result_df = pd.DataFrame(results)
-
-    if result_df.empty:
-        st.warning("⚠️ No design deliverables found")
-        st.write(df[["Activity ID", "Activity Name"]].head(20))
-
-    return result_df
+    return pd.DataFrame(results)
 
 
 # =========================
@@ -155,17 +159,16 @@ def render_design_table(df):
     design_df = extract_design(df)
 
     if design_df.empty:
+        st.warning("⚠️ No design deliverables found")
         return
 
-    # Sort chronologically
     design_df = design_df.sort_values("Date")
 
-    # Format date safely
+    # Format dates
     design_df["Date"] = design_df["Date"].dt.strftime("%d-%b-%Y")
-
     design_df["Date"] = design_df["Date"].fillna("⚠ Missing")
 
-    # ✅ Highlight key design controls
+    # ✅ Highlight logic
     def highlight(row):
         if "FREEZE" in row["Deliverable"]:
             return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
@@ -204,5 +207,5 @@ def render_design_table(df):
     st.write(styled)
 
 
-# ✅ ✅ CRITICAL IMPORT FIX (KEEP LAST)
+# ✅ BACKWARD COMPATIBILITY (FIX IMPORT ERROR)
 render_milestone_table = render_design_table
