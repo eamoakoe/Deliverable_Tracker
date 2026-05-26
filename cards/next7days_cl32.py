@@ -14,17 +14,28 @@ def _prepare(df):
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
     df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
 
-    df["Total Float"] = pd.to_numeric(df["Total Float"], errors="coerce")
+    # ✅ FLOAT → whole number
+    df["Total Float"] = (
+        pd.to_numeric(df["Total Float"], errors="coerce")
+        .fillna(0)
+        .round(0)
+        .astype(int)
+    )
 
+    # ✅ CLEAN % STRING
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
         .str.replace("%", "", regex=False)
     )
 
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"], errors="coerce"
-    ).fillna(0)
+    # ✅ % COMPLETE → whole number
+    df["Activity % Complete"] = (
+        pd.to_numeric(df["Activity % Complete"], errors="coerce")
+        .fillna(0)
+        .round(0)
+        .astype(int)
+    )
 
     df["Change (days)"] = (
         (df["Finish"] - df["BL1 Finish"])
@@ -196,5 +207,5 @@ def render_next7days_table(df):
     styled = styled.map(colour_status, subset=["Status (CL32 May)"])
     styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
 
-    # ✅ ONLY CHANGE → removes scrollbar
+    # ✅ keep your fix (no scroll)
     st.markdown(styled.to_html(), unsafe_allow_html=True)
