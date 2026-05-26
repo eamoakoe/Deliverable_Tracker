@@ -24,7 +24,7 @@ def _prepare(df):
 
 
 # =========================
-# ✅ FERRY DELIVERABLES
+# FERRY DELIVERABLES
 # =========================
 FERRY_DELIVERABLES = {
 
@@ -130,7 +130,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables identified")
         return
 
-    # ✅ Format dates
+    # Format dates
     ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
         ms_df["Baseline Finish (CL32 May)"]
     ).dt.strftime("%d-%b-%Y")
@@ -140,77 +140,44 @@ def render_milestone_table(df):
     ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # ✅ STYLING FUNCTIONS
-    # =========================
-
-    # Delta colours
-    def colour_delta(val):
-        if val < 0:
-            return "background-color:#7f1d1d;color:white;font-weight:700"
-        elif val > 0:
-            return "background-color:#14532d;color:white;font-weight:700"
-        return "background-color:#374151;color:white"
-
-    # Zebra rows
-    def zebra_rows(row):
-        idx = row.name
-        return [
-            'background-color:#141926' if idx % 2 == 0 else 'background-color:#1c2233'
-        ] * len(row)
-
-    # Highlight late rows
-    def highlight_late(row):
-        if row["Δ (Days)"] < 0:
-            return ['background-color:#3b0a0a'] * len(row)
-        return [''] * len(row)
-
-
-    # =========================
-    # ✅ APPLY STYLING
+    # KEEP STRUCTURE, REMOVE COLOUR
     # =========================
     styled = (
         ms_df.style
-        .apply(zebra_rows, axis=1)
-        .apply(highlight_late, axis=1)
-        .map(colour_delta, subset=["Δ (Days)"])
         .set_table_styles([
 
-            # HEADER
+            # HEADER (no colours)
             {
                 "selector": "th",
                 "props": [
-                    ("background-color", "#0f172a"),
-                    ("color", "white"),
                     ("font-weight", "700"),
                     ("padding", "10px"),
-                    ("border", "1px solid #2e3b55"),
-                    ("text-transform", "uppercase"),
+                    ("border", "1px solid #ccc"),
                     ("font-size", "12px")
                 ]
             },
 
-            # CELLS
+            # CELLS (no colours)
             {
                 "selector": "td",
                 "props": [
                     ("padding", "8px"),
-                    ("border", "1px solid #2e3b55"),
-                    ("color", "#e5e7eb"),
+                    ("border", "1px solid #ccc"),
                     ("font-size", "13px")
                 ]
             },
 
-            # TABLE BORDER
+            # TABLE
             {
                 "selector": "table",
                 "props": [
                     ("border-collapse", "collapse"),
                     ("width", "100%"),
-                    ("border", "1px solid #2e3b55")
+                    ("border", "1px solid #ccc")
                 ]
             }
         ])
     )
 
-    # ✅ Render styled table
-    st.write(styled)
+    # ✅ Render clean table
+    st.markdown(styled.to_html(), unsafe_allow_html=True)
