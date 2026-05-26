@@ -7,58 +7,70 @@ def render_header():
     st.markdown("""
     <style>
 
+    /* ===== HEADER CONTAINER ===== */
+    .header-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    /* ===== CARD STYLE ===== */
     .header-box {
         background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        min-height: 110px;
         border-radius: 16px;
-        padding: 20px;
+        padding: 18px;
+        min-height: 110px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        align-items: center;   /* ✅ center all content */
-        text-align: center;    /* ✅ consistent alignment */
-        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
         transition: all 0.2s ease;
+        color: white;
     }
 
     .header-box:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.18);
     }
 
+    /* ===== TITLE ===== */
     .title {
-        color: white;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 900;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
     }
 
     .subtitle {
-        color: rgba(255,255,255,0.85);
         font-size: 13px;
-        font-weight: 600;
+        opacity: 0.85;
         margin-top: 4px;
+        font-weight: 500;
     }
 
-    .date-box {
-        color: white;
-        font-size: 18px;
+    /* ===== KPI STYLE ===== */
+    .kpi-title {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-bottom: 6px;
+    }
+
+    .kpi-value {
+        font-size: 24px;
         font-weight: 800;
     }
 
+    /* ===== STATUS BADGE ===== */
     .status-box {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
         gap: 8px;
-        padding: 10px 14px;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.10);  /* ✅ softer overlay */
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.12);
         border: 1px solid rgba(255,255,255,0.25);
-        color: white;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .dot {
@@ -76,6 +88,7 @@ def render_header():
         100% {opacity:1;}
     }
 
+    /* ===== STICKY HEADER ===== */
     div[data-testid="stHorizontalBlock"] {
         position: sticky;
         top: 0;
@@ -88,10 +101,10 @@ def render_header():
     </style>
     """, unsafe_allow_html=True)
 
-    # ✅ ✅ EQUAL WIDTH COLUMNS
-    col1, col2, col3 = st.columns(3, gap="small")
+    # ✅ HEADER LAYOUT
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 1], gap="small")
 
-    # ✅ TITLE CARD
+    # ✅ MAIN TITLE
     with col1:
         st.markdown("""
         <div class="header-box">
@@ -100,23 +113,32 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ DATE CARD
+    # ✅ DATE KPI
     with col2:
         st.markdown(f"""
         <div class="header-box">
-            <div class="date-box">
-                📅 {datetime.today().strftime('%d %b %Y')}
-            </div>
+            <div class="kpi-title">📅 Today</div>
+            <div class="kpi-value">{datetime.today().strftime('%d %b %Y')}</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ STATUS CARD
+    # ✅ STATUS KPI
     with col3:
         st.markdown("""
         <div class="header-box">
+            <div class="kpi-title">Status</div>
             <div class="status-box">
                 <div class="dot"></div>
                 Programme Live
             </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ✅ PLACEHOLDER KPI (you can replace later)
+    with col4:
+        st.markdown("""
+        <div class="header-box">
+            <div class="kpi-title">Overview</div>
+            <div class="kpi-value">—</div>
         </div>
         """, unsafe_allow_html=True)
