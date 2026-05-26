@@ -3,26 +3,39 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA
+# PREP DATA (ISOLATED FOR FLASS)
 # =========================
 def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
+    # ✅ Dates
+    df["Start"] = pd.to_datetime(df.get("Start"), errors="coerce")
+    df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
 
-    # ✅ Float → whole numbers
+    # ✅ Detect baseline column safely
+    baseline_col = None
+    for col in ["BL1 Finish", "BL Project Finish"]:
+        if col in df.columns:
+            baseline_col = col
+            break
+
+    if baseline_col is None:
+        raise KeyError("No baseline finish column found for Flass dataset")
+
+    # ✅ Standardise baseline name (prevents conflicts with other assets)
+    df["Baseline Finish"] = pd.to_datetime(df[baseline_col], errors="coerce")
+
+    # ✅ FLOAT → whole number (SAFE)
     df["Total Float"] = (
-        pd.to_numeric(df["Total Float"], errors="coerce")
+        pd.to_numeric(df.get("Total Float"), errors="coerce")
         .fillna(0)
         .apply(lambda x: int(round(x)))
     )
 
-    # ✅ % complete clean
+    # ✅ % COMPLETE CLEAN
     df["Activity % Complete"] = (
-        df["Activity % Complete"]
+        df.get("Activity % Complete", 0)
         .astype(str)
         .str.replace("%", "", regex=False)
     )
@@ -33,9 +46,9 @@ def _prepare(df):
         .apply(lambda x: int(round(x)))
     )
 
-    # ✅ Delta days (whole number)
+    # ✅ DELTA (WHOLE DAYS)
     df["Change (days)"] = (
-        (df["Finish"] - df["BL1 Finish"])
+        (df["Finish"] - df["Baseline Finish"])
         .dt.days
     )
 
@@ -70,22 +83,22 @@ def render_next7days_table(df):
         st.success("✅ No activities issuing in the next 7 days")
         return
 
-    # ✅ Flags
+    # ✅ FLAGS
     late_flag = (df["Change (days)"] > 0).any()
     risk_flag = ((df["Activity % Complete"] < 100) & (df["Total Float"] <= 0)).any()
 
     if late_flag or risk_flag:
-        st.warning("⚠️ Some activities issuing in the next 7 days are delayed vs CL32 May or at risk")
+        st.warning("⚠️ Some activities issuing in the next 7 days are delayed or at risk")
     else:
-        st.info("✅ Activities issuing in the next 7 days are aligned with the CL32 May programme")
+        st.info("✅ Activities issuing in the next 7 days are aligned with the programme")
 
     # =========================
-    # STRUCTURE
+    # TABLE STRUCTURE
     # =========================
     display_df = df[[
         "Activity ID",
         "Activity Name",
-        "BL1 Finish",
+        "Baseline Finish",
         "Finish",
         "Change (days)",
         "Total Float",
@@ -94,9 +107,9 @@ def render_next7days_table(df):
     ]].copy()
 
     display_df = display_df.rename(columns={
-        "BL1 Finish": "Baseline Finish (CL32 May)",
-        "Finish": "Forecast Finish (CL32 May)",
-        "Change (days)": "Δ Change vs CL32 May (days)",
+        "Baseline Finish": "Baseline Finish",
+        "Finish": "Forecast Finish",
+        "Change (days)": "Δ Change (days)",
         "Total Float": "Float (Days)",
         "Activity % Complete": "% Complete"
     })
@@ -104,11 +117,8 @@ def render_next7days_table(df):
     # =========================
     # FORMAT DATES
     # =========================
-    display_df["Baseline Finish (CL32 May)"] = \
-        pd.to_datetime(display_df["Baseline Finish (CL32 May)"]).dt.strftime("%d-%b-%Y")
-
-    display_df["Forecast Finish (CL32 May)"] = \
-        pd.to_datetime(display_df["Forecast Finish (CL32 May)"]).dt.strftime("%d-%b-%Y")
+    display_df["Baseline Finish"] = pd.to_datetime(display_df["Baseline Finish"]).dt.strftime("%d-%b-%Y")
+    display_df["Forecast Finish"] = pd.to_datetime(display_df["Forecast Finish"]).dt.strftime("%d-%b-%Y")
 
     # =========================
     # STATUS
@@ -116,19 +126,19 @@ def render_next7days_table(df):
     def status(row):
 
         if row["% Complete"] == 100:
-            if row["Δ Change vs CL32 May (days)"] > 0:
+            if row["Δ Change (days)"] > 0:
                 return "🔴 Completed Late"
             return "✅ Completed"
 
         if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
             return "🔴 At Risk"
 
-        if row["Δ Change vs CL32 May (days)"] > 0:
+        if row["Δ Change (days)"] > 0:
             return "🟠 Delayed"
 
         return "🟢 On Track"
 
-    display_df["Status (CL32 May)"] = display_df.apply(status, axis=1)
+    display_df["Status"] = display_df.apply(status, axis=1)
 
     # =========================
     # RISK
@@ -136,17 +146,17 @@ def render_next7days_table(df):
     def risk(row):
         if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
             return "🔴 High Risk"
-        elif row["% Complete"] < 75 and row["Δ Change vs CL32 May (days)"] > 0:
+        elif row["% Complete"] < 75 and row["Δ Change (days)"] > 0:
             return "🟠 Behind Progress"
-        elif row["% Complete"] >= 90 and row["Δ Change vs CL32 May (days)"] > 0:
+        elif row["% Complete"] >= 90 and row["Δ Change (days)"] > 0:
             return "⚠️ Near Complete but Late"
         else:
             return "🟢 Low Risk"
 
-    display_df["Risk (Forward Look)"] = display_df.apply(risk, axis=1)
+    display_df["Risk"] = display_df.apply(risk, axis=1)
 
     # =========================
-    # COLOUR FUNCTIONS ✅ FIXED
+    # COLOUR FUNCTIONS
     # =========================
     def colour_change(val):
         if pd.isna(val):
@@ -155,8 +165,7 @@ def render_next7days_table(df):
             return "background-color:#7f1d1d;color:white;font-weight:bold"
         elif val < 0:
             return "background-color:#14532d;color:white;font-weight:bold"
-        else:
-            return "background-color:#374151;color:white"
+        return "background-color:#374151;color:white"
 
     def colour_float(val):
         if val <= 0:
@@ -172,7 +181,7 @@ def render_next7days_table(df):
             return "background-color:#14532d;color:white"
         return ""
 
-    def colour_risk(val):   # ✅ ERROR FIX WAS HERE
+    def colour_risk(val):
         if "🔴" in val:
             return "background-color:#7f1d1d;color:white"
         elif "🟠" in val:
@@ -193,7 +202,7 @@ def render_next7days_table(df):
                 ("background-color", "#2b3a55"),
                 ("color", "white"),
                 ("font-weight", "600"),
-                ("padding", "10px"),
+                ("padding", "10px")
             ]
         },
         {
@@ -201,14 +210,14 @@ def render_next7days_table(df):
             "props": [
                 ("background-color", "#1c2233"),
                 ("color", "#f1f1f1"),
-                ("padding", "8px"),
+                ("padding", "8px")
             ]
         }
     ])
 
-    styled = styled.map(colour_change, subset=["Δ Change vs CL32 May (days)"])
+    styled = styled.map(colour_change, subset=["Δ Change (days)"])
     styled = styled.map(colour_float, subset=["Float (Days)"])
-    styled = styled.map(colour_status, subset=["Status (CL32 May)"])
-    styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
+    styled = styled.map(colour_status, subset=["Status"])
+    styled = styled.map(colour_risk, subset=["Risk"])
 
     st.markdown(styled.to_html(), unsafe_allow_html=True)
