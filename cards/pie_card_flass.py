@@ -3,28 +3,46 @@ import plotly.graph_objects as go
 
 
 def render_pie_flass(df, container):
-
     # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Filter Flass activities
-    df = df[df["Activity ID"].str.startswith("FLA-")]
+    # ✅ Filter Flass (correct for your IDs)
+    df = df[df["Activity ID"].str.contains("FL", na=False)]
 
-    # ✅ Ensure numeric % complete
+    # ✅ Numeric % complete
     df["Activity % Complete"] = pd.to_numeric(
         df["Activity % Complete"], errors="coerce"
     ).fillna(0)
 
-    # ✅ Clean Finish date
+    # ✅ Finish date
     df["Finish"] = pd.to_datetime(
         df["Finish"], dayfirst=True, errors="coerce"
     ).dt.normalize()
 
-    # ✅ Safety check
+    # ✅ Remaining duration
+    df["Remaining Duration"] = pd.to_numeric(
+        df["Remaining Duration"], errors="coerce"
+    ).fillna(0)
+
+    # ---------- 🚨 REMOVE JUNK ROWS ----------
+
+    # ❌ Remove known summary/milestones
+    df = df[~df["Activity Name"].str.contains(
+        "Completion|Terminal Float|Planned Completion",
+        case=False,
+        na=False
+    )]
+
+    # ❌ Remove zero-duration fake rows (milestones not complete)
+    df = df[~(
+            (df["Remaining Duration"] == 0) &
+            (df["Activity % Complete"] == 0)
+    )]
+
+    # ✅ Safety
     if df.empty:
         container.info("No valid Flass activities")
         return
@@ -41,18 +59,18 @@ def render_pie_flass(df, container):
         if progress >= 100:
             return "Completed"
 
-        # ✅ No finish = On Track
-        if pd.isna(finish):
-            return "On Track"
-
         # ✅ Delayed
-        if finish < today:
+        if pd.notna(finish) and finish < today:
             return "Delayed"
 
-        # ✅ Future
+        # ✅ On Track
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
+
+    # ---------- DEBUG (KEEP THIS FIRST TIME) ----------
+    print("\nFiltered rows:", len(df))
+    print(df["Status"].value_counts())
 
     # ---------- SUMMARY ----------
     summary = df["Status"].value_counts()
