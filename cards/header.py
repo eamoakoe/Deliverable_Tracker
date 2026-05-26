@@ -8,14 +8,16 @@ def render_header():
     <style>
 
     .header-box {
-        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        background: linear-gradient(135deg, #047857 0%, #065f46 100%);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        min-height: 95px;
+        min-height: 110px;
         border-radius: 16px;
         padding: 20px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: center;   /* ✅ center all content */
+        text-align: center;    /* ✅ consistent alignment */
         box-shadow: 0 6px 16px rgba(0,0,0,0.15);
         transition: all 0.2s ease;
     }
@@ -27,7 +29,7 @@ def render_header():
 
     .title {
         color: white;
-        font-size: 26px;
+        font-size: 24px;
         font-weight: 900;
         letter-spacing: 1px;
     }
@@ -41,9 +43,8 @@ def render_header():
 
     .date-box {
         color: white;
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 800;
-        text-align: center;
     }
 
     .status-box {
@@ -53,7 +54,7 @@ def render_header():
         gap: 8px;
         padding: 10px 14px;
         border-radius: 12px;
-        background: rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.10);  /* ✅ softer overlay */
         border: 1px solid rgba(255,255,255,0.25);
         color: white;
         font-size: 13px;
@@ -87,9 +88,10 @@ def render_header():
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([5, 3, 2], gap="small")
+    # ✅ ✅ EQUAL WIDTH COLUMNS
+    col1, col2, col3 = st.columns(3, gap="small")
 
-    # ✅ LEFT
+    # ✅ TITLE CARD
     with col1:
         st.markdown("""
         <div class="header-box">
@@ -98,20 +100,20 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ DATE
+    # ✅ DATE CARD
     with col2:
         st.markdown(f"""
-        <div class="header-box" style="align-items:center;">
+        <div class="header-box">
             <div class="date-box">
                 📅 {datetime.today().strftime('%d %b %Y')}
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ STATUS
+    # ✅ STATUS CARD
     with col3:
         st.markdown("""
-        <div class="header-box" style="align-items:center;">
+        <div class="header-box">
             <div class="status-box">
                 <div class="dot"></div>
                 Programme Live
