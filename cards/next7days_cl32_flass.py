@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (ISOLATED FOR FLASS)
+# PREP DATA (FLASS SPECIFIC)
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -12,45 +12,46 @@ def _prepare(df):
     # ✅ Dates
     df["Start"] = pd.to_datetime(df.get("Start"), errors="coerce")
     df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
+    df["BL Project Finish"] = pd.to_datetime(df.get("BL Project Finish"), errors="coerce")
 
-    # ✅ Detect baseline column safely
-    baseline_col = None
-    for col in ["BL1 Finish", "BL Project Finish"]:
-        if col in df.columns:
-            baseline_col = col
-            break
+    # ✅ FLOAT (hours → whole days)
+    if "Total Float(h)" in df.columns:
+        float_series = pd.to_numeric(df["Total Float(h)"], errors="coerce")
+    else:
+        float_series = pd.Series(0, index=df.index)
 
-    if baseline_col is None:
-        raise KeyError("No baseline finish column found for Flass dataset")
-
-    # ✅ Standardise baseline name (prevents conflicts with other assets)
-    df["Baseline Finish"] = pd.to_datetime(df[baseline_col], errors="coerce")
-
-    # ✅ FLOAT → whole number (SAFE)
-    df["Total Float"] = (
-        pd.to_numeric(df.get("Total Float"), errors="coerce")
+    df["Float (Days)"] = (
+        float_series
         .fillna(0)
-        .apply(lambda x: int(round(x)))
+        .apply(lambda x: int(round(x / 24)))
     )
 
-    # ✅ % COMPLETE CLEAN
-    df["Activity % Complete"] = (
-        df.get("Activity % Complete", 0)
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
+    # ✅ % COMPLETE
+    if "Activity % Complete" in df.columns:
+        pct_series = df["Activity % Complete"]
+    else:
+        pct_series = pd.Series(0, index=df.index)
 
-    df["Activity % Complete"] = (
-        pd.to_numeric(df["Activity % Complete"], errors="coerce")
+    df["% Complete"] = (
+        pd.to_numeric(pct_series, errors="coerce")
         .fillna(0)
-        .apply(lambda x: int(round(x)))
+        .astype(int)
     )
 
-    # ✅ DELTA (WHOLE DAYS)
-    df["Change (days)"] = (
-        (df["Finish"] - df["Baseline Finish"])
-        .dt.days
-    )
+    # ✅ DELTA (USE PRIMAVERA VARIANCE FIRST)
+    if "Variance - BL Project Finish Date(h)" in df.columns:
+        var_series = pd.to_numeric(df["Variance - BL Project Finish Date(h)"], errors="coerce")
+
+        df["Δ Change (days)"] = (
+            var_series
+            .fillna(0)
+            .apply(lambda x: int(round(x / 24)))
+        )
+    else:
+        df["Δ Change (days)"] = (
+            (df["Finish"] - df["BL Project Finish"])
+            .dt.days
+        )
 
     return df
 
@@ -84,13 +85,13 @@ def render_next7days_table(df):
         return
 
     # ✅ FLAGS
-    late_flag = (df["Change (days)"] > 0).any()
-    risk_flag = ((df["Activity % Complete"] < 100) & (df["Total Float"] <= 0)).any()
+    late_flag = (df["Δ Change (days)"] > 0).any()
+    risk_flag = ((df["% Complete"] < 100) & (df["Float (Days)"] <= 0)).any()
 
     if late_flag or risk_flag:
-        st.warning("⚠️ Some activities issuing in the next 7 days are delayed or at risk")
+        st.warning("⚠️ Activities issuing in the next 7 days are delayed or at risk")
     else:
-        st.info("✅ Activities issuing in the next 7 days are aligned with the programme")
+        st.info("✅ Activities issuing in the next 7 days are aligned with programme")
 
     # =========================
     # TABLE STRUCTURE
@@ -98,20 +99,16 @@ def render_next7days_table(df):
     display_df = df[[
         "Activity ID",
         "Activity Name",
-        "Baseline Finish",
+        "BL Project Finish",
         "Finish",
-        "Change (days)",
-        "Total Float",
-        "Activity % Complete",
-        "Comments"
+        "Δ Change (days)",
+        "Float (Days)",
+        "% Complete"
     ]].copy()
 
     display_df = display_df.rename(columns={
-        "Baseline Finish": "Baseline Finish",
-        "Finish": "Forecast Finish",
-        "Change (days)": "Δ Change (days)",
-        "Total Float": "Float (Days)",
-        "Activity % Complete": "% Complete"
+        "BL Project Finish": "Baseline Finish",
+        "Finish": "Forecast Finish"
     })
 
     # =========================
@@ -159,8 +156,6 @@ def render_next7days_table(df):
     # COLOUR FUNCTIONS
     # =========================
     def colour_change(val):
-        if pd.isna(val):
-            return "background-color:#374151;color:white"
         if val > 0:
             return "background-color:#7f1d1d;color:white;font-weight:bold"
         elif val < 0:
@@ -178,46 +173,3 @@ def render_next7days_table(df):
         elif "🟠" in val:
             return "background-color:#ff9800;color:black"
         elif "✅" in val or "🟢" in val:
-            return "background-color:#14532d;color:white"
-        return ""
-
-    def colour_risk(val):
-        if "🔴" in val:
-            return "background-color:#7f1d1d;color:white"
-        elif "🟠" in val:
-            return "background-color:#ff9800;color:black"
-        elif "⚠️" in val:
-            return "background-color:#facc15;color:black"
-        elif "🟢" in val:
-            return "background-color:#14532d;color:white"
-        return ""
-
-    # =========================
-    # STYLE TABLE
-    # =========================
-    styled = display_df.style.set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#2b3a55"),
-                ("color", "white"),
-                ("font-weight", "600"),
-                ("padding", "10px")
-            ]
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("background-color", "#1c2233"),
-                ("color", "#f1f1f1"),
-                ("padding", "8px")
-            ]
-        }
-    ])
-
-    styled = styled.map(colour_change, subset=["Δ Change (days)"])
-    styled = styled.map(colour_float, subset=["Float (Days)"])
-    styled = styled.map(colour_status, subset=["Status"])
-    styled = styled.map(colour_risk, subset=["Risk"])
-
-    st.markdown(styled.to_html(), unsafe_allow_html=True)
