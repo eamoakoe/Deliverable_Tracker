@@ -53,16 +53,22 @@ FLASS_DELIVERABLES = {
 def get_status(row):
     today = pd.Timestamp.today()
 
+    # ✅ Completed logic
+    if row["Progress (%)"] == 100:
+        if row["Δ (Days)"] is not None and row["Δ (Days)"] > 0:
+            return "🔴 Completed Late"
+        return "✅ Completed"
+
     # No forecast
     if pd.isna(row["Forecast Finish"]):
         return "⚠️ No Forecast"
 
     # Late + not started
-    if row["Progress (%)"] == 0 and today > row["Baseline Finish"]:
+    if row["Progress (%)"] == 0 and pd.notna(row["Baseline Finish"]) and today > row["Baseline Finish"]:
         return "🔴 Late / Not Started"
 
-    # Variance
-    if row["Δ (Days)"] > 0:
+    # Variance logic
+    if row["Δ (Days)"] is not None and row["Δ (Days)"] > 0:
         return "🔴 Delayed"
     elif row["Float (Days)"] <= 0:
         return "🟠 Critical"
@@ -95,18 +101,21 @@ def extract_milestones(df):
 
         row = filtered.iloc[-1]
 
-        # ✅ Use Primavera variance if available
+        # ✅ Variance (WHOLE NUMBER DAYS)
+        delta = None
         if "Variance - BL Project Finish Date(h)" in df.columns:
-            variance_hours = row.get("Variance - BL Project Finish Date(h)", 0)
-            delta = round(variance_hours / 24, 1)
-        else:
-            if pd.notna(row[finish_col]) and pd.notna(row[base_col]):
-                delta = (row[finish_col] - row[base_col]).days
-            else:
-                delta = None
+            variance_hours = row.get("Variance - BL Project Finish Date(h)")
+            if pd.notna(variance_hours):
+                delta = int(round(variance_hours / 24))
+        elif pd.notna(row[finish_col]) and pd.notna(row[base_col]):
+            delta = int((row[finish_col] - row[base_col]).days)
 
-        float_days = row.get("Total Float(h)", 0)
-        float_days = float_days / 24 if pd.notna(float_days) else 0
+        # ✅ Float (WHOLE NUMBER DAYS)
+        float_days = row.get("Total Float(h)")
+        if pd.notna(float_days):
+            float_days = int(round(float_days / 24))
+        else:
+            float_days = 0
 
         milestones.append({
             "Deliverable": name,
@@ -142,7 +151,7 @@ def render_milestone_table(df):
         if col in ms_df.columns:
             ms_df[col] = pd.to_datetime(ms_df[col]).dt.strftime("%d-%b-%Y")
 
-    # ✅ Colour delta
+    # ✅ Colour Delta
     def colour_delta(val):
         if pd.isna(val):
             return "background-color:#374151;color:white"
@@ -152,12 +161,14 @@ def render_milestone_table(df):
             return "background-color:#14532d;color:white;font-weight:bold"
         return "background-color:#374151;color:white"
 
-    # ✅ Colour status
+    # ✅ Colour Status
     def colour_status(val):
         if "Delayed" in val or "Late" in val:
             return "background-color:#7f1d1d;color:white"
         elif "Critical" in val:
             return "background-color:#78350f;color:white"
+        elif "Completed" in val:
+            return "background-color:#14532d;color:white"
         elif "Track" in val:
             return "background-color:#14532d;color:white"
         return "background-color:#374151;color:white"
