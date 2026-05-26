@@ -125,4 +125,3 @@ def render_dashboard(df31, df32):
     render_table(df31)
 
     st.markdown("</div>", unsafe_allow_html=True)
-``
