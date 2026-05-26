@@ -1,102 +1,111 @@
 import streamlit as st
 from datetime import datetime
-import pandas as pd
 
 
-# =========================
-# ✅ HELPERS
-# =========================
+def render_header():
 
-def get_next_deliverable(df):
+    st.markdown("""
+    <style>
 
-    df = df.copy()
-    df["Finish"] = pd.to_datetime(df["Finish"], dayfirst=True, errors="coerce")
+    .header-box {
+        background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+        border-radius: 16px;
+        padding: 18px;
+        min-height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        transition: all 0.2s ease;
+        color: white;
+    }
 
-    if "Activity % Complete" in df.columns:
-        df = df[df["Activity % Complete"] < 100]
+    .header-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+    }
 
-    df = df[df["Finish"].notna()].sort_values("Finish")
+    .title {
+        font-size: 22px;
+        font-weight: 900;
+    }
 
-    if not df.empty:
-        row = df.iloc[0]
-        finish = row["Finish"]
-        today = pd.Timestamp.today().normalize()
+    .subtitle {
+        font-size: 13px;
+        opacity: 0.85;
+        margin-top: 4px;
+    }
 
-        status = " 🔴" if finish < today else ""
+    .kpi-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
 
-        return f"{row['Activity Name']} – {finish.strftime('%d %b')}{status}"
+    .kpi-value {
+        font-size: 18px;
+        font-weight: 800;
+    }
 
-    return "—"
+    .status-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        font-size: 13px;
+        font-weight: 600;
+    }
 
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 6px #22c55e;
+        animation: pulse 1.5s infinite;
+    }
 
-def get_next_deliverable_rossall(df):
+    @keyframes pulse {
+        0% {opacity:1;}
+        50% {opacity:0.4;}
+        100% {opacity:1;}
+    }
 
-    df = df.copy()
+    </style>
+    """, unsafe_allow_html=True)
 
-    df["Finish"] = pd.to_datetime(
-        df["Finish"].astype(str).str.replace("A", "").str.replace("*", ""),
-        dayfirst=True,
-        errors="coerce"
-    )
+    # ✅ 3-COLUMN LAYOUT
+    col1, col2, col3 = st.columns(3, gap="small")
 
-    df["Remaining Duration"] = (
-        df["Remaining Duration"]
-        .astype(str)
-        .str.replace("d", "")
-    )
-
-    df["Remaining Duration"] = pd.to_numeric(
-        df["Remaining Duration"], errors="coerce"
-    ).fillna(0)
-
-    df = df[df["Remaining Duration"] > 0]
-    df = df[df["Finish"].notna()].sort_values("Finish")
-
-    if not df.empty:
-        row = df.iloc[0]
-        finish = row["Finish"]
-        today = pd.Timestamp.today().normalize()
-
-        status = " 🔴" if finish < today else ""
-
-        return f"{row['Activity Name']} – {finish.strftime('%d %b')}{status}"
-
-    return "—"
-
-
-# =========================
-# ✅ HEADER (NO HTML)
-# =========================
-
-def render_header(ferry_df=None, flass_df=None, rossall_df=None):
-
-    st.markdown("## 📊 UU Design Programme Dashboard")
-    st.caption("CL31 & CL32 • Delivery Tracking • Forecasting")
-
-    col1, col2, col3, col4 = st.columns(4)
+    # ✅ TITLE
+    with col1:
+        st.markdown("""
+        <div class="header-box">
+            <div class="title">UU DESIGN PROGRAMME DASHBOARD</div>
+            <div class="subtitle">CL31 & CL32 • Delivery Tracking • Forecasting</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ✅ DATE
-    with col1:
-        st.metric("📅 Today", datetime.today().strftime('%d %b %Y'))
+    with col2:
+        st.markdown(f"""
+        <div class="header-box">
+            <div class="kpi-title">📅 Today</div>
+            <div class="kpi-value">{datetime.today().strftime('%d %b %Y')}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ✅ STATUS
-    with col2:
-        st.markdown("**Status**")
-        st.success("● Programme Live")
-
-    # ✅ PLACEHOLDER / FUTURE KPI
     with col3:
-        st.metric("Overview", "—")
-
-    # ✅ ✅ KEY DELIVERABLES
-    with col4:
-        st.markdown("**🎯 Key Upcoming Deliverables**")
-
-        if ferry_df is not None:
-            st.write(f"**Ferry** → {get_next_deliverable(ferry_df)}")
-
-        if flass_df is not None:
-            st.write(f"**Flass** → {get_next_deliverable(flass_df)}")
-
-        if rossall_df is not None:
-            st.write(f"**Rossall** → {get_next_deliverable_rossall(rossall_df)}")
+        st.markdown("""
+        <div class="header-box">
+            <div class="kpi-title">Status</div>
+            <div class="status-box">
+                <div class="dot"></div>
+                Programme Live
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
