@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (FLASS SAFE)
+# PREP DATA (FLASS-SPECIFIC)
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -39,7 +39,7 @@ def _prepare(df):
     df["% Complete"] = pct_series.fillna(0).astype(int)
 
     # =========================
-    # ✅ DELTA (USE VARIANCE FIRST)
+    # ✅ DELTA (variance first)
     # =========================
     if "Variance - BL Project Finish Date(h)" in df.columns:
         var_series = pd.to_numeric(df["Variance - BL Project Finish Date(h)"], errors="coerce")
@@ -59,7 +59,7 @@ def _prepare(df):
 
 
 # =========================
-# FILTER NEXT 7 DAYS
+# NEXT 7 DAYS (DELIVERABLE LOGIC)
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
@@ -67,10 +67,38 @@ def _get_next7days(df):
     today = pd.Timestamp.today().normalize()
     lookahead = today + pd.Timedelta(days=7)
 
+    # ✅ 1. Date filter
     df = df[
         (df["Finish"] >= today) &
         (df["Finish"] <= lookahead)
     ].copy()
+
+    # ✅ 2. TRUE DELIVERABLE FILTER (based on YOUR data)
+    deliverable_ids = ["-KD-", "-DRIA-", "-DDST-", "-DDGD-"]
+
+    df = df[
+        df["Activity ID"].str.contains("|".join(deliverable_ids), na=False)
+    ]
+
+    # ✅ 3. Remove long / non-deliverable tasks
+    if "Remaining Duration" in df.columns:
+        df["Remaining Duration"] = pd.to_numeric(df["Remaining Duration"], errors="coerce")
+        df = df[df["Remaining Duration"] <= 10]
+
+    # ✅ 4. Deliverable name filter (tightens output)
+    keywords = [
+        "Completion",
+        "Review",
+        "Design",
+        "Specification",
+        "Assessment",
+        "Report",
+        "Drawing"
+    ]
+
+    df = df[
+        df["Activity Name"].str.contains("|".join(keywords), case=False, na=False)
+    ]
 
     return df.sort_values("Finish")
 
@@ -83,22 +111,20 @@ def render_next7days_table(df):
     df = _get_next7days(df)
 
     if df.empty:
-        st.success("✅ No activities issuing in the next 7 days")
+        st.success("✅ No deliverables due in the next 7 days")
         return
 
-    # =========================
     # ✅ FLAGS
-    # =========================
     late_flag = (df["Δ Change (days)"] > 0).any()
     risk_flag = ((df["% Complete"] < 100) & (df["Float (Days)"] <= 0)).any()
 
     if late_flag or risk_flag:
-        st.warning("⚠️ Activities issuing in the next 7 days are delayed or at risk")
+        st.warning("⚠️ Key deliverables in the next 7 days are delayed or at risk")
     else:
-        st.info("✅ Activities issuing in the next 7 days are aligned with programme")
+        st.info("✅ Deliverables in the next 7 days are on track")
 
     # =========================
-    # TABLE STRUCTURE
+    # TABLE
     # =========================
     display_df = df[[
         "Activity ID",
@@ -115,9 +141,7 @@ def render_next7days_table(df):
         "Finish": "Forecast Finish"
     })
 
-    # =========================
-    # FORMAT DATES
-    # =========================
+    # ✅ Format dates
     display_df["Baseline Finish"] = pd.to_datetime(display_df["Baseline Finish"]).dt.strftime("%d-%b-%Y")
     display_df["Forecast Finish"] = pd.to_datetime(display_df["Forecast Finish"]).dt.strftime("%d-%b-%Y")
 
@@ -130,7 +154,7 @@ def render_next7days_table(df):
                 return "🔴 Completed Late"
             return "✅ Completed"
 
-        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
+        if row["Float (Days)"] <= 0:
             return "🔴 At Risk"
 
         if row["Δ Change (days)"] > 0:
@@ -146,16 +170,14 @@ def render_next7days_table(df):
     def risk(row):
         if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
             return "🔴 High Risk"
-        elif row["% Complete"] < 75 and row["Δ Change (days)"] > 0:
-            return "🟠 Behind Progress"
-        elif row["% Complete"] >= 90 and row["Δ Change (days)"] > 0:
-            return "⚠️ Near Complete but Late"
+        elif row["Δ Change (days)"] > 0:
+            return "🟠 Programme Risk"
         return "🟢 Low Risk"
 
     display_df["Risk"] = display_df.apply(risk, axis=1)
 
     # =========================
-    # COLOUR FUNCTIONS
+    # COLOURING
     # =========================
     def colour_change(val):
         if val > 0:
@@ -172,26 +194,17 @@ def render_next7days_table(df):
     def colour_status(val):
         if "🔴" in val:
             return "background-color:#b00020;color:white"
-        elif "🟠" in val:
+        if "🟠" in val:
             return "background-color:#ff9800;color:black"
-        elif "✅" in val or "🟢" in val:
-            return "background-color:#14532d;color:white"
-        return ""
+        return "background-color:#14532d;color:white"
 
     def colour_risk(val):
         if "🔴" in val:
             return "background-color:#7f1d1d;color:white"
-        elif "🟠" in val:
+        if "🟠" in val:
             return "background-color:#ff9800;color:black"
-        elif "⚠️" in val:
-            return "background-color:#facc15;color:black"
-        elif "🟢" in val:
-            return "background-color:#14532d;color:white"
-        return ""
+        return "background-color:#14532d;color:white"
 
-    # =========================
-    # STYLE TABLE
-    # =========================
     styled = display_df.style \
         .map(colour_change, subset=["Δ Change (days)"]) \
         .map(colour_float, subset=["Float (Days)"]) \
