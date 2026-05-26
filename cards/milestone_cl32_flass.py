@@ -116,7 +116,6 @@ def render_milestone_table(df):
 
     ms_df = extract_milestones(df)
 
-
     if ms_df.empty:
         st.warning("⚠️ No deliverables identified")
         return
