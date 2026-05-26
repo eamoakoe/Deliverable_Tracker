@@ -88,4 +88,3 @@ def render_pie_flass(df, container):
     )
 
     container.plotly_chart(fig, width="stretch")
-``
