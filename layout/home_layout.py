@@ -14,7 +14,6 @@ from cards.milestone_cl32_rossall import render_milestone_table as rossall_ms
 # ✅ DETECT ASSET
 # =========================
 def detect_asset(df):
-
     if "Activity ID" not in df.columns:
         return "Unknown"
 
@@ -34,7 +33,6 @@ def detect_asset(df):
 # ✅ DASHBOARD
 # =========================
 def render_dashboard(df31, df32):
-
     if df32 is None or df32.empty:
         st.stop()
 
@@ -58,13 +56,22 @@ def render_dashboard(df31, df32):
         box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
+
     <div style="
         font-size:18px;
         font-weight:700;
-        margin-bottom:10px;
+        margin-bottom:2px;
         letter-spacing:0.3px;
     ">
         {asset} — Delivery Status (CL32)
+    </div>
+
+    <div style="
+        font-size:13px;
+        opacity:0.65;
+        margin-bottom:10px;
+    ">
+        Clause 32 (CL32) – May Programme
     </div>
     """, unsafe_allow_html=True)
 
@@ -91,13 +98,22 @@ def render_dashboard(df31, df32):
         box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
+
     <div style="
         font-size:18px;
         font-weight:700;
-        margin-bottom:10px;
+        margin-bottom:2px;
         letter-spacing:0.3px;
     ">
         7-Day Lookahead (CL32)
+    </div>
+
+    <div style="
+        font-size:13px;
+        opacity:0.65;
+        margin-bottom:10px;
+    ">
+        Activities issuing within the next 7 days
     </div>
     """, unsafe_allow_html=True)
 
@@ -117,13 +133,22 @@ def render_dashboard(df31, df32):
         box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
+
     <div style="
         font-size:18px;
         font-weight:700;
-        margin-bottom:10px;
+        margin-bottom:2px;
         letter-spacing:0.3px;
     ">
         Programme Controls (CL31 / CL32)
+    </div>
+
+    <div style="
+        font-size:13px;
+        opacity:0.65;
+        margin-bottom:10px;
+    ">
+        Comparison of CL32 May Baseline vs Current Forecast Finish
     </div>
     """, unsafe_allow_html=True)
 
