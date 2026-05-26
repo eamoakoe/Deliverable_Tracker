@@ -40,20 +40,22 @@ def render_dashboard(df31, df32):
 
     asset = detect_asset(df32)
 
+    # =========================
     # ✅ HEADER
+    # =========================
     render_header()
     st.markdown("<br>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 🎯 KEY DELIVERABLES (SOFT RED CARD)
+    # ✅ 🎯 KEY DELIVERABLES (AMBER CARD)
     # =========================
     st.markdown(f"""
     <div style="
-        background:#fff5f5;               /* ✅ soft red */
+        background:#fffbeb;
         padding:15px;
         border-radius:12px;
-        border-left:5px solid #ef4444;   /* ✅ accent line */
-        box-shadow:0 1px 4px rgba(0,0,0,0.06);
+        border-left:5px solid #f59e0b;
+        box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
     <div style="
@@ -77,15 +79,15 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 📅 NEXT 7 DAYS (SOFT GREEN CARD)
+    # ✅ 📅 NEXT 7 DAYS (GREEN CARD)
     # =========================
     st.markdown("""
     <div style="
-        background:#f0fdf4;              /* ✅ soft green */
+        background:#f0fdf4;
         padding:15px;
         border-radius:12px;
         border-left:5px solid #22c55e;
-        box-shadow:0 1px 4px rgba(0,0,0,0.06);
+        box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
     <div style="
@@ -102,15 +104,15 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 📊 TRACKER (SOFT BLUE CARD)
+    # ✅ 📊 PROGRAMME TRACKER (BLUE CARD)
     # =========================
     st.markdown("""
     <div style="
-        background:#eff6ff;              /* ✅ soft blue */
+        background:#eff6ff;
         padding:15px;
         border-radius:12px;
         border-left:5px solid #3b82f6;
-        box-shadow:0 1px 4px rgba(0,0,0,0.06);
+        box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
     <div style="
