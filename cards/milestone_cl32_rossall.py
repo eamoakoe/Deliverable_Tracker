@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-
+render_milestone_table = render_design_table
 # =========================
 # PREP DATA (DESIGN SAFE)
 # =========================
