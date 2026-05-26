@@ -146,8 +146,6 @@ def render_milestone_table(df):
 
     ms_df = extract_milestones(df)
 
-    st.markdown("## 📦 FERRY – KEY DELIVERABLE TRACKING (CL32)")
-
     if ms_df.empty:
         st.warning("⚠️ No deliverables identified - check Activity ID mapping")
         return
