@@ -47,7 +47,7 @@ def render_dashboard(df31, df32):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 🎯 KEY DELIVERABLES (AMBER CARD)
+    # ✅ DELIVERY STATUS (AMBER CARD)
     # =========================
     st.markdown(f"""
     <div style="
@@ -60,10 +60,11 @@ def render_dashboard(df31, df32):
     ">
     <div style="
         font-size:18px;
-        font-weight:800;
+        font-weight:700;
         margin-bottom:10px;
+        letter-spacing:0.3px;
     ">
-        {asset} — Key Deliverables (CL32)
+        {asset} — Delivery Status (CL32)
     </div>
     """, unsafe_allow_html=True)
 
@@ -79,7 +80,7 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 📅 NEXT 7 DAYS (GREEN CARD)
+    # ✅ 7-DAY LOOKAHEAD (GREEN CARD)
     # =========================
     st.markdown("""
     <div style="
@@ -92,10 +93,11 @@ def render_dashboard(df31, df32):
     ">
     <div style="
         font-size:18px;
-        font-weight:800;
+        font-weight:700;
         margin-bottom:10px;
+        letter-spacing:0.3px;
     ">
-        📅 Next 7 Days
+        7-Day Lookahead (CL32)
     </div>
     """, unsafe_allow_html=True)
 
@@ -104,7 +106,7 @@ def render_dashboard(df31, df32):
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ PROGRAMME TRACKER (BLUE CARD)
+    # ✅ PROGRAMME CONTROLS (BLUE CARD)
     # =========================
     st.markdown("""
     <div style="
@@ -117,10 +119,11 @@ def render_dashboard(df31, df32):
     ">
     <div style="
         font-size:18px;
-        font-weight:800;
+        font-weight:700;
         margin-bottom:10px;
+        letter-spacing:0.3px;
     ">
-        Programme Tracker (CL31 / CL32)
+        Programme Controls (CL31 / CL32)
     </div>
     """, unsafe_allow_html=True)
 
