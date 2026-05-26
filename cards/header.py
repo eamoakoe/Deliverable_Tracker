@@ -4,7 +4,7 @@ import pandas as pd
 
 
 # =========================
-# ✅ DELIVERABLE HELPERS
+# ✅ HELPERS
 # =========================
 
 def get_next_deliverable(df):
@@ -69,17 +69,17 @@ def format_next_deliverables(ferry_df=None, flass_df=None, rossall_df=None):
 
     lines = []
 
-    def line(name, value):
-        return f"<b>{name}</b> → {value}"
+    def build_line(name, text):
+        return f"<b>{name}</b> → {text}"
 
     if ferry_df is not None:
-        lines.append(line("Ferry", get_next_deliverable(ferry_df)))
+        lines.append(build_line("Ferry", get_next_deliverable(ferry_df)))
 
     if flass_df is not None:
-        lines.append(line("Flass", get_next_deliverable(flass_df)))
+        lines.append(build_line("Flass", get_next_deliverable(flass_df)))
 
     if rossall_df is not None:
-        lines.append(line("Rossall", get_next_deliverable_rossall(rossall_df)))
+        lines.append(build_line("Rossall", get_next_deliverable_rossall(rossall_df)))
 
     return "<br>".join(lines)
 
@@ -87,6 +87,7 @@ def format_next_deliverables(ferry_df=None, flass_df=None, rossall_df=None):
 # =========================
 # ✅ HEADER
 # =========================
+
 def render_header(ferry_df=None, flass_df=None, rossall_df=None):
 
     next_text = format_next_deliverables(ferry_df, flass_df, rossall_df)
@@ -115,7 +116,6 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
     .title {
         font-size: 22px;
         font-weight: 900;
-        letter-spacing: 0.5px;
     }
 
     .subtitle {
@@ -125,13 +125,13 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
     }
 
     .kpi-title {
-        font-size: 12px;
-        opacity: 0.8;
+        font-size: 13px;
+        font-weight: 700;
         margin-bottom: 6px;
     }
 
     .kpi-value {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 800;
     }
 
@@ -197,13 +197,16 @@ def render_header(ferry_df=None, flass_df=None, rossall_df=None):
         </div>
         """, unsafe_allow_html=True)
 
-    # ✅ ✅ KEY DELIVERABLES PANEL
+    # ✅ ✅ FIXED DELIVERABLE PANEL (NO ESCAPE ISSUE)
     with col4:
-        st.markdown(f"""
-        <div class="header-box">
-            <div class="kpi-title">🎯 Key Upcoming Deliverables</div>
-            <div style="font-size:14px;font-weight:700;line-height:1.6;">
-                {next_text}
+        st.markdown(
+            f"""
+            <div class="header-box">
+                <div class="kpi-title">🎯 Key Upcoming Deliverables</div>
+                <div style="font-size:14px;font-weight:700;line-height:1.6;">
+                    {next_text}
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True
+        )
