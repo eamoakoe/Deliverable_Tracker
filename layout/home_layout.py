@@ -1,13 +1,16 @@
 import streamlit as st
 
 from cards.header import render_header
-from cards.next7days_cl32 import render_next7days_table
-from cards.table_card import render_table
 
 # ✅ Milestones
 from cards.milestone_cl32_ferry import render_milestone_table as ferry_ms
 from cards.milestone_cl32_flass import render_milestone_table as flass_ms
 from cards.milestone_cl32_rossall import render_milestone_table as rossall_ms
+
+# ✅ Lookahead
+from cards.next7days_cl32_ferry import render_next7days_table as ferry_next7
+from cards.next7days_cl32_flass import render_next7days_table as flass_next7
+from cards.next7days_cl32_rossall import render_next7days_table as rossall_next7
 
 
 # =========================
@@ -32,7 +35,8 @@ def detect_asset(df):
 # =========================
 # ✅ DASHBOARD
 # =========================
-def render_dashboard(df31, df32):
+def render_dashboard(deliverables_df, df32):
+
     if df32 is None or df32.empty:
         st.stop()
 
@@ -45,7 +49,7 @@ def render_dashboard(df31, df32):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ DELIVERY STATUS (AMBER CARD)
+    # ✅ DELIVERY STATUS (AMBER)
     # =========================
     st.markdown(f"""
     <div style="
@@ -56,22 +60,12 @@ def render_dashboard(df31, df32):
         box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
-
     <div style="
         font-size:18px;
         font-weight:700;
         margin-bottom:2px;
-        letter-spacing:0.3px;
     ">
         {asset} — Delivery Status (CL32)
-    </div>
-
-    <div style="
-        font-size:13px;
-        opacity:0.65;
-        margin-bottom:10px;
-    ">
-        Clause 32 (CL32) – May Programme
     </div>
     """, unsafe_allow_html=True)
 
@@ -82,12 +76,12 @@ def render_dashboard(df31, df32):
     elif asset == "Rossall":
         rossall_ms(df32)
     else:
-        st.warning("No deliverable logic defined")
+        st.warning("No milestone logic defined")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ 7-DAY LOOKAHEAD (GREEN CARD)
+    # ✅ 7-DAY LOOKAHEAD (GREEN)
     # =========================
     st.markdown("""
     <div style="
@@ -95,34 +89,26 @@ def render_dashboard(df31, df32):
         padding:15px;
         border-radius:12px;
         border-left:5px solid #22c55e;
-        box-shadow:0 2px 6px rgba(0,0,0,0.08);
         margin-bottom:15px;
     ">
-
-    <div style="
-        font-size:18px;
-        font-weight:700;
-        margin-bottom:2px;
-        letter-spacing:0.3px;
-    ">
+    <div style="font-size:18px;font-weight:700;">
         7-Day Lookahead (CL32)
-    </div>
-
-    <div style="
-        font-size:13px;
-        opacity:0.65;
-        margin-bottom:10px;
-    ">
-        Activities issuing within the next 7 days
     </div>
     """, unsafe_allow_html=True)
 
-    render_next7days_table(df32)
+    if asset == "Ferry":
+        ferry_next7(df32)
+    elif asset == "Flass":
+        flass_next7(df32)
+    elif asset == "Rossall":
+        rossall_next7(df32)
+    else:
+        st.warning("No lookahead logic defined")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # ✅ PROGRAMME CONTROLS (BLUE CARD)
+    # ✅ PROGRAMME CONTROLS (BLUE)
     # =========================
     st.markdown("""
     <div style="
@@ -130,28 +116,15 @@ def render_dashboard(df31, df32):
         padding:15px;
         border-radius:12px;
         border-left:5px solid #3b82f6;
-        box-shadow:0 2px 6px rgba(0,0,0,0.08);
-        margin-bottom:15px;
     ">
-
-    <div style="
-        font-size:18px;
-        font-weight:700;
-        margin-bottom:2px;
-        letter-spacing:0.3px;
-    ">
+    <div style="font-size:18px;font-weight:700;">
         Programme Controls (CL31 / CL32)
-    </div>
-
-    <div style="
-        font-size:13px;
-        opacity:0.65;
-        margin-bottom:10px;
-    ">
-        Comparison of CL32 May Baseline vs Current Forecast Finish
     </div>
     """, unsafe_allow_html=True)
 
-    render_table(df31)
+    if deliverables_df is not None and not deliverables_df.empty:
+        st.dataframe(deliverables_df, use_container_width=True)
+    else:
+        st.warning("No deliverables data available")
 
     st.markdown("</div>", unsafe_allow_html=True)
