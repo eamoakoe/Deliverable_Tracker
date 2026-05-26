@@ -3,23 +3,36 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (ROBUST)
+# PREP DATA (DESIGN SAFE)
 # =========================
 def _prepare(df):
     df = df.copy()
 
-    # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Clean Activity ID (CRITICAL FIX)
+    # ✅ Fix IDs
     df["Activity ID"] = (
         df["Activity ID"]
         .astype(str)
-        .str.replace("&amp;", "&", regex=False)  # FIX HTML encoding
+        .str.replace("&amp;", "&", regex=False)
         .str.strip()
     )
 
-    # ✅ Clean Finish column
+    # ✅ Clean Start
+    df["Start"] = (
+        df["Start"]
+        .astype(str)
+        .str.replace(r"[A\*]", "", regex=True)
+        .str.strip()
+    )
+
+    df["Start"] = pd.to_datetime(
+        df["Start"],
+        format="%d-%b-%y",
+        errors="coerce"
+    )
+
+    # ✅ Clean Finish
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -27,27 +40,38 @@ def _prepare(df):
         .str.strip()
     )
 
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    df["Finish"] = pd.to_datetime(
+        df["Finish"],
+        format="%d-%b-%y",
+        errors="coerce"
+    )
+
+    # ✅ KEY: Design management date logic
+    # ALWAYS take the latest available date (most reliable for design outputs)
+    df["Date"] = df[["Start", "Finish"]].max(axis=1)
 
     return df
 
 
 # =========================
-# ✅ DESIGN DELIVERABLES (CLEAN IDs - NO HTML)
+# DESIGN DELIVERABLES ONLY
 # =========================
-ROSSELL_DELIVERABLES = {
+ROSSELL_DESIGN = {
 
-    "🔥 DESIGN FREEZE – VERIFIED": [
-        "AMP8-DD&B-ROS-OUD-2310",
-        "AMP8-DD&B-ROS-OUD-2320",
-        "AMP8-DD&B-ROS-DES-1010"
+    # 🔥 TRUE DESIGN FREEZE (what YOU care about)
+    "🔥 DESIGN FREEZE (Ready for Construction)": [
+        "AMP8-DD&B-ROS-OUD-2310",  # NH Approval
+        "AMP8-DD&B-ROS-OUD-2320",  # GI Final Factual
+        "AMP8-DD&B-ROS-DES-1010"   # Detailed Design
     ],
 
+    # 🔴 EXTERNAL CONTROL
     "National Highways Approval": [
         "AMP8-DD&B-ROS-OUD-2310"
     ],
 
-    "GI Reports Complete (All Shafts)": [
+    # 🟡 GROUND INVESTIGATION (DESIGN DRIVER)
+    "GI Reports Complete": [
         "AMP8-DD&B-ROS-ECI-1450",
         "AMP8-DD&B-ROS-ECI-1430",
         "AMP8-DD&B-ROS-ECI-1420",
@@ -56,10 +80,11 @@ ROSSELL_DELIVERABLES = {
         "AMP8-DD&B-ROS-ECI-1180"
     ],
 
-    "GI Final Factual Complete": [
+    "GI Final Factual": [
         "AMP8-DD&B-ROS-OUD-2320"
     ],
 
+    # 🔵 DESIGN PROGRESSION
     "Outline Design Complete": [
         "AMP8-DD&B-ROS-OUD-1000"
     ],
@@ -68,10 +93,11 @@ ROSSELL_DELIVERABLES = {
         "AMP8-DD&B-ROS-DES-1010"
     ],
 
-    "Temporary Works Design Complete": [
+    "Temp Works Design Complete": [
         "AMP8-DD&B-ROS-TWD-2000"
     ],
 
+    # ⚙️ DESIGN INPUTS
     "GPR Survey Complete": [
         "AMP8-DD&B-ROS-OUD-2300"
     ],
@@ -80,80 +106,79 @@ ROSSELL_DELIVERABLES = {
         "AMP8-DD&B-ROS-OUD-1010"
     ],
 
-    "Tunnel / Alignment Decisions Complete": [
+    "Tunnel Alignment Fixed": [
         "AMP8-DD&B-ROS-OUD-2180"
     ],
 
-    "Ecology Surveys Complete": [
+    "Ecology Constraints Complete": [
         "AMP8-DD&B-ROS-ECI-2580"
     ],
 }
 
 
 # =========================
-# EXTRACT DELIVERABLES
+# EXTRACT DESIGN DELIVERABLES
 # =========================
-def extract_milestones(df):
+def extract_design(df):
 
     df = _prepare(df)
 
-    milestones = []
+    results = []
 
-    for name, ids in ROSSELL_DELIVERABLES.items():
+    for name, ids in ROSSELL_DESIGN.items():
 
-        # ✅ EXACT MATCH (no regex issues)
         filtered = df[df["Activity ID"].isin(ids)].copy()
 
         if filtered.empty:
             continue
 
-        filtered = filtered.sort_values("Finish")
+        # ✅ Take latest = controlling design output
+        row = filtered.sort_values("Date").iloc[-1]
 
-        row = filtered.iloc[-1]
-
-        milestones.append({
+        results.append({
             "Deliverable": name,
             "Activity": row["Activity Name"],
-            "Finish Date": row["Finish"]
+            "Date": row["Date"]
         })
 
-    result = pd.DataFrame(milestones)
+    result_df = pd.DataFrame(results)
 
-    # ✅ FALLBACK: if still empty, show debug info
-    if result.empty:
-        st.warning("⚠️ No matches found — showing sample Activity IDs below for debugging")
+    if result_df.empty:
+        st.warning("⚠️ No design deliverables found")
         st.write(df[["Activity ID", "Activity Name"]].head(20))
 
-    return result
+    return result_df
 
 
 # =========================
-# RENDER
+# RENDER TABLE
 # =========================
-def render_milestone_table(df):
+def render_design_table(df):
 
-    ms_df = extract_milestones(df)
+    design_df = extract_design(df)
 
-    if ms_df.empty:
+    if design_df.empty:
         return
 
-    ms_df = ms_df.sort_values("Finish Date")
+    # ✅ Sort by actual design sequence
+    design_df = design_df.sort_values("Date")
 
-    ms_df["Finish Date"] = pd.to_datetime(
-        ms_df["Finish Date"]
-    ).dt.strftime("%d-%b-%Y")
+    # Format dates
+    design_df["Date"] = design_df["Date"].dt.strftime("%d-%b-%Y")
 
-    # ✅ Highlight key rows
-    def highlight_row(row):
+    # ✅ Highlight design risk zones
+    def highlight(row):
         if "FREEZE" in row["Deliverable"]:
             return ["background-color:#7f1d1d;color:white;font-weight:bold"] * len(row)
         if "Approval" in row["Deliverable"]:
             return ["background-color:#b45309;color:white"] * len(row)
+        if "GI" in row["Deliverable"]:
+            return ["background-color:#1d4ed8;color:white"] * len(row)
         return [""] * len(row)
 
     styled = (
-        ms_df.style
-        .apply(highlight_row, axis=1)
+        design_df.style
+        .apply(highlight, axis=1)
         .set_table_styles([
             {
                 "selector": "th",
