@@ -8,10 +8,7 @@ def render_pie_ferry(df, container):
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
-
-    # ✅ Keep only ferry activities
     df = df[df["Activity ID"].str.startswith("FER-")]
 
     # ✅ Clean % Complete
@@ -23,26 +20,19 @@ def render_pie_ferry(df, container):
     )
 
     df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    )
+        df["Activity % Complete"], errors="coerce"
+    ).fillna(0)
 
-    # ✅ Replace missing progress with 0
-    df["Activity % Complete"] = df["Activity % Complete"].fillna(0)
-
-    # ✅ Clean Finish Date
+    # ✅ Clean Finish date (FORCE DATE ONLY)
     df["Finish"] = pd.to_datetime(
-        df["Finish"],
-        dayfirst=True,
-        errors="coerce"
-    )
-
-    # ✅ Safety check
-    if df.empty:
-        container.info("No valid Ferry activities")
-        return
+        df["Finish"], dayfirst=True, errors="coerce"
+    ).dt.normalize()
 
     today = pd.Timestamp.today().normalize()
+
+    # ✅ DEBUG COUNTS
+    print("Total rows:", len(df))
+    print("Missing Finish:", df["Finish"].isna().sum())
 
     # ---------- CLASSIFICATION ----------
     def classify(row):
@@ -50,43 +40,38 @@ def render_pie_ferry(df, container):
         progress = row["Activity % Complete"]
         finish = row["Finish"]
 
-        # ✅ Completed
+        # ✅ 1. Completed ALWAYS wins
         if progress >= 100:
             return "Completed"
 
-        # ✅ If finish missing → treat as On Track (or change to "Unknown" if needed)
+        # ✅ 2. If no finish → treat as On Track (your rule)
         if pd.isna(finish):
             return "On Track"
 
-        # ✅ Delayed (past finish & not completed)
-        if finish < today and progress < 100:
+        # ✅ 3. Delayed
+        if finish < today:
             return "Delayed"
 
-        # ✅ Otherwise
+        # ✅ 4. Future = On Track
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
-    # ---------- DEBUG (VERY IMPORTANT) ----------
-    # Shows you exactly how rows are classified
-    debug_sample = df[[
-        "Activity ID",
-        "Activity % Complete",
-        "Finish",
-        "Status"
-    ]].head(20)
+    # ---------- DEBUG BREAKDOWN ----------
+    print("\nStatus Breakdown:")
+    print(df["Status"].value_counts())
 
-    print("\n=== DEBUG SAMPLE ===")
-    print(debug_sample)
+    print("\nSample Problem Rows:")
+    print(df[
+        (df["Status"] == "Delayed")
+    ][["Activity ID", "Finish", "Activity % Complete"]].head(10))
 
     # ---------- SUMMARY ----------
     summary = df["Status"].value_counts()
-
     summary = summary.reindex(
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
-    # ✅ Remove zero values
     summary = summary[summary > 0]
 
     # ---------- COLORS ----------
