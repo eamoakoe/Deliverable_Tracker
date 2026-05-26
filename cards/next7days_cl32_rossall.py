@@ -3,42 +3,49 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (ROSSALL SPECIFIC)
+# PREP (ROSSALL REAL DATA)
 # =========================
 def _prepare(df):
+
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Dates
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-    df["BL1 Finish"] = pd.to_datetime(df["BL1 Finish"], errors="coerce")
+    # ✅ Dates (handle "A", "*" etc.)
+    df["Finish"] = (
+        df["Finish"]
+        .astype(str)
+        .str.replace("A", "", regex=False)
+        .str.replace("*", "", regex=False)
+        .str.strip()
+    )
 
-    # ✅ FLOAT (already days for Rossall)
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce", dayfirst=True)
+
+    # ✅ FLOAT (already days)
     df["Float (Days)"] = (
-        pd.to_numeric(df.get("Total Float", 0), errors="coerce")
+        pd.to_numeric(df.get("Total Float"), errors="coerce")
         .fillna(0)
         .round(0)
         .astype(int)
     )
 
-    # ✅ % COMPLETE
-    pct = df.get("Activity % Complete", 0).astype(str).str.replace("%", "", regex=False)
-    df["% Complete"] = pd.to_numeric(pct, errors="coerce").fillna(0).astype(int)
+    # ✅ % COMPLETE (often missing → treat as 0)
+    if "Activity % Complete" in df.columns:
+        pct = df["Activity % Complete"].astype(str).str.replace("%", "", regex=False)
+        pct = pd.to_numeric(pct, errors="coerce")
+    else:
+        pct = pd.Series(0, index=df.index)
 
-    # ✅ DELTA (correct direction)
-    df["Δ Change (days)"] = (
-        (df["Finish"] - df["BL1 Finish"])
-        .dt.days
-    )
+    df["% Complete"] = pct.fillna(0).astype(int)
 
     return df
 
 
 # =========================
-# FILTER NEXT 7 DAYS (ROSSALL DM LOGIC)
+# FILTER NEXT 7 DAYS
 # =========================
 def _get_next7days(df):
+
     df = _prepare(df)
 
     today = pd.Timestamp.today().normalize()
@@ -50,17 +57,10 @@ def _get_next7days(df):
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ ROSSALL DELIVERABLE FILTER (REAL DATA DRIVEN)
-    deliverable_ids = ["-KD-", "-DD", "-DR"]
-
+    # ✅ TRUE ROSSALL DELIVERABLES
     df = df[
-        df["Activity ID"].astype(str).str.contains("|".join(deliverable_ids), na=False)
+        df["Activity ID"].astype(str).str.contains("ROS-MIL", na=False)
     ]
-
-    # ✅ REMOVE LONG CONSTRUCTION TASKS
-    if "Remaining Duration" in df.columns:
-        df["Remaining Duration"] = pd.to_numeric(df["Remaining Duration"], errors="coerce")
-        df = df[df["Remaining Duration"] <= 10]
 
     return df.sort_values("Finish")
 
@@ -73,17 +73,16 @@ def render_next7days_table(df):
     df = _get_next7days(df)
 
     if df.empty:
-        st.success("✅ No deliverables issuing in the next 7 days")
+        st.success("✅ No Rossall milestones in next 7 days")
         return
 
-    # ✅ FLAGS (FIXED LOGIC)
-    late_flag = (df["Δ Change (days)"] > 0).any()
+    # ✅ RISK FLAGS (REAL LOGIC)
     risk_flag = ((df["% Complete"] < 100) & (df["Float (Days)"] <= 0)).any()
 
-    if late_flag or risk_flag:
-        st.warning("⚠️ Key Rossall deliverables are delayed or at risk")
+    if risk_flag:
+        st.warning("⚠️ Critical Rossall milestones at risk")
     else:
-        st.info("✅ Rossall deliverables are on track")
+        st.info("✅ Rossall milestones on track")
 
     # =========================
     # TABLE
@@ -91,70 +90,45 @@ def render_next7days_table(df):
     display_df = df[[
         "Activity ID",
         "Activity Name",
-        "BL1 Finish",
         "Finish",
-        "Δ Change (days)",
         "Float (Days)",
         "% Complete"
     ]].copy()
 
     display_df = display_df.rename(columns={
-        "BL1 Finish": "Baseline Finish",
-        "Finish": "Forecast Finish"
+        "Finish": "Milestone Date"
     })
 
-    # ✅ FORMAT
-    display_df["Baseline Finish"] = pd.to_datetime(display_df["Baseline Finish"]).dt.strftime("%d-%b-%Y")
-    display_df["Forecast Finish"] = pd.to_datetime(display_df["Forecast Finish"]).dt.strftime("%d-%b-%Y")
+    display_df["Milestone Date"] = pd.to_datetime(
+        display_df["Milestone Date"]
+    ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # STATUS (FIXED + DM LOGIC)
+    # STATUS
     # =========================
     def status(row):
 
-        # ✅ Completed
         if row["% Complete"] == 100:
-            if row["Δ Change (days)"] > 0:
-                return "🔴 Completed Late"
             return "✅ Completed"
 
-        # ✅ Critical risk
         if row["Float (Days)"] <= 0:
-            return "🔴 At Risk"
+            return "🔴 Critical"
 
-        # ✅ Delay
-        if row["Δ Change (days)"] > 0:
-            return "🟠 Delayed"
+        if row["Float (Days)"] <= 5:
+            return "🟠 Low Float"
 
-        return "🟢 On Track"
+        return "🟢 Healthy"
 
     display_df["Status"] = display_df.apply(status, axis=1)
 
     # =========================
-    # RISK
-    # =========================
-    def risk(row):
-        if row["% Complete"] < 100 and row["Float (Days)"] <= 0:
-            return "🔴 High Risk"
-        elif row["Δ Change (days)"] > 0:
-            return "🟠 Programme Risk"
-        return "🟢 Low Risk"
-
-    display_df["Risk"] = display_df.apply(risk, axis=1)
-
-    # =========================
     # COLOURS
     # =========================
-    def colour_change(val):
-        if val > 0:
-            return "background-color:#7f1d1d;color:white;font-weight:bold"
-        elif val < 0:
-            return "background-color:#14532d;color:white;font-weight:bold"
-        return "background-color:#374151;color:white"
-
     def colour_float(val):
         if val <= 0:
             return "background-color:#b00020;color:white"
+        elif val <= 5:
+            return "background-color:#ff9800;color:black"
         return ""
 
     def colour_status(val):
@@ -164,17 +138,8 @@ def render_next7days_table(df):
             return "background-color:#ff9800;color:black"
         return "background-color:#14532d;color:white"
 
-    def colour_risk(val):
-        if "🔴" in val:
-            return "background-color:#7f1d1d;color:white"
-        elif "🟠" in val:
-            return "background-color:#ff9800;color:black"
-        return "background-color:#14532d;color:white"
-
     styled = display_df.style \
-        .map(colour_change, subset=["Δ Change (days)"]) \
         .map(colour_float, subset=["Float (Days)"]) \
-        .map(colour_status, subset=["Status"]) \
-        .map(colour_risk, subset=["Risk"])
+        .map(colour_status, subset=["Status"])
 
     st.markdown(styled.to_html(), unsafe_allow_html=True)
