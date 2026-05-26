@@ -1,131 +1,204 @@
 import streamlit as st
-
-from cards.header import render_header
-from cards.next7days_cl32 import render_next7days_table
-from cards.table_card import render_table
-
-# ✅ Milestones
-from cards.milestone_cl32_ferry import render_milestone_table as ferry_ms
-from cards.milestone_cl32_flass import render_milestone_table as flass_ms
-from cards.milestone_cl32_rossall import render_milestone_table as rossall_ms
+import pandas as pd
 
 
 # =========================
-# ✅ DETECT ASSET
+# PREP DATA
 # =========================
-def detect_asset(df):
-    if "Activity ID" not in df.columns:
-        return "Unknown"
+def _prepare(df):
+    df = df.copy()
+    df.columns = df.columns.astype(str).str.strip()
 
-    ids = df["Activity ID"].astype(str)
+    df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    if ids.str.contains("FER-").any():
-        return "Ferry"
-    elif ids.str.contains("FLA").any() or ids.str.contains("FLASS").any():
-        return "Flass"
-    elif ids.str.contains("ROS").any():
-        return "Rossall"
-    else:
-        return "Unknown"
+    for col in ["Finish", "BL1 Finish"]:
+        df[col] = (
+            df[col]
+            .astype(str)
+            .str.replace(r"[A\*]", "", regex=True)
+            .str.strip()
+        )
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    return df
 
 
 # =========================
-# ✅ DASHBOARD
+# ✅ FERRY DELIVERABLES
 # =========================
-def render_dashboard(df31, df32):
-    if df32 is None or df32.empty:
-        st.stop()
+FERRY_DELIVERABLES = {
 
-    asset = detect_asset(df32)
+    "🔥 DESIGN FREEZE – SCOPE LOCKED": ["FER-PD-1010"],
+    "🔥 DESIGN FREEZE – CLIENT APPROVED": ["FER-REV-1030"],
+
+    "Concept Design Submission": ["FER-PD-1000"],
+    "Full Outline Design Submission": ["FER-PD-1020"],
+    "Project Completion": ["FER-PD-1030"],
+
+    "Outline Design Pack Submission": ["FER-REV-1000"],
+    "Detailed Design Submission": ["FER-REV-1020"],
+    "Final Submission": ["FER-REV-1050"],
+
+    "Geotechnical Report (GDR)": ["FER-GEO-1010"],
+    "HAZOP Closeout": ["FER-PRO-1040"],
+
+    "Concept Drawing Issue": ["FER-CSD-1060"],
+    "Pile Design Complete": ["FER-CSD-1070"],
+
+    "Civils Design Complete": [
+        "FER-CIV-1070",
+        "FER-CIV-1110",
+        "FER-CIV-1150"
+    ],
+
+    "Mechanical Design Complete": [
+        "FER-MEC-1030",
+        "FER-MEC-1040",
+        "FER-MEC-1050"
+    ],
+
+    "Mechanical Drawings Issued": [
+        "FER-MEC-1060",
+        "FER-MEC-1110"
+    ],
+
+    "Process Design Complete": [
+        "FER-PRO-1010",
+        "FER-PRO-1000",
+        "FER-PRO-1020"
+    ],
+
+    "EICA Design Complete": [
+        "FER-EICA-1000",
+        "FER-EICA-1040",
+        "FER-EICA-1070"
+    ],
+}
+
+
+# =========================
+# EXTRACT DELIVERABLES
+# =========================
+def extract_milestones(df):
+
+    df = _prepare(df)
+    milestones = []
+
+    for name, activity_ids in FERRY_DELIVERABLES.items():
+
+        filtered = df[
+            df["Activity ID"].str.contains("|".join(activity_ids), na=False)
+        ].copy()
+
+        if filtered.empty:
+            continue
+
+        filtered["Sort Date"] = filtered["Finish"].fillna(filtered["BL1 Finish"])
+        filtered = filtered.sort_values("Sort Date")
+
+        row = filtered.iloc[-1]
+
+        if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
+            delta = int((row["Finish"] - row["BL1 Finish"]).days)
+        else:
+            delta = 0
+
+        milestones.append({
+            "Deliverable": name,
+            "Source Activity": row["Activity Name"],
+            "Baseline Finish (CL32 May)": row["BL1 Finish"],
+            "Forecast Finish": row["Finish"],
+            "Δ (Days)": delta
+        })
+
+    ms_df = pd.DataFrame(milestones)
+
+    if not ms_df.empty:
+        ms_df["Δ (Days)"] = ms_df["Δ (Days)"].fillna(0).astype(int)
+
+    return ms_df
+
+
+# =========================
+# ✅ RENDER TABLE (FINAL)
+# =========================
+def render_milestone_table(df):
+
+    ms_df = extract_milestones(df)
+
+    if ms_df.empty:
+        st.warning("⚠️ No deliverables identified")
+        return
+
+    # ✅ Format dates
+    ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
+        ms_df["Baseline Finish (CL32 May)"]
+    ).dt.strftime("%d-%b-%Y")
+
+    ms_df["Forecast Finish"] = pd.to_datetime(
+        ms_df["Forecast Finish"]
+    ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # ✅ HEADER
+    # ✅ STYLING
     # =========================
-    render_header()
-    st.markdown("<br>", unsafe_allow_html=True)
 
-    # =========================
-    # ✅ DELIVERY STATUS
-    # =========================
-    st.markdown(f"""
-    <div style="
-        background:#fffbeb;
-        padding:15px;
-        border-radius:12px;
-        border-left:5px solid #f59e0b;
-        box-shadow:0 2px 6px rgba(0,0,0,0.08);
-        margin-bottom:15px;
-    ">
+    # Δ column highlight only
+    def colour_delta(val):
+        if val < 0:
+            return "background-color:#fdecea;color:#b91c1c;font-weight:600"
+        elif val > 0:
+            return "background-color:#ecfdf5;color:#047857;font-weight:600"
+        return "color:#374151"
 
-    <div style="font-size:18px;font-weight:700;margin-bottom:2px;">
-        {asset} — Delivery Status (CL32)
-    </div>
+    styled = (
+        ms_df.style
 
-    <div style="font-size:13px;opacity:0.65;margin-bottom:10px;">
-        Clause 32 (CL32) – May Programme
-    </div>
-    """, unsafe_allow_html=True)
+        # ✅ subtle zebra rows
+        .apply(lambda x: [
+            'background-color:#fafafa' if i % 2 == 0 else 'background-color:#ffffff'
+            for i in range(len(x))
+        ], axis=0)
 
-    # ✅ FIXED INDENTATION BLOCK
-    if asset == "Ferry":
-        ferry_ms(df32)
-    elif asset == "Flass":
-        flass_ms(df32)
-    elif asset == "Rossall":
-        rossall_ms(df32)
-    else:
-        st.warning("No deliverable logic defined")
+        # ✅ highlight Δ only
+        .map(colour_delta, subset=["Δ (Days)"])
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        # ✅ header + grid styling
+        .set_table_styles([
 
-    # =========================
-    # ✅ LOOKAHEAD
-    # =========================
-    st.markdown("""
-    <div style="
-        background:#f0fdf4;
-        padding:15px;
-        border-radius:12px;
-        border-left:5px solid #22c55e;
-        box-shadow:0 2px 6px rgba(0,0,0,0.08);
-        margin-bottom:15px;
-    ">
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#065f46"),  # matches header
+                    ("color", "white"),
+                    ("font-weight", "700"),
+                    ("padding", "10px"),
+                    ("border", "1px solid #d1d5db"),
+                    ("font-size", "12px"),
+                    ("text-transform", "uppercase")
+                ]
+            },
 
-    <div style="font-size:18px;font-weight:700;margin-bottom:2px;">
-        7-Day Lookahead (CL32)
-    </div>
+            {
+                "selector": "td",
+                "props": [
+                    ("padding", "8px"),
+                    ("border", "1px solid #e5e7eb"),
+                    ("color", "#111827"),
+                    ("font-size", "13px")
+                ]
+            },
 
-    <div style="font-size:13px;opacity:0.65;margin-bottom:10px;">
-        Activities issuing within the next 7 days
-    </div>
-    """, unsafe_allow_html=True)
+            {
+                "selector": "table",
+                "props": [
+                    ("border-collapse", "collapse"),
+                    ("width", "100%"),
+                    ("border", "1px solid #d1d5db")
+                ]
+            }
+        ])
+    )
 
-    render_next7days_table(df32)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # =========================
-    # ✅ PROGRAMME CONTROLS
-    # =========================
-    st.markdown("""
-    <div style="
-        background:#eff6ff;
-        padding:15px;
-        border-radius:12px;
-        border-left:5px solid #3b82f6;
-        box-shadow:0 2px 6px rgba(0,0,0,0.08);
-        margin-bottom:15px;
-    ">
-
-    <div style="font-size:18px;font-weight:700;margin-bottom:2px;">
-        Programme Controls (CL31 / CL32)
-    </div>
-
-    <div style="font-size:13px;opacity:0.65;margin-bottom:10px;">
-        Comparison of CL32 May Baseline vs Current Forecast Finish
-    </div>
-    """, unsafe_allow_html=True)
-
-    render_table(df31)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    # ✅ Render
+    st.write(styled)
