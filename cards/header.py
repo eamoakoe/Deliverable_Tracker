@@ -25,9 +25,13 @@ def render_header():
         box-shadow: 0 10px 22px rgba(0,0,0,0.18);
     }
 
+    /* ✅ FIXED TITLE (ONE LINE ALWAYS) */
     .title {
         font-size: 22px;
         font-weight: 900;
+        white-space: nowrap;      /* ✅ stops wrapping */
+        overflow: hidden;
+        text-overflow: ellipsis;  /* ✅ prevents overflow breaking */
     }
 
     .subtitle {
@@ -77,14 +81,14 @@ def render_header():
     </style>
     """, unsafe_allow_html=True)
 
-    # ✅ 3-COLUMN LAYOUT
-    col1, col2, col3 = st.columns(3, gap="small")
+    # ✅ ✅ BETTER COLUMN BALANCE
+    col1, col2, col3 = st.columns([2, 1, 1], gap="small")
 
-    # ✅ TITLE
+    # ✅ TITLE CARD
     with col1:
         st.markdown("""
         <div class="header-box">
-            <div class="title">UU DESIGN DELIVERABLE DASHBOARD</div>
+            <div class="title">UU DESIGN PROGRAMME DASHBOARD</div>
             <div class="subtitle">CL31 & CL32 • Delivery Tracking • Forecasting</div>
         </div>
         """, unsafe_allow_html=True)
