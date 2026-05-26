@@ -61,25 +61,6 @@ def render_next7days_table(df):
     df = _get_next7days(df)
 
     # =========================
-    # ✅ GREEN HEADER PANEL
-    # =========================
-    st.markdown("""
-    <div style="background-color:#0f2a1d;padding:20px;border-radius:12px;
-                border-left:6px solid #16a34a;margin-bottom:15px">
-
-    <h2 style="color:#22c55e;margin-bottom:5px;">
-    📊 CLAUSE 32 (CL32) – MAY PROGRAMME
-    </h2>
-
-    <p style="color:#bbf7d0;font-size:14px;margin:0;">
-    Lookahead: Activities Issuing in Next 7 Days<br>
-    Comparison of <b>CL32 May Baseline</b> vs <b>Current Forecast Finish</b>
-    </p>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    # =========================
     # SMART STATUS MESSAGE
     # =========================
     if df.empty:
