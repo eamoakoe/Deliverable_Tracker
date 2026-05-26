@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# PREP DATA (FLASS SPECIFIC)
+# PREP DATA (FLASS SAFE)
 # =========================
 def _prepare(df):
     df = df.copy()
@@ -14,7 +14,9 @@ def _prepare(df):
     df["Finish"] = pd.to_datetime(df.get("Finish"), errors="coerce")
     df["BL Project Finish"] = pd.to_datetime(df.get("BL Project Finish"), errors="coerce")
 
+    # =========================
     # ✅ FLOAT (hours → whole days)
+    # =========================
     if "Total Float(h)" in df.columns:
         float_series = pd.to_numeric(df["Total Float(h)"], errors="coerce")
     else:
@@ -26,19 +28,19 @@ def _prepare(df):
         .apply(lambda x: int(round(x / 24)))
     )
 
+    # =========================
     # ✅ % COMPLETE
+    # =========================
     if "Activity % Complete" in df.columns:
-        pct_series = df["Activity % Complete"]
+        pct_series = pd.to_numeric(df["Activity % Complete"], errors="coerce")
     else:
         pct_series = pd.Series(0, index=df.index)
 
-    df["% Complete"] = (
-        pd.to_numeric(pct_series, errors="coerce")
-        .fillna(0)
-        .astype(int)
-    )
+    df["% Complete"] = pct_series.fillna(0).astype(int)
 
-    # ✅ DELTA (USE PRIMAVERA VARIANCE FIRST)
+    # =========================
+    # ✅ DELTA (USE VARIANCE FIRST)
+    # =========================
     if "Variance - BL Project Finish Date(h)" in df.columns:
         var_series = pd.to_numeric(df["Variance - BL Project Finish Date(h)"], errors="coerce")
 
@@ -57,7 +59,7 @@ def _prepare(df):
 
 
 # =========================
-# NEXT 7 DAYS FILTER
+# FILTER NEXT 7 DAYS
 # =========================
 def _get_next7days(df):
     df = _prepare(df)
@@ -84,7 +86,9 @@ def render_next7days_table(df):
         st.success("✅ No activities issuing in the next 7 days")
         return
 
+    # =========================
     # ✅ FLAGS
+    # =========================
     late_flag = (df["Δ Change (days)"] > 0).any()
     risk_flag = ((df["% Complete"] < 100) & (df["Float (Days)"] <= 0)).any()
 
@@ -121,7 +125,6 @@ def render_next7days_table(df):
     # STATUS
     # =========================
     def status(row):
-
         if row["% Complete"] == 100:
             if row["Δ Change (days)"] > 0:
                 return "🔴 Completed Late"
@@ -147,8 +150,7 @@ def render_next7days_table(df):
             return "🟠 Behind Progress"
         elif row["% Complete"] >= 90 and row["Δ Change (days)"] > 0:
             return "⚠️ Near Complete but Late"
-        else:
-            return "🟢 Low Risk"
+        return "🟢 Low Risk"
 
     display_df["Risk"] = display_df.apply(risk, axis=1)
 
@@ -173,3 +175,27 @@ def render_next7days_table(df):
         elif "🟠" in val:
             return "background-color:#ff9800;color:black"
         elif "✅" in val or "🟢" in val:
+            return "background-color:#14532d;color:white"
+        return ""
+
+    def colour_risk(val):
+        if "🔴" in val:
+            return "background-color:#7f1d1d;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "⚠️" in val:
+            return "background-color:#facc15;color:black"
+        elif "🟢" in val:
+            return "background-color:#14532d;color:white"
+        return ""
+
+    # =========================
+    # STYLE TABLE
+    # =========================
+    styled = display_df.style \
+        .map(colour_change, subset=["Δ Change (days)"]) \
+        .map(colour_float, subset=["Float (Days)"]) \
+        .map(colour_status, subset=["Status"]) \
+        .map(colour_risk, subset=["Risk"])
+
+    st.markdown(styled.to_html(), unsafe_allow_html=True)
