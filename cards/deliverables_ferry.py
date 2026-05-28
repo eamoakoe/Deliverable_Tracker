@@ -3,6 +3,60 @@ import streamlit as st
 
 
 # =========================
+# ✅ SHARED STYLE (SAME AS YOUR OTHER TABLES)
+# =========================
+def format_like_ferries(display_df):
+
+    def colour_change(val):
+        if val < 0:
+            return "background-color:#7f1d1d;color:white;font-weight:bold"
+        elif val > 0:
+            return "background-color:#14532d;color:white;font-weight:bold"
+        return "background-color:#374151;color:white"
+
+    def colour_status(val):
+        if "🔴" in val:
+            return "background-color:#b00020;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "🟢" in val:
+            return "background-color:#1e7e34;color:white"
+        elif "🔵" in val:
+            return "background-color:#2563eb;color:white"
+        elif "⚫" in val:
+            return "background-color:#6b7280;color:white"
+        return ""
+
+    styled = display_df.style.set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#2b3a55"),
+                ("color", "white"),
+                ("font-weight", "600"),
+                ("padding", "10px")
+            ]
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("background-color", "#1c2233"),
+                ("color", "#f1f1f1"),
+                ("padding", "8px")
+            ]
+        }
+    ])
+
+    if "Δ Change vs CL32 May (days)" in display_df.columns:
+        styled = styled.map(colour_change, subset=["Δ Change vs CL32 May (days)"])
+
+    if "Status (CL32 May)" in display_df.columns:
+        styled = styled.map(colour_status, subset=["Status (CL32 May)"])
+
+    return styled
+
+
+# =========================
 # DATE PARSER
 # =========================
 def _to_date(series):
@@ -13,29 +67,21 @@ def _to_date(series):
 # BUILD DATA
 # =========================
 def build_deliverables(cl31, cl32):
+
     cl31 = cl31.copy()
     cl32 = cl32.copy()
 
-    # =========================
-    # NORMALISE
-    # =========================
+    # ✅ Normalise
     cl31["Deliverable"] = cl31["Activity Name"].astype(str).str.strip()
     cl32["Deliverable"] = cl32["Activity Name"].astype(str).str.strip()
 
-    # =========================
-    # DATES
-    # =========================
+    # ✅ Dates
     cl31["CL31 Finish_raw"] = _to_date(cl31["BL Project Finish"])
     cl32["CL32 Finish_raw"] = _to_date(cl32["Finish"])
 
-    # =========================
-    # ORDER (FROM CL31)
-    # =========================
+    # ✅ Preserve order
     order_map = {v: i for i, v in enumerate(cl31["Deliverable"].tolist())}
 
-    # =========================
-    # MERGE
-    # =========================
     df = cl31[["Deliverable", "CL31 Finish_raw"]].merge(
         cl32[["Deliverable", "CL32 Finish_raw"]],
         on="Deliverable",
@@ -53,7 +99,7 @@ def build_deliverables(cl31, cl32):
             return None
         return int((row["CL32 Finish_raw"] - row["CL31 Finish_raw"]).days)
 
-    df["Delta (Days)"] = df.apply(calc_delta, axis=1)
+    df["Δ Change vs CL32 May (days)"] = df.apply(calc_delta, axis=1)
 
     # =========================
     # CHANGE TYPE
@@ -63,15 +109,31 @@ def build_deliverables(cl31, cl32):
             return "NEW"
         if pd.notna(row["CL31 Finish_raw"]) and pd.isna(row["CL32 Finish_raw"]):
             return "REMOVED"
-        if row["Delta (Days)"] is None:
+        if row["Δ Change vs CL32 May (days)"] is None:
             return "UNCHANGED"
-        if row["Delta (Days)"] > 0:
+        if row["Δ Change vs CL32 May (days)"] > 0:
             return "DELAYED"
-        if row["Delta (Days)"] < 0:
+        if row["Δ Change vs CL32 May (days)"] < 0:
             return "EARLY"
         return "UNCHANGED"
 
     df["Change Type"] = df.apply(change_type, axis=1)
+
+    # =========================
+    # STATUS (FOR COLOURING ✅)
+    # =========================
+    def status(row):
+        if row["Change Type"] == "DELAYED":
+            return "🔴 Issue"
+        elif row["Change Type"] == "EARLY":
+            return "🟢 Improved"
+        elif row["Change Type"] == "NEW":
+            return "🔵 New"
+        elif row["Change Type"] == "REMOVED":
+            return "⚫ Removed"
+        return "🟢 Stable"
+
+    df["Status (CL32 May)"] = df.apply(status, axis=1)
 
     # =========================
     # COMMENTS
@@ -79,7 +141,7 @@ def build_deliverables(cl31, cl32):
     comment_map = {
         "NEW": "Added scope in CL32",
         "REMOVED": "Removed from CL32",
-        "DELAYED": "Shifted later, coordination required",
+        "DELAYED": "Shifted later",
         "EARLY": "Pulled forward",
         "UNCHANGED": "Stable"
     }
@@ -99,91 +161,36 @@ def build_deliverables(cl31, cl32):
         "Deliverable",
         "CL31 Finish",
         "CL32 Finish",
-        "Delta (Days)",
+        "Δ Change vs CL32 May (days)",
         "Change Type",
+        "Status (CL32 May)",
         "Status / Comment"
     ]]
 
 
 # =========================
-# RENDER TABLE ✅
+# ✅ RENDER TABLE (FIXED)
 # =========================
 def render_deliverables_table(cl31, cl32):
+
     df = build_deliverables(cl31, cl32)
 
     if df.empty:
         st.warning("⚠️ No deliverable comparison available")
         return
 
-    # =========================
-    # KPI SUMMARY ✅
-    # =========================
-    delayed = (df["Change Type"] == "DELAYED").sum()
-    early = (df["Change Type"] == "EARLY").sum()
-    new = (df["Change Type"] == "NEW").sum()
-    removed = (df["Change Type"] == "REMOVED").sum()
-
+    # ✅ KPI
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🔴 Delayed", delayed)
-    col2.metric("🟢 Early", early)
-    col3.metric("🆕 New", new)
-    col4.metric("❌ Removed", removed)
+    col1.metric("🔴 Delayed", (df["Change Type"] == "DELAYED").sum())
+    col2.metric("🟢 Early", (df["Change Type"] == "EARLY").sum())
+    col3.metric("🔵 New", (df["Change Type"] == "NEW").sum())
+    col4.metric("⚫ Removed", (df["Change Type"] == "REMOVED").sum())
 
-    # =========================
-    # SORT (impact first)
-    # =========================
-    df = df.sort_values("Delta (Days)", ascending=False)
+    # ✅ Sort (worst first)
+    df = df.sort_values("Δ Change vs CL32 May (days)", ascending=False)
 
-    # =========================
-    # COLOUR RULES ✅
-    # =========================
-    def colour_delta(val):
-        if pd.isna(val):
-            return "background-color:#374151;color:white"
-        if val > 0:
-            return "background-color:#7f1d1d;color:white;font-weight:bold"
-        elif val < 0:
-            return "background-color:#14532d;color:white;font-weight:bold"
-        return "background-color:#374151;color:white"
+    # ✅ APPLY SHARED DARK STYLE
+    styled = format_like_ferries(df)
 
-    def colour_change(val):
-        if val == "DELAYED":
-            return "background-color:#b00020;color:white"
-        elif val == "EARLY":
-            return "background-color:#1e7e34;color:white"
-        elif val == "NEW":
-            return "background-color:#2563eb;color:white"
-        elif val == "REMOVED":
-            return "background-color:#6b7280;color:white"
-        return ""
-
-    # =========================
-    # STYLE (MATCH DASHBOARD ✅)
-    # =========================
-    styled = (
-        df.style
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "#2b3a55"),
-                    ("color", "white"),
-                    ("font-weight", "600"),
-                    ("padding", "10px"),
-                    ("text-transform", "uppercase")
-                ]
-            },
-            {
-                "selector": "td",
-                "props": [
-                    ("background-color", "#1c2233"),
-                    ("color", "#f1f1f1"),
-                    ("padding", "8px")
-                ]
-            }
-        ])
-        .map(colour_delta, subset=["Delta (Days)"])
-        .map(colour_change, subset=["Change Type"])
-    )
-
+    # ✅ THIS IS THE FIX (ensures dark theme shows)
     st.markdown(styled.to_html(), unsafe_allow_html=True)
