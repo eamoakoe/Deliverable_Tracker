@@ -10,7 +10,7 @@ def _to_date(series):
 
 
 # =========================
-# BUILD DATA
+# BUILD DATA (UNCHANGED ✅)
 # =========================
 def build_deliverables(cl31, cl32):
 
@@ -39,25 +39,35 @@ def build_deliverables(cl31, cl32):
             return None
         return int((row["CL32 Finish_raw"] - row["CL31 Finish_raw"]).days)
 
-    df["Delta"] = df.apply(calc_delta, axis=1)
+    df["Delta (Days)"] = df.apply(calc_delta, axis=1)
 
     def change_type(row):
         if pd.isna(row["CL31 Finish_raw"]) and pd.notna(row["CL32 Finish_raw"]):
             return "NEW"
         if pd.notna(row["CL31 Finish_raw"]) and pd.isna(row["CL32 Finish_raw"]):
             return "REMOVED"
-        if row["Delta"] is None:
+        if row["Delta (Days)"] is None:
             return "UNCHANGED"
-        if row["Delta"] > 0:
+        if row["Delta (Days)"] > 0:
             return "DELAYED"
-        if row["Delta"] < 0:
+        if row["Delta (Days)"] < 0:
             return "EARLY"
         return "UNCHANGED"
 
     df["Change Type"] = df.apply(change_type, axis=1)
 
+    comment_map = {
+        "NEW": "Added scope in CL32",
+        "REMOVED": "Removed from CL32",
+        "DELAYED": "Shifted later, coordination required",
+        "EARLY": "Pulled forward",
+        "UNCHANGED": "Stable"
+    }
+
+    df["Status / Comment"] = df["Change Type"].map(comment_map)
+
     def fmt(x):
-        return x.strftime("%d-%b-%Y") if pd.notna(x) else "-"
+        return x.strftime("%d-%b-%y") if pd.notna(x) else "-"
 
     df["CL31 Finish"] = df["CL31 Finish_raw"].apply(fmt)
     df["CL32 Finish"] = df["CL32 Finish_raw"].apply(fmt)
@@ -66,13 +76,14 @@ def build_deliverables(cl31, cl32):
         "Deliverable",
         "CL31 Finish",
         "CL32 Finish",
-        "Delta",
+        "Delta (Days)",
         "Change Type",
+        "Status / Comment"
     ]]
 
 
 # =========================
-# ✅ RENDER (FORCED DARK HTML)
+# ✅ RENDER (DARK + SCROLL ✅)
 # =========================
 def render_deliverables_table(cl31, cl32):
 
@@ -82,73 +93,79 @@ def render_deliverables_table(cl31, cl32):
         st.warning("⚠️ No deliverable comparison available")
         return
 
-    # KPI
+    # =========================
+    # KPI (UNCHANGED ✅)
+    # =========================
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🔴 Delayed", (df["Change Type"] == "DELAYED").sum())
     col2.metric("🟢 Early", (df["Change Type"] == "EARLY").sum())
-    col3.metric("🔵 New", (df["Change Type"] == "NEW").sum())
-    col4.metric("⚫ Removed", (df["Change Type"] == "REMOVED").sum())
-
-    df = df.sort_values("Delta", ascending=False)
+    col3.metric("🆕 New", (df["Change Type"] == "NEW").sum())
+    col4.metric("❌ Removed", (df["Change Type"] == "REMOVED").sum())
 
     # =========================
-    # BUILD DARK HTML TABLE ✅
+    # SORT
     # =========================
-    rows = ""
+    df = df.sort_values("Delta (Days)", ascending=False)
 
-    for _, r in df.iterrows():
+    # =========================
+    # STYLE ONLY (NO DATA CHANGE ✅)
+    # =========================
+    def colour_delta(val):
+        if pd.isna(val):
+            return ""
+        if val > 0:
+            return "background-color:#7f1d1d;color:white;font-weight:bold"
+        elif val < 0:
+            return "background-color:#14532d;color:white;font-weight:bold"
+        return "background-color:#374151;color:white"
 
-        # Delta colour
-        if pd.isna(r["Delta"]):
-            delta_style = ""
-            delta_val = "-"
-        else:
-            delta_val = str(r["Delta"])
-            if r["Delta"] > 0:
-                delta_style = "background:#7f1d1d;color:white;font-weight:bold;"
-            elif r["Delta"] < 0:
-                delta_style = "background:#14532d;color:white;font-weight:bold;"
-            else:
-                delta_style = "background:#374151;color:white;"
+    def colour_change(val):
+        if val == "DELAYED":
+            return "background-color:#b00020;color:white"
+        elif val == "EARLY":
+            return "background-color:#1e7e34;color:white"
+        elif val == "NEW":
+            return "background-color:#2563eb;color:white"
+        elif val == "REMOVED":
+            return "background-color:#6b7280;color:white"
+        return ""
 
-        # Change type colour
-        ct = r["Change Type"]
-        if ct == "DELAYED":
-            ct_style = "background:#b00020;color:white;"
-        elif ct == "EARLY":
-            ct_style = "background:#1e7e34;color:white;"
-        elif ct == "NEW":
-            ct_style = "background:#2563eb;color:white;"
-        elif ct == "REMOVED":
-            ct_style = "background:#6b7280;color:white;"
-        else:
-            ct_style = ""
+    styled = (
+        df.style
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#2b3a55"),
+                    ("color", "white"),
+                    ("font-weight", "600"),
+                    ("padding", "10px")
+                ]
+            },
+            {
+                "selector": "td",
+                "props": [
+                    ("background-color", "#1c2233"),
+                    ("color", "#f1f1f1"),
+                    ("padding", "8px")
+                ]
+            }
+        ])
+        .applymap(colour_delta, subset=["Delta (Days)"])
+        .applymap(colour_change, subset=["Change Type"])
+    )
 
-        rows += f"""
-        <tr>
-            <td>{r["Deliverable"]}</td>
-            <td>{r["CL31 Finish"]}</td>
-            <td>{r["CL32 Finish"]}</td>
-            <td style="{delta_style}">{delta_val}</td>
-            <td style="{ct_style}">{ct}</td>
-        </tr>
-        """
-
+    # =========================
+    # ✅ SCROLLABLE DARK TABLE
+    # =========================
     html = f"""
-    <table style="width:100%; border-collapse:collapse; font-family:sans-serif;">
-        <thead>
-            <tr style="background:#2b3a55;color:white;">
-                <th style="padding:10px;text-align:left;">Deliverable</th>
-                <th style="padding:10px;text-align:left;">CL31 Finish</th>
-                <th style="padding:10px;text-align:left;">CL32 Finish</th>
-                <th style="padding:10px;text-align:left;">Δ Days</th>
-                <th style="padding:10px;text-align:left;">Change Type</th>
-            </tr>
-        </thead>
-        <tbody style="background:#1c2233;color:#f1f1f1;">
-            {rows}
-        </tbody>
-    </table>
+    <div style="
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #2b3a55;
+    ">
+        {styled.to_html(index=False)}
+    </div>
     """
 
     st.markdown(html, unsafe_allow_html=True)
