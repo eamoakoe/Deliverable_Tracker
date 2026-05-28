@@ -10,7 +10,7 @@ def _to_date(series):
 
 
 # =========================
-# BUILD DATA (UNCHANGED ✅)
+# BUILD DATA (UNCHANGED)
 # =========================
 def build_deliverables(cl31, cl32):
 
@@ -83,7 +83,7 @@ def build_deliverables(cl31, cl32):
 
 
 # =========================
-# ✅ RENDER (PURE HTML DARK TABLE ✅)
+# ✅ RENDER (SCOPED DARK THEME ✅)
 # =========================
 def render_deliverables_table(cl31, cl32):
 
@@ -103,28 +103,25 @@ def render_deliverables_table(cl31, cl32):
     df = df.sort_values("Delta (Days)", ascending=False)
 
     # =========================
-    # BUILD HTML TABLE ✅
+    # BUILD HTML ROWS ✅
     # =========================
     rows = ""
-
     for _, r in df.iterrows():
 
-        # Delta styling
         delta = r["Delta (Days)"]
         if pd.isna(delta):
-            delta_display = "-"
             delta_style = ""
+            delta_val = "-"
         elif delta > 0:
-            delta_display = delta
             delta_style = "background:#7f1d1d;color:white;font-weight:bold;"
+            delta_val = delta
         elif delta < 0:
-            delta_display = delta
             delta_style = "background:#14532d;color:white;font-weight:bold;"
+            delta_val = delta
         else:
-            delta_display = delta
             delta_style = "background:#374151;color:white;"
+            delta_val = delta
 
-        # Change type styling
         ct = r["Change Type"]
         if ct == "DELAYED":
             ct_style = "background:#b00020;color:white;"
@@ -142,26 +139,59 @@ def render_deliverables_table(cl31, cl32):
             <td>{r["Deliverable"]}</td>
             <td>{r["CL31 Finish"]}</td>
             <td>{r["CL32 Finish"]}</td>
-            <td style="{delta_style}">{delta_display}</td>
+            <td style="{delta_style}">{delta_val}</td>
             <td style="{ct_style}">{ct}</td>
             <td>{r["Status / Comment"]}</td>
         </tr>
         """
 
+    # =========================
+    # ✅ SCOPED CSS (KEY FIX)
+    # =========================
     html = f"""
-    <div style="max-height:500px; overflow-y:auto; border:1px solid #2b3a55;">
-        <table style="width:100%; border-collapse:collapse; font-family:sans-serif;">
+    <style>
+    .dark-table-container {{
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #2b3a55;
+    }}
+
+    .dark-table-container table {{
+        width: 100%;
+        border-collapse: collapse;
+        font-family: sans-serif;
+    }}
+
+    .dark-table-container thead tr {{
+        background-color: #2b3a55;
+        color: white;
+    }}
+
+    .dark-table-container th {{
+        padding: 10px;
+        text-align: left;
+    }}
+
+    .dark-table-container td {{
+        background-color: #1c2233;
+        color: #f1f1f1;
+        padding: 8px;
+    }}
+    </style>
+
+    <div class="dark-table-container">
+        <table>
             <thead>
-                <tr style="background:#2b3a55;color:white;">
-                    <th style="padding:10px;">Deliverable</th>
-                    <th style="padding:10px;">CL31 Finish</th>
-                    <th style="padding:10px;">CL32 Finish</th>
-                    <th style="padding:10px;">Δ Days</th>
-                    <th style="padding:10px;">Change Type</th>
-                    <th style="padding:10px;">Status / Comment</th>
+                <tr>
+                    <th>Deliverable</th>
+                    <th>CL31 Finish</th>
+                    <th>CL32 Finish</th>
+                    <th>Δ Days</th>
+                    <th>Change Type</th>
+                    <th>Status / Comment</th>
                 </tr>
             </thead>
-            <tbody style="background:#1c2233;color:#f1f1f1;">
+            <tbody>
                 {rows}
             </tbody>
         </table>
