@@ -3,6 +3,82 @@ import pandas as pd
 
 
 # =========================
+# SHARED FERRIES STYLE ✅
+# =========================
+def format_like_ferries(display_df):
+
+    def colour_change(val):
+        if val < 0:
+            return "background-color:#7f1d1d;color:white;font-weight:bold"
+        elif val > 0:
+            return "background-color:#14532d;color:white;font-weight:bold"
+        return "background-color:#374151;color:white"
+
+    def colour_float(val):
+        if pd.isna(val):
+            return ""
+        if val <= 0:
+            return "background-color:#b00020;color:white"
+        return ""
+
+    def colour_status(val):
+        if "🔴" in val:
+            return "background-color:#b00020;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "🟡" in val:
+            return "background-color:#facc15;color:black"
+        elif "🟢" in val:
+            return "background-color:#1e7e34;color:white"
+        return ""
+
+    def colour_risk(val):
+        if "🔴" in val:
+            return "background-color:#7f1d1d;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "⚠️" in val:
+            return "background-color:#facc15;color:black"
+        elif "🟢" in val:
+            return "background-color:#14532d;color:white"
+        return ""
+
+    styled = display_df.style.set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#2b3a55"),
+                ("color", "white"),
+                ("font-weight", "600"),
+                ("padding", "10px")
+            ]
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("background-color", "#1c2233"),
+                ("color", "#f1f1f1"),
+                ("padding", "8px")
+            ]
+        }
+    ])
+
+    if "Δ Change vs CL32 May (days)" in display_df.columns:
+        styled = styled.map(colour_change, subset=["Δ Change vs CL32 May (days)"])
+
+    if "Float (Days)" in display_df.columns:
+        styled = styled.map(colour_float, subset=["Float (Days)"])
+
+    if "Status (CL32 May)" in display_df.columns:
+        styled = styled.map(colour_status, subset=["Status (CL32 May)"])
+
+    if "Risk (Forward Look)" in display_df.columns:
+        styled = styled.map(colour_risk, subset=["Risk (Forward Look)"])
+
+    return styled
+
+
+# =========================
 # PREP (ROSSALL CL32)
 # =========================
 def _prepare(df):
@@ -21,7 +97,7 @@ def _prepare(df):
 
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce", dayfirst=True)
 
-    # ✅ FLOAT (already days in your data)
+    # ✅ FLOAT → whole number
     df["Float (Days)"] = (
         pd.to_numeric(df.get("Total Float"), errors="coerce")
         .fillna(0)
@@ -42,13 +118,12 @@ def _get_next7days(df):
     today = pd.Timestamp.today().normalize()
     lookahead = today + pd.Timedelta(days=7)
 
-    # ✅ Date filter
     df = df[
         (df["Finish"] >= today) &
         (df["Finish"] <= lookahead)
     ].copy()
 
-    # ✅ TRUE ROSSALL MILESTONES ONLY
+    # ✅ Rossall milestones only
     df = df[
         df["Activity ID"].astype(str).str.contains("ROS-MIL", na=False)
     ]
@@ -68,7 +143,7 @@ def render_next7days_table(df):
         return
 
     # =========================
-    # RISK FLAG
+    # HEADER MESSAGE
     # =========================
     critical_flag = (df["Float (Days)"] <= 0).any()
 
@@ -78,7 +153,7 @@ def render_next7days_table(df):
         st.info("✅ Rossall milestones are healthy")
 
     # =========================
-    # TABLE
+    # BUILD TABLE
     # =========================
     display_df = df[[
         "Activity ID",
@@ -88,56 +163,46 @@ def render_next7days_table(df):
     ]].copy()
 
     display_df = display_df.rename(columns={
-        "Finish": "Milestone Date"
+        "Finish": "Forecast Finish (CL32 May)"
     })
 
     # ✅ Format date
-    display_df["Milestone Date"] = (
-        pd.to_datetime(display_df["Milestone Date"])
+    display_df["Forecast Finish (CL32 May)"] = (
+        pd.to_datetime(display_df["Forecast Finish (CL32 May)"])
         .dt.strftime("%d-%b-%Y")
     )
 
     # =========================
-    # STATUS (CL32 LOGIC)
+    # STATUS
     # =========================
     def status(row):
-
         if row["Float (Days)"] <= 0:
             return "🔴 Critical"
-
-        if row["Float (Days)"] <= 3:
+        elif row["Float (Days)"] <= 3:
             return "🟠 Tight"
-
-        if row["Float (Days)"] <= 7:
+        elif row["Float (Days)"] <= 7:
             return "🟡 Watch"
-
         return "🟢 Healthy"
 
-    display_df["Status (CL32)"] = display_df.apply(status, axis=1)
+    display_df["Status (CL32 May)"] = display_df.apply(status, axis=1)
 
     # =========================
-    # COLOURING
+    # RISK (MATCH FERRIES STYLE)
     # =========================
-    def colour_float(val):
-        if val <= 0:
-            return "background-color:#b00020;color:white"
-        elif val <= 3:
-            return "background-color:#ff9800;color:black"
-        elif val <= 7:
-            return "background-color:#facc15;color:black"
-        return ""
+    def risk(row):
+        if row["Float (Days)"] <= 0:
+            return "🔴 High Risk"
+        elif row["Float (Days)"] <= 3:
+            return "🟠 Tight Window"
+        elif row["Float (Days)"] <= 7:
+            return "⚠️ Watch"
+        return "🟢 Low Risk"
 
-    def colour_status(val):
-        if "🔴" in val:
-            return "background-color:#b00020;color:white"
-        elif "🟠" in val:
-            return "background-color:#ff9800;color:black"
-        elif "🟡" in val:
-            return "background-color:#facc15;color:black"
-        return "background-color:#14532d;color:white"
+    display_df["Risk (Forward Look)"] = display_df.apply(risk, axis=1)
 
-    styled = display_df.style \
-        .map(colour_float, subset=["Float (Days)"]) \
-        .map(colour_status, subset=["Status (CL32)"])
+    # =========================
+    # APPLY SHARED STYLE ✅
+    # =========================
+    styled = format_like_ferries(display_df)
 
     st.markdown(styled.to_html(), unsafe_allow_html=True)
