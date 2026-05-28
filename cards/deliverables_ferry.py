@@ -83,7 +83,7 @@ def build_deliverables(cl31, cl32):
 
 
 # =========================
-# ✅ RENDER (DARK + SCROLL ✅)
+# ✅ RENDER (PURE HTML DARK TABLE ✅)
 # =========================
 def render_deliverables_table(cl31, cl32):
 
@@ -93,78 +93,78 @@ def render_deliverables_table(cl31, cl32):
         st.warning("⚠️ No deliverable comparison available")
         return
 
-    # =========================
-    # KPI (UNCHANGED ✅)
-    # =========================
+    # KPI
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🔴 Delayed", (df["Change Type"] == "DELAYED").sum())
     col2.metric("🟢 Early", (df["Change Type"] == "EARLY").sum())
     col3.metric("🆕 New", (df["Change Type"] == "NEW").sum())
     col4.metric("❌ Removed", (df["Change Type"] == "REMOVED").sum())
 
-    # =========================
-    # SORT
-    # =========================
     df = df.sort_values("Delta (Days)", ascending=False)
 
     # =========================
-    # STYLE ONLY (NO DATA CHANGE ✅)
+    # BUILD HTML TABLE ✅
     # =========================
-    def colour_delta(val):
-        if pd.isna(val):
-            return ""
-        if val > 0:
-            return "background-color:#7f1d1d;color:white;font-weight:bold"
-        elif val < 0:
-            return "background-color:#14532d;color:white;font-weight:bold"
-        return "background-color:#374151;color:white"
+    rows = ""
 
-    def colour_change(val):
-        if val == "DELAYED":
-            return "background-color:#b00020;color:white"
-        elif val == "EARLY":
-            return "background-color:#1e7e34;color:white"
-        elif val == "NEW":
-            return "background-color:#2563eb;color:white"
-        elif val == "REMOVED":
-            return "background-color:#6b7280;color:white"
-        return ""
+    for _, r in df.iterrows():
 
-    styled = (
-        df.style
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "#2b3a55"),
-                    ("color", "white"),
-                    ("font-weight", "600"),
-                    ("padding", "10px")
-                ]
-            },
-            {
-                "selector": "td",
-                "props": [
-                    ("background-color", "#1c2233"),
-                    ("color", "#f1f1f1"),
-                    ("padding", "8px")
-                ]
-            }
-        ])
-        .applymap(colour_delta, subset=["Delta (Days)"])
-        .applymap(colour_change, subset=["Change Type"])
-    )
+        # Delta styling
+        delta = r["Delta (Days)"]
+        if pd.isna(delta):
+            delta_display = "-"
+            delta_style = ""
+        elif delta > 0:
+            delta_display = delta
+            delta_style = "background:#7f1d1d;color:white;font-weight:bold;"
+        elif delta < 0:
+            delta_display = delta
+            delta_style = "background:#14532d;color:white;font-weight:bold;"
+        else:
+            delta_display = delta
+            delta_style = "background:#374151;color:white;"
 
-    # =========================
-    # ✅ SCROLLABLE DARK TABLE
-    # =========================
+        # Change type styling
+        ct = r["Change Type"]
+        if ct == "DELAYED":
+            ct_style = "background:#b00020;color:white;"
+        elif ct == "EARLY":
+            ct_style = "background:#1e7e34;color:white;"
+        elif ct == "NEW":
+            ct_style = "background:#2563eb;color:white;"
+        elif ct == "REMOVED":
+            ct_style = "background:#6b7280;color:white;"
+        else:
+            ct_style = ""
+
+        rows += f"""
+        <tr>
+            <td>{r["Deliverable"]}</td>
+            <td>{r["CL31 Finish"]}</td>
+            <td>{r["CL32 Finish"]}</td>
+            <td style="{delta_style}">{delta_display}</td>
+            <td style="{ct_style}">{ct}</td>
+            <td>{r["Status / Comment"]}</td>
+        </tr>
+        """
+
     html = f"""
-    <div style="
-        max-height: 500px;
-        overflow-y: auto;
-        border: 1px solid #2b3a55;
-    ">
-        {styled.to_html(index=False)}
+    <div style="max-height:500px; overflow-y:auto; border:1px solid #2b3a55;">
+        <table style="width:100%; border-collapse:collapse; font-family:sans-serif;">
+            <thead>
+                <tr style="background:#2b3a55;color:white;">
+                    <th style="padding:10px;">Deliverable</th>
+                    <th style="padding:10px;">CL31 Finish</th>
+                    <th style="padding:10px;">CL32 Finish</th>
+                    <th style="padding:10px;">Δ Days</th>
+                    <th style="padding:10px;">Change Type</th>
+                    <th style="padding:10px;">Status / Comment</th>
+                </tr>
+            </thead>
+            <tbody style="background:#1c2233;color:#f1f1f1;">
+                {rows}
+            </tbody>
+        </table>
     </div>
     """
 
