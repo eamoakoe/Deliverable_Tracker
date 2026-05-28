@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+
 # =========================
 # PREP DATA
 # =========================
@@ -10,7 +11,7 @@ def _prepare(df):
 
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Clean date fields
+    # ✅ Clean dates
     for col in ["Finish", "BL Project Finish"]:
         if col in df.columns:
             df[col] = (
@@ -21,8 +22,12 @@ def _prepare(df):
             )
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    # ✅ Ensure numeric fields
-    for col in ["Activity % Complete", "Total Float(h)", "Variance - BL Project Finish Date(h)"]:
+    # ✅ Numeric conversions
+    for col in [
+        "Activity % Complete",
+        "Total Float(h)",
+        "Variance - BL Project Finish Date(h)"
+    ]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -53,27 +58,22 @@ FLASS_DELIVERABLES = {
 def get_status(row):
     today = pd.Timestamp.today()
 
-    # ✅ Completed logic
     if row["Progress (%)"] == 100:
-        if row["Δ (Days)"] is not None and row["Δ (Days)"] > 0:
+        if row["Δ (Days)"] and row["Δ (Days)"] > 0:
             return "🔴 Completed Late"
         return "✅ Completed"
 
-    # No forecast
     if pd.isna(row["Forecast Finish"]):
         return "⚠️ No Forecast"
 
-    # Late + not started
     if row["Progress (%)"] == 0 and pd.notna(row["Baseline Finish"]) and today > row["Baseline Finish"]:
         return "🔴 Late / Not Started"
 
-    # Variance logic
-    if row["Δ (Days)"] is not None and row["Δ (Days)"] > 0:
+    if row["Δ (Days)"] and row["Δ (Days)"] > 0:
         return "🔴 Delayed"
     elif row["Float (Days)"] <= 0:
         return "🟠 Critical"
-    else:
-        return "🟢 On Track"
+    return "🟢 On Track"
 
 
 # =========================
@@ -101,7 +101,7 @@ def extract_milestones(df):
 
         row = filtered.iloc[-1]
 
-        # ✅ Variance (WHOLE NUMBER DAYS)
+        # ✅ Delta
         delta = None
         if "Variance - BL Project Finish Date(h)" in df.columns:
             variance_hours = row.get("Variance - BL Project Finish Date(h)")
@@ -110,12 +110,9 @@ def extract_milestones(df):
         elif pd.notna(row[finish_col]) and pd.notna(row[base_col]):
             delta = int((row[finish_col] - row[base_col]).days)
 
-        # ✅ Float (WHOLE NUMBER DAYS)
+        # ✅ Float
         float_days = row.get("Total Float(h)")
-        if pd.notna(float_days):
-            float_days = int(round(float_days / 24))
-        else:
-            float_days = 0
+        float_days = int(round(float_days / 24)) if pd.notna(float_days) else 0
 
         milestones.append({
             "Deliverable": name,
@@ -146,12 +143,51 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables identified")
         return
 
-    # ✅ Format dates
+    # =========================
+    # FORMAT DATES
+    # =========================
     for col in ["Baseline Finish", "Forecast Finish"]:
-        if col in ms_df.columns:
-            ms_df[col] = pd.to_datetime(ms_df[col]).dt.strftime("%d-%b-%Y")
+        ms_df[col] = pd.to_datetime(ms_df[col]).dt.strftime("%d-%b-%Y")
 
-    # ✅ Colour Delta
+    # =========================
+    # KPI SUMMARY
+    # =========================
+    late = ms_df["Status"].str.contains("Late|Delayed", na=False).sum()
+    critical = ms_df["Status"].str.contains("Critical", na=False).sum()
+    on_track = ms_df["Status"].str.contains("Track", na=False).sum()
+    completed = ms_df["Status"].str.contains("Completed", na=False).sum()
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🔴 Late/Delayed", late)
+    col2.metric("🟠 Critical", critical)
+    col3.metric("🟢 On Track", on_track)
+    col4.metric("✅ Completed", completed)
+
+    # =========================
+    # SORT (worst first)
+    # =========================
+    ms_df = ms_df.sort_values(
+        by=["Δ (Days)", "Float (Days)"],
+        ascending=[False, True]
+    )
+
+    # =========================
+    # CLEAN STATUS
+    # =========================
+    def simplify_status(val):
+        if "Late" in val or "Delayed" in val:
+            return "🔴 Issue"
+        elif "Critical" in val:
+            return "🟠 Critical"
+        elif "Completed" in val:
+            return "✅ Completed"
+        return "🟢 On Track"
+
+    ms_df["Status"] = ms_df["Status"].apply(simplify_status)
+
+    # =========================
+    # STYLING (DARK THEME)
+    # =========================
     def colour_delta(val):
         if pd.isna(val):
             return "background-color:#374151;color:white"
@@ -161,22 +197,24 @@ def render_milestone_table(df):
             return "background-color:#14532d;color:white;font-weight:bold"
         return "background-color:#374151;color:white"
 
-    # ✅ Colour Status
     def colour_status(val):
-        if "Delayed" in val or "Late" in val:
-            return "background-color:#7f1d1d;color:white"
-        elif "Critical" in val:
-            return "background-color:#78350f;color:white"
-        elif "Completed" in val:
+        if "🔴" in val:
+            return "background-color:#b00020;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "✅" in val:
+            return "background-color:#1e7e34;color:white"
+        elif "🟢" in val:
             return "background-color:#14532d;color:white"
-        elif "Track" in val:
-            return "background-color:#14532d;color:white"
-        return "background-color:#374151;color:white"
+        return ""
+
+    def colour_float(val):
+        if val <= 0:
+            return "background-color:#b00020;color:white"
+        return ""
 
     styled = (
         ms_df.style
-        .map(colour_delta, subset=["Δ (Days)"])
-        .map(colour_status, subset=["Status"])
         .set_table_styles([
             {
                 "selector": "th",
@@ -185,6 +223,7 @@ def render_milestone_table(df):
                     ("color", "white"),
                     ("font-weight", "600"),
                     ("padding", "10px"),
+                    ("text-transform", "uppercase")
                 ]
             },
             {
@@ -196,6 +235,9 @@ def render_milestone_table(df):
                 ]
             }
         ])
+        .map(colour_delta, subset=["Δ (Days)"])
+        .map(colour_status, subset=["Status"])
+        .map(colour_float, subset=["Float (Days)"])
     )
 
-    st.write(styled)
+    st.markdown(styled.to_html(), unsafe_allow_html=True)
