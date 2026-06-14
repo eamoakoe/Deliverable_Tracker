@@ -4,9 +4,6 @@ import re
 from datetime import datetime
 
 
-# =========================
-# EXISTING (UNCHANGED)
-# =========================
 def get_latest(folder, prefix):
     files = [f for f in os.listdir(folder) if f.startswith(prefix) and f.endswith(".xlsx")]
     files.sort()
@@ -14,7 +11,7 @@ def get_latest(folder, prefix):
 
 
 # =========================
-# NEW: EXTRACT CL32 DATE FROM FILENAME
+# NEW: extract CL32 date
 # =========================
 def extract_cl32_date(file_name):
 
@@ -34,7 +31,7 @@ def extract_cl32_date(file_name):
 
 
 # =========================
-# NEW: LOAD ALL CL32 FILES (SORTED)
+# NEW: load ALL CL32 files
 # =========================
 def load_cl32_series(folder):
 
@@ -55,16 +52,13 @@ def load_cl32_series(folder):
     if not files:
         return []
 
-    # ✅ Sort by real date (NOT alphabetical)
+    # ✅ sort properly (chronological)
     files = sorted(files, key=lambda x: x["date"])
 
-    # ✅ Load into dataframe list
     data = []
 
     for item in files:
-
         path = os.path.join(folder, item["file"])
-
         df = pd.read_excel(path, engine="openpyxl")
 
         data.append({
@@ -77,16 +71,19 @@ def load_cl32_series(folder):
 
 
 # =========================
-# MAIN LOADER (CL31 SAFE ✅)
+# MAIN LOADER
 # =========================
 def load_ferry():
 
     base = "data/Ferry/"
 
-    # ✅ DO NOT TOUCH CL31
+    # ✅ KEEP THIS (used by other pages)
     cl31 = pd.read_excel(get_latest(base, "CL31"), engine="openpyxl")
 
-    # ✅ NEW: CL32 SERIES (not single file anymore)
+    # ✅ KEEP THIS (existing behaviour)
+    cl32 = pd.read_excel(get_latest(base, "CL32"), engine="openpyxl")
+
+    # ✅ ADD THIS (new capability)
     cl32_series = load_cl32_series(base)
 
-    return cl31, cl32_series
+    return cl31, cl32, cl32_series
