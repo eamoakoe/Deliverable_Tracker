@@ -18,10 +18,10 @@ def extract_cl32_date(file_name):
     if not match:
         return None
 
-    month_str, year = match.groups()
-    month_str = month_str[:3].title()
+    month, year = match.groups()
+    month = month[:3].title()
 
-    return datetime.strptime(f"{month_str} {year}", "%b %Y")
+    return datetime.strptime(f"{month} {year}", "%b %Y")
 
 
 # =========================
@@ -71,7 +71,7 @@ FERRY_DELIVERABLES = {
 
 
 # =========================
-# EXTRACT MAPPED DELIVERABLES
+# EXTRACT DELIVERABLES
 # =========================
 def extract_milestones(df):
 
@@ -106,35 +106,21 @@ def detect_new_deliverables(df):
 
     df = _prepare(df)
 
-    # Flatten mapped IDs
     mapped_ids = "|".join(
         [item for sublist in FERRY_DELIVERABLES.values() for item in sublist]
     )
 
-    # Remove known deliverables
     df_unmapped = df[
         ~df["Activity ID"].str.contains(mapped_ids, na=False)
     ].copy()
 
-    # Keywords for likely deliverables
     keywords = ["design", "submission", "report", "drawing", "assessment"]
 
     mask = df_unmapped["Activity Name"].str.lower().str.contains(
         "|".join(keywords), na=False
     )
 
-    new_items = df_unmapped[mask].copy()
-
-    if new_items.empty:
-        return pd.DataFrame()
-
-    new_items = new_items.sort_values("Finish")
-
-    return new_items[[
-        "Activity ID",
-        "Activity Name",
-        "Finish"
-    ]]
+    return df_unmapped[mask][["Activity ID", "Activity Name", "Finish"]]
 
 
 # =========================
@@ -151,12 +137,11 @@ uploaded_files = st.file_uploader(
 )
 
 if not uploaded_files:
-    st.warning("Upload CL32 files to begin")
     st.stop()
 
 
 # =========================
-# PROCESS FILES
+# READ + SORT FILES
 # =========================
 file_data = []
 
@@ -170,14 +155,12 @@ for file in uploaded_files:
     df = pd.read_excel(file)
 
     file_data.append({
-        "name": file.name,
         "date": date,
         "df": df
     })
 
-
-if len(file_data) == 0:
-    st.error("No valid CL32 filenames found (use e.g. CL32-June-2026.xlsx)")
+if not file_data:
+    st.error("Fix file naming e.g. CL32-June-2026.xlsx")
     st.stop()
 
 
@@ -193,7 +176,7 @@ st.markdown(f"**Baseline:** {baseline_label} | **Current:** {current_label}")
 
 
 # =========================
-# BUILD MAIN TABLE
+# BUILD TABLE
 # =========================
 baseline_df = extract_milestones(baseline_file["df"])
 current_df = extract_milestones(current_file["df"])
@@ -217,14 +200,18 @@ table = pd.merge(
 # =========================
 # DELTA + STATUS
 # =========================
-def calculate_delta(row):
-    if pd.isna(row[f"Baseline Finish ({baseline_label})"]) or pd.isna(row[f"Forecast Finish ({current_label})"]):
+def calc_delta(row):
+
+    base = row[f"Baseline Finish ({baseline_label})"]
+    curr = row[f"Forecast Finish ({current_label})"]
+
+    if pd.isna(base) or pd.isna(curr):
         return None
-    return (row[f"Forecast Finish ({current_label})"] -
-            row[f"Baseline Finish ({baseline_label})"]).days
+
+    return (curr - base).days
 
 
-table["Δ vs Baseline (days)"] = table.apply(calculate_delta, axis=1)
+table["Δ vs Baseline (days)"] = table.apply(calc_delta, axis=1)
 
 
 def status(row):
@@ -261,23 +248,20 @@ for col in table.columns:
 
 
 # =========================
-# KPI ROW
+# KPIs
 # =========================
 col1, col2, col3 = st.columns(3)
 
-late = (table["Status"] == "Delayed vs Baseline").sum()
-new = (table["Status"] == "New Deliverable").sum()
-removed = (table["Status"] == "Removed").sum()
-
-col1.metric("Delayed", late)
-col2.metric("New Deliverables", new)
-col3.metric("Removed", removed)
+col1.metric("Delayed", (table["Status"] == "Delayed vs Baseline").sum())
+col2.metric("New", (table["Status"] == "New Deliverable").sum())
+col3.metric("Removed", (table["Status"] == "Removed").sum())
 
 
 # =========================
-# STYLE TABLE
+# STYLING
 # =========================
 def colour_status(val):
+
     if val == "Delayed vs Baseline":
         return "background-color:#b00020;color:white"
     elif val == "Tracking Baseline":
@@ -291,28 +275,14 @@ def colour_status(val):
     return ""
 
 
-styled = (
-    table.style
-    .set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#2b3a55"),
-                ("color", "white"),
-                ("font-weight", "600"),
-                ("padding", "10px"),
-            ]
-        }
-    ])
-    .map(colour_status, subset=["Status"])
-)
+styled = table.style.map(colour_status, subset=["Status"])
 
 st.markdown("### Deliverables vs Baseline (Finish Date Comparison)")
 st.markdown(styled.to_html(), unsafe_allow_html=True)
 
 
 # =========================
-# NEW DELIVERABLES SECTION
+# NEW DELIVERABLES
 # =========================
 st.markdown("### Additional Deliverables Introduced")
 
