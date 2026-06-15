@@ -11,7 +11,7 @@ def _prepare(df):
 
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # Clean dates
+    # Clean Finish dates
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -78,7 +78,7 @@ def extract_milestones(df):
         st.error("❌ SnapshotDate missing")
         return pd.DataFrame(), None, None
 
-    # ✅ Identify baseline & forecast
+    # ✅ Baseline + Forecast selection
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
     forecast_date = dates[-1]
@@ -90,46 +90,36 @@ def extract_milestones(df):
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-    # ✅ Merge including progress
+    # ✅ Merge (progress ONLY from latest CL32)
     merged = pd.merge(
-        baseline_df[["Activity Name", "Finish", "Activity % Complete"]],
+        baseline_df[["Activity Name", "Finish"]],
         forecast_df[["Activity Name", "Finish", "Activity % Complete"]],
         on="Activity Name",
-        how="outer",
-        suffixes=("_Baseline", "_Forecast")
+        how="outer"
     )
 
     # ✅ Clean fields
-    merged["Finish_Baseline"] = pd.to_datetime(merged["Finish_Baseline"], errors="coerce")
-    merged["Finish_Forecast"] = pd.to_datetime(merged["Finish_Forecast"], errors="coerce")
+    merged["Finish_x"] = pd.to_datetime(merged["Finish_x"], errors="coerce")
+    merged["Finish_y"] = pd.to_datetime(merged["Finish_y"], errors="coerce")
 
-    merged["Activity % Complete_Baseline"] = pd.to_numeric(
-        merged["Activity % Complete_Baseline"], errors="coerce"
-    )
-    merged["Activity % Complete_Forecast"] = pd.to_numeric(
-        merged["Activity % Complete_Forecast"], errors="coerce"
+    merged["Activity % Complete"] = pd.to_numeric(
+        merged["Activity % Complete"], errors="coerce"
     )
 
-    # ✅ Calculate deltas
+    # ✅ Delta
     merged["Δ Change (days)"] = (
-        merged["Finish_Forecast"] - merged["Finish_Baseline"]
+        merged["Finish_y"] - merged["Finish_x"]
     ).dt.days
 
-    merged["Δ Progress (%)"] = (
-        merged["Activity % Complete_Forecast"]
-        - merged["Activity % Complete_Baseline"]
-    )
-
-    # ✅ Rename
+    # ✅ Rename columns
     merged = merged.rename(columns={
         "Activity Name": "Deliverable",
-        "Finish_Baseline": "Baseline Finish",
-        "Finish_Forecast": "Forecast Finish",
-        "Activity % Complete_Baseline": "Baseline %",
-        "Activity % Complete_Forecast": "Forecast %"
+        "Finish_x": "Baseline Finish",
+        "Finish_y": "Forecast Finish",
+        "Activity % Complete": "Progress %"
     })
 
-    # Remove empty rows
+    # ✅ Remove empty rows
     merged = merged[
         merged["Baseline Finish"].notna() | merged["Forecast Finish"].notna()
     ]
@@ -148,7 +138,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Dynamic labels
+    # ✅ Dynamic headers
     baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
 
@@ -158,56 +148,42 @@ def render_milestone_table(df):
     })
 
     # ✅ Format dates
-    ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
-    ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
+    ms_df[baseline_label] = pd.to_datetime(
+        ms_df[baseline_label]
+    ).dt.strftime("%d-%b-%Y")
 
-    # ✅ Format %
-    ms_df["Baseline %"] = ms_df["Baseline %"].fillna(0).round(0).astype(int)
-    ms_df["Forecast %"] = ms_df["Forecast %"].fillna(0).round(0).astype(int)
-    ms_df["Δ Progress (%)"] = ms_df["Δ Progress (%)"].fillna(0).round(0).astype(int)
+    ms_df[forecast_label] = pd.to_datetime(
+        ms_df[forecast_label]
+    ).dt.strftime("%d-%b-%Y")
+
+    # ✅ Format Progress (latest only)
+    ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
-    # COMBINED STATUS ✅
+    # STATUS (based on delay only)
     # =========================
     def status(row):
-
         d = row["Δ Change (days)"]
-        p = row["Δ Progress (%)"]
 
-        if pd.isna(d) or pd.isna(p):
+        if pd.isna(d):
             return ""
-
-        if d > 7 and p <= 0:
-            return "🔴 Critical Delay"
-
-        if d > 7 and p > 0:
-            return "🟠 Delayed but Recovering"
-
-        if 0 < d <= 7:
+        elif d > 7:
+            return "🔴 Delayed"
+        elif d > 0:
             return "🟠 Slight Delay"
-
-        if p < 0:
-            return "🔴 Regressing"
-
-        if p == 0:
-            return "🟠 No Progress"
-
-        if d <= 0 and p > 0:
-            return "🟢 On Track"
-
-        return "🟢 Stable"
+        else:
+            return "🟢 On / Ahead"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
     # =========================
-    # KPI ROW
+    # KPI
     # =========================
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
-    col1.metric("🔴 Critical", int((ms_df["Status"] == "🔴 Critical Delay").sum()))
-    col2.metric("🟠 Recovering", int((ms_df["Status"] == "🟠 Delayed but Recovering").sum()))
-    col3.metric("🟢 On Track", int((ms_df["Status"] == "🟢 On Track").sum()))
-    col4.metric("🟠 Stalled", int((ms_df["Status"] == "🟠 No Progress").sum()))
+    col1.metric("🔴 Delayed", int((ms_df["Δ Change (days)"] > 7).sum()))
+    col2.metric("🟠 Slight Delay", int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()))
+    col3.metric("🟢 On / Ahead", int((ms_df["Δ Change (days)"] <= 0).sum()))
 
     # ✅ Sort worst first
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
@@ -224,32 +200,18 @@ def render_milestone_table(df):
             return "background-color:#ff9800;color:black"
         return "background-color:#14532d;color:white"
 
-    def colour_progress(val):
-        if val > 0:
-            return "background-color:#14532d;color:white"
-        elif val < 0:
-            return "background-color:#7f1d1d;color:white"
-        return "background-color:#374151;color:white"
-
     def colour_status(val):
-        if "Critical" in val:
-            return "background-color:#7f1d1d;color:white"
-        elif "Recovering" in val:
-            return "background-color:#ff9800;color:black"
-        elif "Slight" in val:
-            return "background-color:#f59e0b;color:black"
-        elif "No Progress" in val:
-            return "background-color:#6b7280;color:white"
-        elif "On Track" in val:
-            return "background-color:#14532d;color:white"
-        elif "Regressing" in val:
+        if "🔴" in val:
             return "background-color:#b00020;color:white"
+        elif "🟠" in val:
+            return "background-color:#ff9800;color:black"
+        elif "🟢" in val:
+            return "background-color:#1e7e34;color:white"
         return ""
 
     styled = (
         ms_df.style
         .map(colour_delta, subset=["Δ Change (days)"])
-        .map(colour_progress, subset=["Δ Progress (%)"])
         .map(colour_status, subset=["Status"])
     )
 
