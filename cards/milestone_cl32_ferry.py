@@ -1,8 +1,4 @@
-import streamlit as st
-import pandas as pd
-
-
-# =========================
+import streamlit as stimport streamlit as st =========================
 # PREP DATA
 # =========================
 def _prepare(df):
@@ -24,27 +20,44 @@ def _prepare(df):
 
 
 # =========================
-# AUTO DELIVERABLE DETECTION
+# CONTROLLED DELIVERABLE DETECTION ✅
 # =========================
 def is_deliverable(row):
 
-    keywords = [
-        "submission",
-        "completion",
-        "design",
-        "report",
-        "hazop",
-        "issue",
-        "review",
-        "freeze"
-    ]
-
     name = str(row.get("Activity Name", "")).lower()
 
-    keyword_match = any(k in name for k in keywords)
-    milestone_like = row.get("Remaining Duration", 1) == 0
+    # ✅ Include real deliverables
+    include = [
+        "submission",
+        "completion",
+        "report",
+        "hazop",
+        "freeze",
+        "review"   # ✅ added safely
+    ]
 
-    return keyword_match or milestone_like
+    # ✅ Remove engineering / noise tasks
+    exclude = [
+        "design complete",
+        "modelling",
+        "model",
+        "drawing",
+        "build",
+        "setup",
+        "optioneering",
+        "calculation"
+    ]
+
+    # ✅ Must be milestone-like
+    is_milestone = (
+        row.get("Remaining Duration", None) == 0
+        and pd.notna(row.get("Finish", None))
+    )
+
+    include_match = any(k in name for k in include)
+    exclude_match = any(k in name for k in exclude)
+
+    return is_milestone and include_match and not exclude_match
 
 
 # =========================
@@ -54,19 +67,18 @@ def extract_milestones(df):
 
     df = _prepare(df)
 
-    # ✅ Ensure SnapshotDate exists
     if "SnapshotDate" not in df.columns:
-        st.error("❌ SnapshotDate column missing (check file loader)")
+        st.error("❌ SnapshotDate column missing (check loader)")
         return pd.DataFrame(), None, None
 
-    # ✅ Identify baseline & forecast
+    # ✅ Baseline & Forecast selection
     baseline_date = df["SnapshotDate"].min()
     forecast_date = df["SnapshotDate"].max()
 
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-    # ✅ Auto-detect deliverables
+    # ✅ Filter real deliverables only
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
@@ -79,7 +91,6 @@ def extract_milestones(df):
         suffixes=("_Baseline", "_Forecast")
     )
 
-    # ✅ Clean dates
     merged["Finish_Baseline"] = pd.to_datetime(
         merged["Finish_Baseline"], errors="coerce"
     )
@@ -87,17 +98,21 @@ def extract_milestones(df):
         merged["Finish_Forecast"], errors="coerce"
     )
 
-    # ✅ Delta
+    # ✅ Delta calculation
     merged["Δ Change (days)"] = (
         merged["Finish_Forecast"] - merged["Finish_Baseline"]
     ).dt.days
 
-    # ✅ Rename
     merged = merged.rename(columns={
         "Activity Name": "Deliverable",
         "Finish_Baseline": "Baseline Finish",
         "Finish_Forecast": "Forecast Finish"
     })
+
+    # ✅ Remove rows with no usable comparison
+    merged = merged[
+        merged["Baseline Finish"].notna() | merged["Forecast Finish"].notna()
+    ]
 
     return merged, baseline_date, forecast_date
 
@@ -157,12 +172,12 @@ def render_milestone_table(df):
     slight = ((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()
     on_track = (ms_df["Δ Change (days)"] <= 0).sum()
 
-    col1.metric("🔴 Delayed", late)
-    col2.metric("🟠 Slight Delay", slight)
-    col3.metric("🟢 On / Ahead", on_track)
+    col1.metric("🔴 Delayed", int(late))
+    col2.metric("🟠 Slight Delay", int(slight))
+    col3.metric("🟢 On / Ahead", int(on_track))
 
     # =========================
-    # SORT
+    # SORT (worst first)
     # =========================
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
@@ -214,3 +229,6 @@ def render_milestone_table(df):
     )
 
     st.markdown(styled.to_html(), unsafe_allow_html=True)
+import pandas as pd
+
+
