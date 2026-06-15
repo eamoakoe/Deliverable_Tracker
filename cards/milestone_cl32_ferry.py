@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =========================
-# CORE DELIVERABLE IDS ✅
+# CORE DELIVERABLE IDS
 # =========================
 CORE_DELIVERABLE_IDS = [
     "FER-CD-1010",
@@ -32,6 +32,7 @@ def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
+    # Clean ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
     # Clean Finish
@@ -43,8 +44,14 @@ def _prepare(df):
     )
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Clean progress
+    # ✅ Clean % COMPLETE (critical fix)
     if "Activity % Complete" in df.columns:
+        df["Activity % Complete"] = (
+            df["Activity % Complete"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+            .str.strip()
+        )
         df["Activity % Complete"] = pd.to_numeric(
             df["Activity % Complete"], errors="coerce"
         )
@@ -53,7 +60,7 @@ def _prepare(df):
 
 
 # =========================
-# DYNAMIC NEW DELIVERABLES ✅
+# NEW DELIVERABLE DETECTION
 # =========================
 def is_new_deliverable(row):
 
@@ -79,22 +86,20 @@ def is_new_deliverable(row):
 
 
 # =========================
-# FINAL DELIVERABLE FILTER ✅
+# FINAL FILTER
 # =========================
 def is_deliverable(row):
 
     activity_id = str(row.get("Activity ID", "")).strip()
 
-    # ✅ Always include core items
     if activity_id in CORE_DELIVERABLE_IDS:
         return True
 
-    # ✅ Allow new valid deliverables
     return is_new_deliverable(row)
 
 
 # =========================
-# EXTRACT
+# EXTRACT MILESTONES
 # =========================
 def extract_milestones(df):
 
@@ -104,7 +109,11 @@ def extract_milestones(df):
         st.error("❌ SnapshotDate missing")
         return pd.DataFrame(), None, None
 
-    # ✅ Baseline & Forecast
+    # ✅ CRITICAL FIX → remove duplicates per snapshot
+    df = df.sort_values("SnapshotDate")
+    df = df.drop_duplicates(subset=["Activity ID", "SnapshotDate"], keep="last")
+
+    # ✅ Identify baseline / forecast
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
     forecast_date = dates[-1]
@@ -112,24 +121,25 @@ def extract_milestones(df):
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-    # ✅ Filter
+    # ✅ Filter only deliverables
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-    # ✅ Merge (progress = latest only)
+    # ✅ CORRECT MERGE (on Activity ID ONLY ✅)
     merged = pd.merge(
         baseline_df[["Activity ID", "Activity Name", "Finish"]],
         forecast_df[["Activity ID", "Finish", "Activity % Complete"]],
         on="Activity ID",
-        how="outer",
+        how="left",
         suffixes=("_Baseline", "_Forecast")
     )
 
-    # ✅ Clean
+    # ✅ Clean outputs
     merged["Finish_Baseline"] = pd.to_datetime(merged["Finish_Baseline"], errors="coerce")
     merged["Finish_Forecast"] = pd.to_datetime(merged["Finish_Forecast"], errors="coerce")
 
-    merged["Activity % Complete"] = pd.to_numeric(
+    # ✅ Progress from latest ONLY (correct now ✅)
+    merged["Progress %"] = pd.to_numeric(
         merged["Activity % Complete"], errors="coerce"
     )
 
@@ -142,20 +152,14 @@ def extract_milestones(df):
     merged = merged.rename(columns={
         "Activity Name": "Deliverable",
         "Finish_Baseline": "Baseline Finish",
-        "Finish_Forecast": "Forecast Finish",
-        "Activity % Complete": "Progress %"
+        "Finish_Forecast": "Forecast Finish"
     })
-
-    # ✅ Remove empty rows
-    merged = merged[
-        merged["Baseline Finish"].notna() | merged["Forecast Finish"].notna()
-    ]
 
     return merged, baseline_date, forecast_date
 
 
 # =========================
-# RENDER
+# RENDER TABLE
 # =========================
 def render_milestone_table(df):
 
@@ -165,7 +169,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Labels
+    # ✅ Dynamic labels
     baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
 
@@ -178,7 +182,7 @@ def render_milestone_table(df):
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    # ✅ Progress (latest only)
+    # ✅ Final clean progress
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
@@ -207,7 +211,7 @@ def render_milestone_table(df):
     col2.metric("🟠 Slight Delay", int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()))
     col3.metric("🟢 On / Ahead", int((ms_df["Δ Change (days)"] <= 0).sum()))
 
-    # ✅ Sort
+    # ✅ Sort worst first
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
