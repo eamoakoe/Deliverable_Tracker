@@ -9,11 +9,9 @@ def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # ✅ Clean P6 date issues
-    for col in ["Finish", "BL1 Finish"]:
+    for col in ["Finish"]:
         df[col] = (
             df[col]
             .astype(str)
@@ -26,80 +24,82 @@ def _prepare(df):
 
 
 # =========================
-# DELIVERABLE MAP
+# AUTO DELIVERABLE DETECTION
 # =========================
-FERRY_DELIVERABLES = {
+def is_deliverable(row):
 
-    "🔥 DESIGN FREEZE – SCOPE LOCKED": ["FER-PD-1010"],
-    "🔥 DESIGN FREEZE – CLIENT APPROVED": ["FER-REV-1030"],
+    keywords = [
+        "submission",
+        "completion",
+        "design",
+        "report",
+        "hazop",
+        "issue",
+        "review",
+        "freeze"
+    ]
 
-    "Concept Design Submission": ["FER-PD-1000"],
-    "Full Outline Design Submission": ["FER-PD-1020"],
-    "Project Completion": ["FER-PD-1030"],
+    name = str(row.get("Activity Name", "")).lower()
 
-    "Outline Design Pack Submission": ["FER-REV-1000"],
-    "Detailed Design Submission": ["FER-REV-1020"],
-    "Final Submission": ["FER-REV-1050"],
+    keyword_match = any(k in name for k in keywords)
+    milestone_like = row.get("Remaining Duration", 1) == 0
 
-    "Geotechnical Report (GDR)": ["FER-GEO-1010"],
-    "HAZOP Closeout": ["FER-PRO-1040"],
-
-    "Concept Drawing Issue": ["FER-CSD-1060"],
-    "Pile Design Complete": ["FER-CSD-1070"],
-
-    "Civils Design Complete": ["FER-CIV-1070", "FER-CIV-1110", "FER-CIV-1150"],
-
-    "Mechanical Design Complete": ["FER-MEC-1030", "FER-MEC-1040", "FER-MEC-1050"],
-    "Mechanical Drawings Issued": ["FER-MEC-1060", "FER-MEC-1110"],
-
-    "Process Design Complete": ["FER-PRO-1010", "FER-PRO-1000", "FER-PRO-1020"],
-
-    "EICA Design Complete": ["FER-EICA-1000", "FER-EICA-1040", "FER-EICA-1070"],
-}
+    return keyword_match or milestone_like
 
 
 # =========================
-# EXTRACT DELIVERABLES
+# EXTRACT MILESTONES
 # =========================
 def extract_milestones(df):
 
     df = _prepare(df)
 
-    milestones = []
+    # ✅ Ensure SnapshotDate exists
+    if "SnapshotDate" not in df.columns:
+        st.error("❌ SnapshotDate column missing (check file loader)")
+        return pd.DataFrame(), None, None
 
-    for name, activity_ids in FERRY_DELIVERABLES.items():
+    # ✅ Identify baseline & forecast
+    baseline_date = df["SnapshotDate"].min()
+    forecast_date = df["SnapshotDate"].max()
 
-        filtered = df[
-            df["Activity ID"].str.contains("|".join(activity_ids), na=False)
-        ].copy()
+    baseline_df = df[df["SnapshotDate"] == baseline_date]
+    forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-        if filtered.empty:
-            continue
+    # ✅ Auto-detect deliverables
+    baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
+    forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-        filtered["Sort Date"] = filtered["Finish"].fillna(filtered["BL1 Finish"])
-        filtered = filtered.sort_values("Sort Date")
+    # ✅ Merge baseline vs forecast
+    merged = pd.merge(
+        baseline_df[["Activity Name", "Finish"]],
+        forecast_df[["Activity Name", "Finish"]],
+        on="Activity Name",
+        how="outer",
+        suffixes=("_Baseline", "_Forecast")
+    )
 
-        row = filtered.iloc[-1]
+    # ✅ Clean dates
+    merged["Finish_Baseline"] = pd.to_datetime(
+        merged["Finish_Baseline"], errors="coerce"
+    )
+    merged["Finish_Forecast"] = pd.to_datetime(
+        merged["Finish_Forecast"], errors="coerce"
+    )
 
-        if pd.notna(row["Finish"]) and pd.notna(row["BL1 Finish"]):
-            delta = int((row["Finish"] - row["BL1 Finish"]).days)
-        else:
-            delta = 0
+    # ✅ Delta
+    merged["Δ Change (days)"] = (
+        merged["Finish_Forecast"] - merged["Finish_Baseline"]
+    ).dt.days
 
-        milestones.append({
-            "Deliverable": name,
-            "Source Activity": row["Activity Name"],
-            "Baseline Finish (CL32 May)": row["BL1 Finish"],
-            "Forecast Finish (CL32 May)": row["Finish"],
-            "Δ Change (days)": delta
-        })
+    # ✅ Rename
+    merged = merged.rename(columns={
+        "Activity Name": "Deliverable",
+        "Finish_Baseline": "Baseline Finish",
+        "Finish_Forecast": "Forecast Finish"
+    })
 
-    ms_df = pd.DataFrame(milestones)
-
-    if not ms_df.empty:
-        ms_df["Δ Change (days)"] = ms_df["Δ Change (days)"].fillna(0).astype(int)
-
-    return ms_df
+    return merged, baseline_date, forecast_date
 
 
 # =========================
@@ -107,32 +107,44 @@ def extract_milestones(df):
 # =========================
 def render_milestone_table(df):
 
-    ms_df = extract_milestones(df)
+    ms_df, baseline_date, forecast_date = extract_milestones(df)
 
     if ms_df.empty:
-        st.warning("⚠️ No deliverables identified - check Activity ID mapping")
+        st.warning("⚠️ No deliverables identified")
         return
 
-    # =========================
-    # FORMAT DATES
-    # =========================
-    ms_df["Baseline Finish (CL32 May)"] = pd.to_datetime(
-        ms_df["Baseline Finish (CL32 May)"]
+    # ✅ Dynamic headers
+    baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
+    forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
+
+    ms_df = ms_df.rename(columns={
+        "Baseline Finish": baseline_label,
+        "Forecast Finish": forecast_label
+    })
+
+    # ✅ Format dates
+    ms_df[baseline_label] = pd.to_datetime(
+        ms_df[baseline_label]
     ).dt.strftime("%d-%b-%Y")
 
-    ms_df["Forecast Finish (CL32 May)"] = pd.to_datetime(
-        ms_df["Forecast Finish (CL32 May)"]
+    ms_df[forecast_label] = pd.to_datetime(
+        ms_df[forecast_label]
     ).dt.strftime("%d-%b-%Y")
 
     # =========================
-    # STATUS (DELIVERABLE LOGIC)
+    # STATUS
     # =========================
     def status(row):
-        if row["Δ Change (days)"] < 0:
-            return "🔴 Late"
-        elif row["Δ Change (days)"] > 0:
-            return "🟢 Ahead"
-        return "🟠 On Time"
+        delta = row["Δ Change (days)"]
+
+        if pd.isna(delta):
+            return ""
+        elif delta > 7:
+            return "🔴 Delayed"
+        elif delta > 0:
+            return "🟠 Slight Delay"
+        else:
+            return "🟢 On / Ahead"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
@@ -141,28 +153,30 @@ def render_milestone_table(df):
     # =========================
     col1, col2, col3 = st.columns(3)
 
-    late = (ms_df["Δ Change (days)"] < 0).sum()
-    on_time = (ms_df["Δ Change (days)"] == 0).sum()
-    ahead = (ms_df["Δ Change (days)"] > 0).sum()
+    late = (ms_df["Δ Change (days)"] > 7).sum()
+    slight = ((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()
+    on_track = (ms_df["Δ Change (days)"] <= 0).sum()
 
-    col1.metric("🔴 Late", late)
-    col2.metric("🟠 On Time", on_time)
-    col3.metric("🟢 Ahead", ahead)
-
-    # =========================
-    # SORT (worst first)
-    # =========================
-    ms_df = ms_df.sort_values("Δ Change (days)")
+    col1.metric("🔴 Delayed", late)
+    col2.metric("🟠 Slight Delay", slight)
+    col3.metric("🟢 On / Ahead", on_track)
 
     # =========================
-    # STYLING (DARK + CLEAN ✅)
+    # SORT
+    # =========================
+    ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
+
+    # =========================
+    # STYLING
     # =========================
     def colour_delta(val):
-        if val < 0:
+        if pd.isna(val):
+            return ""
+        if val > 7:
             return "background-color:#7f1d1d;color:white;font-weight:bold"
         elif val > 0:
-            return "background-color:#14532d;color:white;font-weight:bold"
-        return "background-color:#374151;color:white"
+            return "background-color:#ff9800;color:black;font-weight:bold"
+        return "background-color:#14532d;color:white"
 
     def colour_status(val):
         if "🔴" in val:
