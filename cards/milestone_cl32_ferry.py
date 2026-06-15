@@ -3,6 +3,29 @@ import pandas as pd
 
 
 # =========================
+# CORE DELIVERABLE IDS ✅
+# =========================
+CORE_DELIVERABLE_IDS = [
+    "FER-CD-1010",
+
+    "FER-PD-1000",
+    "FER-PD-1010",
+    "FER-PD-1020",
+    "FER-PD-1030",
+
+    "FER-REV-1000",
+    "FER-REV-1010",
+    "FER-REV-1020",
+    "FER-REV-1030",
+    "FER-REV-1040",
+    "FER-REV-1050",
+
+    "FER-GEO-1010",
+    "FER-GEO-1020",
+]
+
+
+# =========================
 # PREP DATA
 # =========================
 def _prepare(df):
@@ -11,7 +34,7 @@ def _prepare(df):
 
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # Clean Finish dates
+    # Clean Finish
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -30,45 +53,48 @@ def _prepare(df):
 
 
 # =========================
-# DELIVERABLE FILTER
+# DYNAMIC NEW DELIVERABLES ✅
 # =========================
-def is_deliverable(row):
+def is_new_deliverable(row):
 
+    activity_id = str(row.get("Activity ID", "")).strip()
     name = str(row.get("Activity Name", "")).lower()
 
-    include = [
-        "submission",
-        "completion",
-        "report",
-        "hazop",
-        "freeze",
-        "review"
-    ]
+    valid_prefixes = ["FER-PD", "FER-REV", "FER-GEO", "FER-CD"]
 
-    exclude = [
-        "design complete",
-        "modelling",
-        "model",
-        "drawing",
-        "build",
-        "setup",
-        "optioneering",
-        "calculation"
-    ]
+    prefix_match = any(activity_id.startswith(p) for p in valid_prefixes)
+
+    keyword_match = any(k in name for k in [
+        "submission",
+        "review",
+        "completion"
+    ])
 
     is_milestone = (
         row.get("Remaining Duration", None) == 0
         and pd.notna(row.get("Finish", None))
     )
 
-    include_match = any(k in name for k in include)
-    exclude_match = any(k in name for k in exclude)
-
-    return is_milestone and include_match and not exclude_match
+    return prefix_match and keyword_match and is_milestone
 
 
 # =========================
-# EXTRACT MILESTONES
+# FINAL DELIVERABLE FILTER ✅
+# =========================
+def is_deliverable(row):
+
+    activity_id = str(row.get("Activity ID", "")).strip()
+
+    # ✅ Always include core items
+    if activity_id in CORE_DELIVERABLE_IDS:
+        return True
+
+    # ✅ Allow new valid deliverables
+    return is_new_deliverable(row)
+
+
+# =========================
+# EXTRACT
 # =========================
 def extract_milestones(df):
 
@@ -78,7 +104,7 @@ def extract_milestones(df):
         st.error("❌ SnapshotDate missing")
         return pd.DataFrame(), None, None
 
-    # ✅ Baseline + Forecast selection
+    # ✅ Baseline & Forecast
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
     forecast_date = dates[-1]
@@ -86,21 +112,22 @@ def extract_milestones(df):
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-    # ✅ Filter deliverables
+    # ✅ Filter
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-    # ✅ Merge (progress ONLY from latest CL32)
+    # ✅ Merge (progress = latest only)
     merged = pd.merge(
-        baseline_df[["Activity Name", "Finish"]],
-        forecast_df[["Activity Name", "Finish", "Activity % Complete"]],
-        on="Activity Name",
-        how="outer"
+        baseline_df[["Activity ID", "Activity Name", "Finish"]],
+        forecast_df[["Activity ID", "Finish", "Activity % Complete"]],
+        on="Activity ID",
+        how="outer",
+        suffixes=("_Baseline", "_Forecast")
     )
 
-    # ✅ Clean fields
-    merged["Finish_x"] = pd.to_datetime(merged["Finish_x"], errors="coerce")
-    merged["Finish_y"] = pd.to_datetime(merged["Finish_y"], errors="coerce")
+    # ✅ Clean
+    merged["Finish_Baseline"] = pd.to_datetime(merged["Finish_Baseline"], errors="coerce")
+    merged["Finish_Forecast"] = pd.to_datetime(merged["Finish_Forecast"], errors="coerce")
 
     merged["Activity % Complete"] = pd.to_numeric(
         merged["Activity % Complete"], errors="coerce"
@@ -108,14 +135,14 @@ def extract_milestones(df):
 
     # ✅ Delta
     merged["Δ Change (days)"] = (
-        merged["Finish_y"] - merged["Finish_x"]
+        merged["Finish_Forecast"] - merged["Finish_Baseline"]
     ).dt.days
 
-    # ✅ Rename columns
+    # ✅ Rename
     merged = merged.rename(columns={
         "Activity Name": "Deliverable",
-        "Finish_x": "Baseline Finish",
-        "Finish_y": "Forecast Finish",
+        "Finish_Baseline": "Baseline Finish",
+        "Finish_Forecast": "Forecast Finish",
         "Activity % Complete": "Progress %"
     })
 
@@ -128,7 +155,7 @@ def extract_milestones(df):
 
 
 # =========================
-# RENDER TABLE
+# RENDER
 # =========================
 def render_milestone_table(df):
 
@@ -138,7 +165,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Dynamic headers
+    # ✅ Labels
     baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
 
@@ -148,19 +175,14 @@ def render_milestone_table(df):
     })
 
     # ✅ Format dates
-    ms_df[baseline_label] = pd.to_datetime(
-        ms_df[baseline_label]
-    ).dt.strftime("%d-%b-%Y")
+    ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
+    ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    ms_df[forecast_label] = pd.to_datetime(
-        ms_df[forecast_label]
-    ).dt.strftime("%d-%b-%Y")
-
-    # ✅ Format Progress (latest only)
+    # ✅ Progress (latest only)
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
-    # STATUS (based on delay only)
+    # STATUS
     # =========================
     def status(row):
         d = row["Δ Change (days)"]
@@ -185,7 +207,7 @@ def render_milestone_table(df):
     col2.metric("🟠 Slight Delay", int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()))
     col3.metric("🟢 On / Ahead", int((ms_df["Δ Change (days)"] <= 0).sum()))
 
-    # ✅ Sort worst first
+    # ✅ Sort
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
