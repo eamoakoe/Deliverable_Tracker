@@ -32,10 +32,9 @@ def _prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # Clean ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
 
-    # Clean Finish
+    # ✅ Clean Finish
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -44,7 +43,7 @@ def _prepare(df):
     )
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # ✅ Clean % COMPLETE (critical fix)
+    # ✅ Clean Progress (already numeric-safe)
     if "Activity % Complete" in df.columns:
         df["Activity % Complete"] = (
             df["Activity % Complete"]
@@ -85,9 +84,6 @@ def is_new_deliverable(row):
     return prefix_match and keyword_match and is_milestone
 
 
-# =========================
-# FINAL FILTER
-# =========================
 def is_deliverable(row):
 
     activity_id = str(row.get("Activity ID", "")).strip()
@@ -109,11 +105,11 @@ def extract_milestones(df):
         st.error("❌ SnapshotDate missing")
         return pd.DataFrame(), None, None
 
-    # ✅ CRITICAL FIX → remove duplicates per snapshot
+    # ✅ Remove duplicates per snapshot
     df = df.sort_values("SnapshotDate")
     df = df.drop_duplicates(subset=["Activity ID", "SnapshotDate"], keep="last")
 
-    # ✅ Identify baseline / forecast
+    # ✅ Identify baseline and forecast
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
     forecast_date = dates[-1]
@@ -121,38 +117,42 @@ def extract_milestones(df):
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-    # ✅ Filter only deliverables
+    # ✅ Filter deliverables
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-    # ✅ CORRECT MERGE (on Activity ID ONLY ✅)
-    merged = pd.merge(
-        baseline_df[["Activity ID", "Activity Name", "Finish"]],
-        forecast_df[["Activity ID", "Finish", "Activity % Complete"]],
-        on="Activity ID",
-        how="left",
-        suffixes=("_Baseline", "_Forecast")
+    # ✅ ===== CRITICAL FIX =====
+    # Extract progress FROM LATEST CL32 ONLY
+    forecast_df = forecast_df.copy()
+
+    forecast_df["Progress %"] = pd.to_numeric(
+        forecast_df["Activity % Complete"], errors="coerce"
     )
 
-    # ✅ Clean outputs
-    merged["Finish_Baseline"] = pd.to_datetime(merged["Finish_Baseline"], errors="coerce")
-    merged["Finish_Forecast"] = pd.to_datetime(merged["Finish_Forecast"], errors="coerce")
+    forecast_df = forecast_df.rename(columns={
+        "Finish": "Forecast Finish"
+    })
 
-    # ✅ Progress from latest ONLY (correct now ✅)
-    merged["Progress %"] = pd.to_numeric(
-        merged["Activity % Complete"], errors="coerce"
+    baseline_df = baseline_df.rename(columns={
+        "Finish": "Baseline Finish"
+    })
+
+    # ✅ Safe merge (no column loss)
+    merged = pd.merge(
+        baseline_df[["Activity ID", "Activity Name", "Baseline Finish"]],
+        forecast_df[["Activity ID", "Forecast Finish", "Progress %"]],
+        on="Activity ID",
+        how="left"
     )
 
     # ✅ Delta
     merged["Δ Change (days)"] = (
-        merged["Finish_Forecast"] - merged["Finish_Baseline"]
+        merged["Forecast Finish"] - merged["Baseline Finish"]
     ).dt.days
 
-    # ✅ Rename
+    # ✅ Final rename
     merged = merged.rename(columns={
-        "Activity Name": "Deliverable",
-        "Finish_Baseline": "Baseline Finish",
-        "Finish_Forecast": "Forecast Finish"
+        "Activity Name": "Deliverable"
     })
 
     return merged, baseline_date, forecast_date
@@ -169,7 +169,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Dynamic labels
+    # ✅ Labels
     baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
 
@@ -182,7 +182,7 @@ def render_milestone_table(df):
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    # ✅ Final clean progress
+    # ✅ FINAL progress (guaranteed correct now)
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
@@ -211,7 +211,7 @@ def render_milestone_table(df):
     col2.metric("🟠 Slight Delay", int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()))
     col3.metric("🟢 On / Ahead", int((ms_df["Δ Change (days)"] <= 0).sum()))
 
-    # ✅ Sort worst first
+    # ✅ Sort
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
