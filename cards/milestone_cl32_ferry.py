@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 
+from pie_card_ferry import render_pie_ferry  # ✅ same folder import
+
 
 # =========================
 # DELIVERABLE NAMES
@@ -172,6 +174,10 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
+    # ✅ ✅ ✅ PIE ABOVE TABLE
+    st.markdown("### 📊 Delivery Status (Current)")
+    render_pie_ferry(df, st)
+
     baseline_label = f"Forecast Finish ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast Finish ({forecast_date.strftime('%b %Y')})"
 
@@ -180,45 +186,36 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ Fix duplicate columns
     ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
 
-    # ✅ Format dates
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    # ✅ FIX NA VALUES (CRITICAL 🔴)
+    # ✅ FIX NA VALUES
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).astype(int)
     ms_df["Δ Change (days)"] = ms_df["Δ Change (days)"].fillna(0).astype(int)
 
     # =========================
-    # ✅ STATUS
+    # STATUS
     # =========================
     def status(row):
-        d = row["Δ Change (days)"]
-        progress = row["Progress %"]
-
-        if progress >= 100:
+        if row["Progress %"] >= 100:
             return "🟢 Completed"
-        elif d > 0:
+        elif row["Δ Change (days)"] > 0:
             return "🔴 Slipped"
         else:
             return "🟡 On Track"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
-    # =========================
-    # SORT
-    # =========================
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
-    # ✅ STYLING (GRID LINES ✅)
+    # TABLE STYLE (GRID)
     # =========================
     styled = (
         ms_df.style
         .set_table_styles([
-
             {
                 "selector": "thead th",
                 "props": [
@@ -229,7 +226,6 @@ def render_milestone_table(df):
                     ("padding", "6px"),
                 ]
             },
-
             {
                 "selector": "tbody td",
                 "props": [
@@ -239,31 +235,13 @@ def render_milestone_table(df):
                     ("padding", "6px"),
                 ]
             },
-
             {
                 "selector": "tbody tr:nth-child(even) td",
                 "props": [
                     ("background-color", "#1e293b"),
                 ]
             }
-
         ])
     )
 
-    # =========================
-    # CARD
-    # =========================
-    card = """
-    <div style="
-        background-color:#0b3d5c;
-        padding:20px;
-        border-radius:15px;
-        box-shadow:0px 4px 12px rgba(0,0,0,0.3);
-        margin-top:15px;
-    ">
-    <h3 style="color:white;">📊 Deliverables Performance CL32</h3>
-    """
-
-    st.markdown(card, unsafe_allow_html=True)
     st.markdown(styled.to_html(), unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
