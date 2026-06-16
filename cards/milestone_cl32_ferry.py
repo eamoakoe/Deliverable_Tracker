@@ -108,10 +108,6 @@ def _prepare(df):
         df["Activity % Complete"], errors="coerce"
     )
 
-    # ✅ Ensure Comments exists (ONLY ADDITION)
-    if "Comments" not in df.columns:
-        df["Comments"] = ""
-
     return df
 
 
@@ -145,14 +141,13 @@ def extract_milestones(df):
 
     forecast_df = forecast_df.copy()
     forecast_df["Progress %"] = forecast_df["Activity % Complete"]
-    forecast_df["Comments"] = forecast_df["Comments"].fillna("").astype(str)
 
     baseline_df = baseline_df.rename(columns={"Finish": "Baseline Finish"})
     forecast_df = forecast_df.rename(columns={"Finish": "Forecast Finish"})
 
     merged = pd.merge(
         baseline_df[["Activity ID", "Activity Name", "Baseline Finish"]],
-        forecast_df[["Activity ID", "Forecast Finish", "Progress %", "Comments"]],
+        forecast_df[["Activity ID", "Forecast Finish", "Progress %"]],
         on="Activity ID",
         how="left"
     )
@@ -177,6 +172,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
+    # ✅ Clear labels
     baseline_label = f"Forecast Finish ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast Finish ({forecast_date.strftime('%b %Y')})"
 
@@ -185,14 +181,13 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ FIX DUPLICATE COLUMN ERROR (CRITICAL)
-    ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
-
+    # ✅ Format
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
+    # ✅ STATUS
     def status(row):
         d = row["Δ Change (days)"]
         if pd.isna(d):
@@ -206,17 +201,11 @@ def render_milestone_table(df):
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
+    # ✅ Sort
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
-    # ✅ Ensure Comments is last column (ONLY ADDITION)
-    cols = list(ms_df.columns)
-    if "Comments" in cols:
-        cols.remove("Comments")
-        cols.append("Comments")
-        ms_df = ms_df[cols]
-
     # =========================
-    # STYLING
+    # STYLING (DARK TABLE)
     # =========================
     styled = (
         ms_df.style
@@ -245,6 +234,9 @@ def render_milestone_table(df):
         ])
     )
 
+    # =========================
+    # CARD WRAPPER ✅
+    # =========================
     card = """
     <div style="
         background-color:#0b3d5c;
