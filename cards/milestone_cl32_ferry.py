@@ -181,7 +181,7 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ FIX duplicate column issue
+    # ✅ fix duplicate column issue
     ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
 
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
@@ -206,17 +206,18 @@ def render_milestone_table(df):
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
     # =========================
-    # ✅ PIE CHART (SOLID)
+    # ✅ PIE CHART (FINAL)
     # =========================
     completed = int((ms_df["Progress %"] == 100).sum())
-    delayed = int((ms_df["Δ Change (days)"] > 7).sum())
-    slight = int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum())
+    delayed = int((ms_df["Δ Change (days)"] > 0).sum())
     on_track = int((ms_df["Δ Change (days)"] <= 0).sum())
+
+    # remove completed from on-track
     on_track = max(on_track - completed, 0)
 
-    labels = ["Delayed", "Slight Delay", "On Track", "Completed"]
-    values = [delayed, slight, on_track, completed]
-    colors = ["#b00020", "#ff9800", "#1e7e34", "#4caf50"]
+    labels = ["Delayed", "On Track", "Completed"]
+    values = [delayed, on_track, completed]
+    colors = ["#b00020", "#f2c94c", "#1e7e34"]
 
     labels_clean, values_clean, colors_clean = [], [], []
 
@@ -226,7 +227,7 @@ def render_milestone_table(df):
             values_clean.append(v)
             colors_clean.append(c)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(3.5, 3.5))
 
     ax.pie(
         values_clean,
@@ -237,7 +238,7 @@ def render_milestone_table(df):
         wedgeprops={"edgecolor": "white", "linewidth": 2}
     )
 
-    ax.set_title("Programme Status Overview")
+    ax.set_title("Programme Status", fontsize=12)
 
     st.pyplot(fig)
 
