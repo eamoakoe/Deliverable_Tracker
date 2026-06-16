@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 # =========================
@@ -162,7 +163,7 @@ def extract_milestones(df):
 
 
 # =========================
-# RENDER (DARK CARD)
+# RENDER
 # =========================
 def render_milestone_table(df):
 
@@ -172,7 +173,6 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Clear labels
     baseline_label = f"Forecast Finish ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast Finish ({forecast_date.strftime('%b %Y')})"
 
@@ -181,13 +181,17 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ Format
+    # ✅ FIX duplicate column issue
+    ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
+
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
-    # ✅ STATUS
+    # =========================
+    # STATUS
+    # =========================
     def status(row):
         d = row["Δ Change (days)"]
         if pd.isna(d):
@@ -201,12 +205,47 @@ def render_milestone_table(df):
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
-    # ✅ Sort
-    ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
+    # =========================
+    # ✅ PIE CHART (SOLID)
+    # =========================
+    completed = int((ms_df["Progress %"] == 100).sum())
+    delayed = int((ms_df["Δ Change (days)"] > 7).sum())
+    slight = int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum())
+    on_track = int((ms_df["Δ Change (days)"] <= 0).sum())
+    on_track = max(on_track - completed, 0)
+
+    labels = ["Delayed", "Slight Delay", "On Track", "Completed"]
+    values = [delayed, slight, on_track, completed]
+    colors = ["#b00020", "#ff9800", "#1e7e34", "#4caf50"]
+
+    labels_clean, values_clean, colors_clean = [], [], []
+
+    for l, v, c in zip(labels, values, colors):
+        if v > 0:
+            labels_clean.append(l)
+            values_clean.append(v)
+            colors_clean.append(c)
+
+    fig, ax = plt.subplots()
+
+    ax.pie(
+        values_clean,
+        labels=labels_clean,
+        colors=colors_clean,
+        startangle=90,
+        autopct="%1.0f%%",
+        wedgeprops={"edgecolor": "white", "linewidth": 2}
+    )
+
+    ax.set_title("Programme Status Overview")
+
+    st.pyplot(fig)
 
     # =========================
-    # STYLING (DARK TABLE)
+    # TABLE
     # =========================
+    ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
+
     styled = (
         ms_df.style
         .set_table_styles([
@@ -234,9 +273,6 @@ def render_milestone_table(df):
         ])
     )
 
-    # =========================
-    # CARD WRAPPER ✅
-    # =========================
     card = """
     <div style="
         background-color:#0b3d5c;
