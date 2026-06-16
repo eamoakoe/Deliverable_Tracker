@@ -2,14 +2,109 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
+# =========================
+# ✅ SAME DELIVERABLE LIST (MATCHES MILESTONE FILE)
+# =========================
+DELIVERABLE_NAMES = [
+    "Outfall pipework optioneering",
+    "Model Existing Tank",
+    "Build Terrain Model",
+    "BIM Set Up",
+    "Civil Modelling - Tank",
+    "Civil Modelling - Other Assets",
+    "Mechanical Modelling",
+    "Network modelling",
+    "BIM Execution Plan",
+
+    "Determine entry/exit levels",
+    "Review GI",
+    "Estimate conservative thickness",
+    "Assessment to determine",
+    "Check on shaft sizing",
+    "Produce 2D conept drawing",
+    "MGE Detailed Pile Design",
+    "CAT2 check on MGE pile design",
+
+    "Manhole Schedule",
+    "Outline drawing",
+    "GA & Long sections",
+    "Valve chamber standard detail",
+    "Kiosk slab proposal",
+    "Shaft penetrations",
+
+    "Line sizing",
+    "Mechanical calculations",
+    "Pump system curve",
+
+    "Basis of Design",
+    "Outline P&IDs",
+    "Control Philosophy",
+
+    "Submission of Outline Design Pack",
+    "Client Review of Design Pack",
+
+    "Review available GI",
+    "GDR",
+    "Client Review of GDR",
+
+    "Benching design",
+    "Cover slab design",
+    "Pipe entry/exit",
+    "Pipe exit details",
+
+    "MH01 & MH02 Design",
+    "Pipework from MHs to Shaft",
+
+    "Valve Chamber",
+    "Flowmeter Chamber",
+    "Civils Pipe Design",
+
+    "Tank kiosk enclosure foundation",
+
+    "Assessment of exit details",
+    "Routing & Design",
+
+    "HAZOP",
+    "DSEAR Assessment",
+    "Material Take Off",
+
+    "User Requirement Specification",
+    "Load Schedule",
+    "Power Supply Assessment",
+    "Network Architecture Drawing",
+    "Telemetry Schedules",
+
+    "Single Line Diagrams",
+    "Block Cable Diagrams",
+
+    "Final Submission"
+]
+
+
+def is_deliverable(name):
+    name = str(name).lower()
+    return any(d.lower() in name for d in DELIVERABLE_NAMES)
+
+
+# =========================
+# MAIN FUNCTION
+# =========================
 def render_pie_ferry(df, container):
 
     # ---------- CLEAN ----------
     df = df.copy()
     df.columns = df.columns.str.strip()
 
+    # ✅ Latest CL32 ONLY
+    if "SnapshotDate" in df.columns:
+        latest_date = df["SnapshotDate"].max()
+        df = df[df["SnapshotDate"] == latest_date]
+
+    # ✅ Deliverables ONLY (same as milestone table ✅)
+    df = df[df["Activity Name"].apply(is_deliverable)]
+
+    # ✅ Clean Activity ID
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
-    df = df[df["Activity ID"].str.startswith("FER-")]
 
     # ✅ Clean % Complete
     df["Activity % Complete"] = (
@@ -23,81 +118,80 @@ def render_pie_ferry(df, container):
         df["Activity % Complete"], errors="coerce"
     ).fillna(0)
 
-    # ✅ Clean Finish date (FORCE DATE ONLY)
+    # ✅ Clean Finish
     df["Finish"] = pd.to_datetime(
         df["Finish"], dayfirst=True, errors="coerce"
     ).dt.normalize()
 
     today = pd.Timestamp.today().normalize()
 
-    # ✅ DEBUG COUNTS
-    print("Total rows:", len(df))
-    print("Missing Finish:", df["Finish"].isna().sum())
-
-    # ---------- CLASSIFICATION ----------
+    # =========================
+    # STATUS CLASSIFICATION
+    # =========================
     def classify(row):
-
-        progress = row["Activity % Complete"]
-        finish = row["Finish"]
-
-        # ✅ 1. Completed ALWAYS wins
-        if progress >= 100:
+        if row["Activity % Complete"] >= 100:
             return "Completed"
-
-        # ✅ 2. If no finish → treat as On Track (your rule)
-        if pd.isna(finish):
+        if pd.isna(row["Finish"]):
             return "On Track"
-
-        # ✅ 3. Delayed
-        if finish < today:
+        if row["Finish"] < today:
             return "Delayed"
-
-        # ✅ 4. Future = On Track
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
-    # ---------- DEBUG BREAKDOWN ----------
-    print("\nStatus Breakdown:")
-    print(df["Status"].value_counts())
-
-    print("\nSample Problem Rows:")
-    print(df[
-        (df["Status"] == "Delayed")
-    ][["Activity ID", "Finish", "Activity % Complete"]].head(10))
-
-    # ---------- SUMMARY ----------
-    summary = df["Status"].value_counts()
-    summary = summary.reindex(
-        ["On Track", "Delayed", "Completed"]
-    ).fillna(0)
-
-    summary = summary[summary > 0]
-
-    # ---------- COLORS ----------
-    colors = {
-        "On Track": "#FFD700",
-        "Delayed": "#FF3B30",
-        "Completed": "#00C853"
+    # =========================
+    # SPLIT BY DISCIPLINE ✅
+    # =========================
+    groups = {
+        "Civils": df[df["Activity ID"].str.startswith("FER-CIV")],
+        "Mechanical": df[df["Activity ID"].str.startswith("FER-MEC")],
+        "EICA": df[df["Activity ID"].str.startswith("FER-EICA")]
     }
 
-    # ---------- PIE ----------
-    fig = go.Figure(
-        data=[go.Pie(
-            labels=summary.index,
-            values=summary.values,
-            textinfo="label+value+percent",
-            marker=dict(
-                colors=[colors[k] for k in summary.index]
-            ),
-            sort=False
-        )]
-    )
+    # ✅ Colours (your requirement)
+    colors = {
+        "On Track": "#FFD700",   # 🟡 Gold
+        "Delayed": "#FF3B30",    # 🔴 Red
+        "Completed": "#00C853"   # 🟢 Green
+    }
 
-    fig.update_layout(
-        height=240,
-        margin=dict(l=5, r=5, t=5, b=5),
-        showlegend=False
-    )
+    # ✅ Layout
+    cols = container.columns(3)
 
-    container.plotly_chart(fig, width="stretch")
+    for i, (title, data) in enumerate(groups.items()):
+
+        summary = data["Status"].value_counts()
+
+        summary = summary.reindex(
+            ["On Track", "Delayed", "Completed"]
+        ).fillna(0)
+
+        summary = summary[summary > 0]
+
+        if summary.sum() == 0:
+            continue
+
+        # =========================
+        # PIE
+        # =========================
+        fig = go.Figure(
+            data=[go.Pie(
+                labels=summary.index,
+                values=summary.values,
+                textinfo="percent",
+                marker=dict(
+                    colors=[colors[k] for k in summary.index]
+                ),
+                sort=False,
+                hole=0  # ✅ SOLID PIE
+            )]
+        )
+
+        fig.update_layout(
+            height=200,
+            margin=dict(l=5, r=5, t=25, b=5),
+            title=title,
+            showlegend=False
+        )
+
+        cols[i].plotly_chart(fig, width="stretch")
