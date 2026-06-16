@@ -194,14 +194,19 @@ def render_milestone_table(df):
     # =========================
     def status(row):
         d = row["Δ Change (days)"]
-        if pd.isna(d):
-            return ""
-        elif d > 7:
-            return "🔴 Slipped"
+        progress = row["Progress %"]
+
+        # ✅ Completed first
+        if progress >= 100:
+            return "🟢 Completed"
+
+        # ✅ Slipped
         elif d > 0:
-            return "🟠 Minor Slip"
+            return "🔴 Slipped"
+
+        # ✅ Otherwise
         else:
-            return "🟢 On Track"
+            return "🟡 On Track"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
@@ -213,27 +218,38 @@ def render_milestone_table(df):
     styled = (
         ms_df.style
         .set_table_styles([
+
+            # ✅ Header (with borders)
             {
-                "selector": "thead",
+                "selector": "thead th",
                 "props": [
                     ("background-color", "#082f49"),
                     ("color", "white"),
                     ("font-weight", "bold"),
+                    ("border", "1px solid #334155"),
+                    ("padding", "6px"),
+                    ("text-align", "center"),
                 ]
             },
+
+            # ✅ All cells (THIS adds vertical + horizontal lines)
             {
-                "selector": "tbody tr",
+                "selector": "tbody td",
                 "props": [
                     ("background-color", "#0f172a"),
                     ("color", "white"),
+                    ("border", "1px solid #334155"),
+                    ("padding", "6px"),
                 ]
             },
+
+            # ✅ Alternating rows
             {
-                "selector": "tbody tr:nth-child(even)",
+                "selector": "tbody tr:nth-child(even) td",
                 "props": [
                     ("background-color", "#1e293b"),
                 ]
-            },
+            }
         ])
     )
 
