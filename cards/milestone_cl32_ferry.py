@@ -172,7 +172,7 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Clear labels
+    # ✅ Labels
     baseline_label = f"Forecast Finish ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast Finish ({forecast_date.strftime('%b %Y')})"
 
@@ -180,6 +180,9 @@ def render_milestone_table(df):
         "Baseline Finish": baseline_label,
         "Forecast Finish": forecast_label
     })
+
+    # ✅ FIX (ONLY ADDITION)
+    ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
 
     # ✅ Format
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
@@ -205,7 +208,7 @@ def render_milestone_table(df):
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
-    # STYLING (DARK TABLE)
+    # STYLING
     # =========================
     styled = (
         ms_df.style
@@ -234,9 +237,6 @@ def render_milestone_table(df):
         ])
     )
 
-    # =========================
-    # CARD WRAPPER ✅
-    # =========================
     card = """
     <div style="
         background-color:#0b3d5c;
