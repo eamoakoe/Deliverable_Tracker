@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# ✅ SAME DELIVERABLE LIST
+# ✅ DELIVERABLE LIST (MATCHES MILESTONE)
 # =========================
 DELIVERABLE_NAMES = [
     "Outfall pipework optioneering",
@@ -72,7 +72,7 @@ def is_deliverable(name):
 
 
 # =========================
-# MAIN
+# ✅ MAIN FUNCTION
 # =========================
 def render_pie_ferry(df, container):
 
@@ -84,7 +84,6 @@ def render_pie_ferry(df, container):
 
     # ✅ Clean fields
     df["Activity ID"] = df["Activity ID"].astype(str).str.strip()
-
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
     df["Activity % Complete"] = (
@@ -99,7 +98,7 @@ def render_pie_ferry(df, container):
     ).fillna(0)
 
     # =========================
-    # ✅ CALCULATE Δ CHANGE (IDENTICAL TO MILESTONE)
+    # ✅ Δ CHANGE (MATCH MILESTONE)
     # =========================
     dates = sorted(df["SnapshotDate"].dropna().unique())
 
@@ -114,13 +113,10 @@ def render_pie_ferry(df, container):
 
         latest_df = df[df["SnapshotDate"] == latest_date][
             ["Activity ID", "Finish", "Activity % Complete"]
-        ].rename(columns={
-            "Finish": "Latest Finish"
-        })
+        ].rename(columns={"Finish": "Latest Finish"})
 
         merged = pd.merge(base_df, latest_df, on="Activity ID", how="inner")
 
-        # ✅ Δ Change
         merged["Δ Change (days)"] = (
             merged["Latest Finish"] - merged["Base Finish"]
         ).dt.days
@@ -131,7 +127,7 @@ def render_pie_ferry(df, container):
         df["Δ Change (days)"] = 0
 
     # =========================
-    # ✅ STATUS (MATCHES TABLE EXACTLY)
+    # ✅ STATUS (SAME AS TABLE)
     # =========================
     def classify(row):
 
@@ -149,7 +145,6 @@ def render_pie_ferry(df, container):
     # ✅ SUMMARY
     # =========================
     summary = df["Status"].value_counts()
-
     summary = summary.reindex(
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
@@ -158,31 +153,9 @@ def render_pie_ferry(df, container):
 
     # ✅ Colours
     colors = {
-        "On Track": "#FFD700",
-        "Delayed": "#FF3B30",
-        "Completed": "#00C853"
+        "On Track": "#FFD700",   # 🟡 Gold
+        "Delayed": "#FF3B30",    # 🔴 Red
+        "Completed": "#00C853"   # 🟢 Green
     }
 
     # =========================
-    # ✅ PIE
-    # =========================
-    fig = go.Figure(
-        data=[go.Pie(
-            labels=summary.index,
-            values=summary.values,
-            textinfo="label+value+percent",
-            marker=dict(
-                colors=[colors[k] for k in summary.index]
-            ),
-            sort=False,
-            hole=0
-        )]
-    )
-
-    fig.update_layout(
-        height=260,
-        margin=dict(l=5, r=5, t=5, b=5),
-        showlegend=False
-    )
-
-    container.plotly_chart(fig, width="stretch")
