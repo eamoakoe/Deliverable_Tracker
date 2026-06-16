@@ -156,7 +156,7 @@ def extract_milestones(df):
     })
 
     baseline_df = baseline_df.rename(columns={
-        "Baeline Finish": "Baseline Finish"
+        "Baseline Finish": "Baseline Finish"
     })
 
     # ✅ Merge
