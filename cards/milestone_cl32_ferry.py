@@ -197,11 +197,11 @@ def render_milestone_table(df):
         if pd.isna(d):
             return ""
         elif d > 7:
-            return "🔴 Behind Schedule"
+            return "🔴 Slipped"
         elif d > 0:
             return "🟠 Minor Slip"
         else:
-            return "🟢 On Schedule"
+            return "🟢 On Track"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
