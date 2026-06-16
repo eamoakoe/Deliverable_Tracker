@@ -154,7 +154,7 @@ def extract_milestones(df):
 
     merged["Δ Change (days)"] = (
         merged["Forecast Finish"] - merged["Baseline Finish"]
-    ).dt.days.round(0).astype("Int64")
+    ).dt.days.round(0)
 
     merged = merged.rename(columns={"Activity Name": "Deliverable"})
 
@@ -180,17 +180,19 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ Fix duplicate column issue
+    # ✅ Fix duplicate columns
     ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
 
     # ✅ Format dates
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
+    # ✅ FIX NA VALUES (CRITICAL 🔴)
+    ms_df["Progress %"] = ms_df["Progress %"].fillna(0).astype(int)
+    ms_df["Δ Change (days)"] = ms_df["Δ Change (days)"].fillna(0).astype(int)
 
     # =========================
-    # ✅ STATUS (FINAL CLEAN LOGIC)
+    # ✅ STATUS
     # =========================
     def status(row):
         d = row["Δ Change (days)"]
@@ -206,11 +208,13 @@ def render_milestone_table(df):
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
     # =========================
-    # TABLE
+    # SORT
     # =========================
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
-    # ✅ GRID STYLE (VERTICAL + HORIZONTAL LINES)
+    # =========================
+    # ✅ STYLING (GRID LINES ✅)
+    # =========================
     styled = (
         ms_df.style
         .set_table_styles([
@@ -223,7 +227,6 @@ def render_milestone_table(df):
                     ("font-weight", "bold"),
                     ("border", "1px solid #334155"),
                     ("padding", "6px"),
-                    ("text-align", "center")
                 ]
             },
 
@@ -247,6 +250,9 @@ def render_milestone_table(df):
         ])
     )
 
+    # =========================
+    # CARD
+    # =========================
     card = """
     <div style="
         background-color:#0b3d5c;
