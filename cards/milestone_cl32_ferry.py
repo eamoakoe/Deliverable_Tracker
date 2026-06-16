@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import numpy as np   # ✅ REQUIRED for working day calc
 
 
 # =========================
@@ -80,11 +81,11 @@ def render_milestone_table(df):
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Latest CL32 only
+    # ✅ Latest snapshot
     latest_date = df["SnapshotDate"].max()
     df_latest = df[df["SnapshotDate"] == latest_date]
 
-    # ✅ Deliverables only
+    # ✅ Deliverables
     df_latest = df_latest[df_latest["Activity Name"].apply(is_deliverable)]
 
     # ✅ Clean fields
@@ -103,16 +104,12 @@ def render_milestone_table(df):
     today = pd.Timestamp.today().normalize()
 
     # =========================
-    # ✅ DELIVERY PIE LOGIC
+    # ✅ DELIVERY PIE
     # =========================
     def classify(row):
-
-        progress = row["Activity % Complete"]
-        finish = row["Finish"]
-
-        if progress >= 100:
+        if row["Activity % Complete"] >= 100:
             return "Completed"
-        elif pd.notna(finish) and today > finish:
+        elif pd.notna(row["Finish"]) and today > row["Finish"]:
             return "Delayed"
         else:
             return "On Track"
@@ -129,9 +126,6 @@ def render_milestone_table(df):
         "Completed": "#00C853"
     }
 
-    # =========================
-    # ✅ SHOW PIE
-    # =========================
     st.markdown("### 📊 Delivery Status (Current)")
 
     fig = go.Figure(
@@ -145,25 +139,19 @@ def render_milestone_table(df):
         )]
     )
 
-    fig.update_layout(
-        height=250,
-        margin=dict(l=5, r=5, t=5, b=5),
-        showlegend=False
-    )
-
+    fig.update_layout(height=250, margin=dict(l=5, r=5, t=5, b=5), showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # ✅ PROGRAMME TABLE (EXISTING LOGIC)
+    # ✅ PROGRAMME TABLE
     # =========================
 
-    # prepare baseline vs latest
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
+    forecast_date = dates[-1]
 
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     baseline_df = baseline_df[baseline_df["Activity Name"].apply(is_deliverable)]
-
     baseline_df = baseline_df.rename(columns={"Finish": "Baseline Finish"})
 
     merged = pd.merge(
@@ -179,16 +167,16 @@ def render_milestone_table(df):
         "Activity % Complete": "Progress %"
     })
 
-    merged["Δ Change (days)"] = (
-        pd.to_datetime(merged["Forecast Finish"]) -
-        pd.to_datetime(merged["Baseline Finish"])
-    ).dt.days
+    # ✅ ✅ ✅ WORKING DAYS Δ CHANGE
+    start_dates = pd.to_datetime(merged["Baseline Finish"]).values.astype("datetime64[D]")
+    end_dates = pd.to_datetime(merged["Forecast Finish"]).values.astype("datetime64[D]")
 
-    # ✅ FIX NA
+    merged["Δ Change (days)"] = np.busday_count(start_dates, end_dates)
+
     merged["Δ Change (days)"] = merged["Δ Change (days)"].fillna(0).astype(int)
     merged["Progress %"] = merged["Progress %"].fillna(0).astype(int)
 
-    # ✅ STATUS (programme)
+    # ✅ STATUS
     def programme_status(row):
         if row["Progress %"] >= 100:
             return "🟢 Completed"
@@ -201,8 +189,26 @@ def render_milestone_table(df):
 
     merged = merged.sort_values("Δ Change (days)", ascending=False)
 
+    # ✅ ✅ ✅ FORMAT DATES PROPERLY
+    merged["Baseline Finish"] = pd.to_datetime(
+        merged["Baseline Finish"]
+    ).dt.strftime("%d %B %Y")
+
+    merged["Forecast Finish"] = pd.to_datetime(
+        merged["Forecast Finish"]
+    ).dt.strftime("%d %B %Y")
+
+    # ✅ ✅ ✅ COLUMN HEADERS
+    baseline_label = f"Finish Date (CL32 {baseline_date.strftime('%B %Y')})"
+    forecast_label = f"Finish Date (CL32 {forecast_date.strftime('%B %Y')})"
+
+    merged = merged.rename(columns={
+        "Baseline Finish": baseline_label,
+        "Forecast Finish": forecast_label
+    })
+
     # =========================
-    # ✅ TABLE STYLE
+    # ✅ TABLE
     # =========================
     styled = (
         merged.style
