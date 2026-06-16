@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 # =========================
@@ -181,9 +180,10 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ fix duplicate column issue
+    # ✅ Fix duplicate column issue
     ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
 
+    # ✅ Format dates
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
@@ -204,43 +204,6 @@ def render_milestone_table(df):
             return "🟢 On / Ahead"
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
-
-    # =========================
-    # ✅ PIE CHART (FINAL)
-    # =========================
-    completed = int((ms_df["Progress %"] == 100).sum())
-    delayed = int((ms_df["Δ Change (days)"] > 0).sum())
-    on_track = int((ms_df["Δ Change (days)"] <= 0).sum())
-
-    # remove completed from on-track
-    on_track = max(on_track - completed, 0)
-
-    labels = ["Delayed", "On Track", "Completed"]
-    values = [delayed, on_track, completed]
-    colors = ["#b00020", "#f2c94c", "#1e7e34"]
-
-    labels_clean, values_clean, colors_clean = [], [], []
-
-    for l, v, c in zip(labels, values, colors):
-        if v > 0:
-            labels_clean.append(l)
-            values_clean.append(v)
-            colors_clean.append(c)
-
-    fig, ax = plt.subplots(figsize=(3.5, 3.5))
-
-    ax.pie(
-        values_clean,
-        labels=labels_clean,
-        colors=colors_clean,
-        startangle=90,
-        autopct="%1.0f%%",
-        wedgeprops={"edgecolor": "white", "linewidth": 2}
-    )
-
-    ax.set_title("Programme Status", fontsize=12)
-
-    st.pyplot(fig)
 
     # =========================
     # TABLE
