@@ -108,7 +108,7 @@ def _prepare(df):
         df["Activity % Complete"], errors="coerce"
     )
 
-    # ✅ ADD ONLY THIS (safe)
+    # ✅ Ensure Comments exists (ONLY ADDITION)
     if "Comments" not in df.columns:
         df["Comments"] = ""
 
@@ -145,8 +145,6 @@ def extract_milestones(df):
 
     forecast_df = forecast_df.copy()
     forecast_df["Progress %"] = forecast_df["Activity % Complete"]
-
-    # ✅ ADD ONLY THIS
     forecast_df["Comments"] = forecast_df["Comments"].fillna("").astype(str)
 
     baseline_df = baseline_df.rename(columns={"Finish": "Baseline Finish"})
@@ -163,15 +161,13 @@ def extract_milestones(df):
         merged["Forecast Finish"] - merged["Baseline Finish"]
     ).dt.days.round(0).astype("Int64")
 
-    merged = merged.rename(columns={
-        "Activity Name": "Deliverable"
-    })
+    merged = merged.rename(columns={"Activity Name": "Deliverable"})
 
     return merged, baseline_date, forecast_date
 
 
 # =========================
-# RENDER
+# RENDER (DARK CARD)
 # =========================
 def render_milestone_table(df):
 
@@ -189,17 +185,13 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
+    # ✅ FIX DUPLICATE COLUMN ERROR (CRITICAL)
+    ms_df = ms_df.loc[:, ~ms_df.columns.duplicated()]
+
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
-
-    # ✅ Ensure Comments is last (only structural move)
-    cols = list(ms_df.columns)
-    if "Comments" in cols:
-        cols.remove("Comments")
-        cols.append("Comments")
-    ms_df = ms_df[cols]
 
     def status(row):
         d = row["Δ Change (days)"]
@@ -216,6 +208,16 @@ def render_milestone_table(df):
 
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
+    # ✅ Ensure Comments is last column (ONLY ADDITION)
+    cols = list(ms_df.columns)
+    if "Comments" in cols:
+        cols.remove("Comments")
+        cols.append("Comments")
+        ms_df = ms_df[cols]
+
+    # =========================
+    # STYLING
+    # =========================
     styled = (
         ms_df.style
         .set_table_styles([
