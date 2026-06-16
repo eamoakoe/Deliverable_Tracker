@@ -245,7 +245,7 @@ def render_milestone_table(df):
         box-shadow:0px 4px 12px rgba(0,0,0,0.3);
         margin-top:15px;
     ">
-    <h3 style="color:white;">📊 Deliverables Performance</h3>
+    <h3 style="color:white;">📊 Deliverables Performance CL32</h3>
     """
 
     st.markdown(card, unsafe_allow_html=True)
