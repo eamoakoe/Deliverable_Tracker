@@ -3,25 +3,81 @@ import pandas as pd
 
 
 # =========================
-# CORE DELIVERABLE IDS
+# DELIVERABLE NAMES (YOUR LIST ✅)
 # =========================
-CORE_DELIVERABLE_IDS = [
-    "FER-CD-1010",
+DELIVERABLE_NAMES = [
+    "Outfall pipework optioneering",
+    "Model Existing Tank",
+    "Build Terrain Model",
+    "BIM Set Up",
+    "Civil Modelling - Tank",
+    "Civil Modelling - Other Assets",
+    "Mechanical Modelling",
+    "Network modelling",
+    "BIM Execution Plan",
 
-    "FER-PD-1000",
-    "FER-PD-1010",
-    "FER-PD-1020",
-    "FER-PD-1030",
+    "Determine entry/exit levels",
+    "Review GI and determine preferred pile toe-in depth",
+    "Estimate conservative thickness",
+    "Assessment to determine internal sizing",
+    "Check on shaft sizing",
+    "Produce 2D conept drawing",
+    "MGE Detailed Pile Design",
+    "CAT2 check on MGE pile design",
 
-    "FER-REV-1000",
-    "FER-REV-1010",
-    "FER-REV-1020",
-    "FER-REV-1030",
-    "FER-REV-1040",
-    "FER-REV-1050",
+    "Manhole Schedule",
+    "Outline drawing for connection",
+    "GA & Long sections",
+    "Valve chamber standard detail",
+    "Kiosk slab proposal",
+    "Shaft penetrations",
 
-    "FER-GEO-1010",
-    "FER-GEO-1020",
+    "Line sizing",
+    "Mechanical calculations",
+    "Pump system curve",
+
+    "Basis of Design",
+    "Outline P&IDs",
+    "Control Philosophy",
+
+    "Submission of Outline Design Pack",
+    "Client Review of Design Pack",
+
+    "Review available GI",
+    "GDR",
+    "Client Review of GDR",
+
+    "Benching design",
+    "Cover slab design",
+    "Pipe entry/exit from MHs",
+    "Pipe exit details",
+
+    "MH01 & MH02 Design",
+    "Pipework from MHs to Shaft",
+
+    "Valve Chamber",
+    "Flowmeter Chamber",
+    "Civils Pipe Design",
+
+    "Tank kiosk enclosure foundation",
+
+    "Assessment of exit details",
+    "Routing & Design",
+
+    "HAZOP",
+    "DSEAR Assessment",
+    "Material Take Off",
+
+    "User Requirement Specification",
+    "Load Schedule",
+    "Power Supply Assessment",
+    "Network Architecture Drawing",
+    "Telemetry Schedules",
+
+    "Single Line Diagrams",
+    "Block Cable Diagrams",
+
+    "Final Submission"
 ]
 
 
@@ -43,73 +99,42 @@ def _prepare(df):
     )
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # ✅ Clean Progress (already numeric-safe)
-    if "Activity % Complete" in df.columns:
-        df["Activity % Complete"] = (
-            df["Activity % Complete"]
-            .astype(str)
-            .str.replace("%", "", regex=False)
-            .str.strip()
-        )
-        df["Activity % Complete"] = pd.to_numeric(
-            df["Activity % Complete"], errors="coerce"
-        )
+    # ✅ Clean Progress
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+        .str.strip()
+    )
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"], errors="coerce"
+    )
 
     return df
 
 
 # =========================
-# NEW DELIVERABLE DETECTION
+# DELIVERABLE FILTER ✅
 # =========================
-def is_new_deliverable(row):
-
-    activity_id = str(row.get("Activity ID", "")).strip()
-    name = str(row.get("Activity Name", "")).lower()
-
-    valid_prefixes = ["FER-PD", "FER-REV", "FER-GEO", "FER-CD"]
-
-    prefix_match = any(activity_id.startswith(p) for p in valid_prefixes)
-
-    keyword_match = any(k in name for k in [
-        "submission",
-        "review",
-        "completion"
-    ])
-
-    is_milestone = (
-        row.get("Remaining Duration", None) == 0
-        and pd.notna(row.get("Finish", None))
-    )
-
-    return prefix_match and keyword_match and is_milestone
-
-
 def is_deliverable(row):
 
-    activity_id = str(row.get("Activity ID", "")).strip()
+    name = str(row.get("Activity Name", "")).lower()
 
-    if activity_id in CORE_DELIVERABLE_IDS:
-        return True
-
-    return is_new_deliverable(row)
+    return any(d.lower() in name for d in DELIVERABLE_NAMES)
 
 
 # =========================
-# EXTRACT MILESTONES
+# EXTRACT
 # =========================
 def extract_milestones(df):
 
     df = _prepare(df)
 
-    if "SnapshotDate" not in df.columns:
-        st.error("❌ SnapshotDate missing")
-        return pd.DataFrame(), None, None
-
-    # ✅ Remove duplicates per snapshot
+    # ✅ Ensure unique rows per snapshot
     df = df.sort_values("SnapshotDate")
     df = df.drop_duplicates(subset=["Activity ID", "SnapshotDate"], keep="last")
 
-    # ✅ Identify baseline and forecast
+    # ✅ Identify baseline / forecast
     dates = sorted(df["SnapshotDate"].dropna().unique())
     baseline_date = dates[0]
     forecast_date = dates[-1]
@@ -117,17 +142,14 @@ def extract_milestones(df):
     baseline_df = df[df["SnapshotDate"] == baseline_date]
     forecast_df = df[df["SnapshotDate"] == forecast_date]
 
-    # ✅ Filter deliverables
+    # ✅ Filter by YOUR deliverables list
     baseline_df = baseline_df[baseline_df.apply(is_deliverable, axis=1)]
     forecast_df = forecast_df[forecast_df.apply(is_deliverable, axis=1)]
 
-    # ✅ ===== CRITICAL FIX =====
-    # Extract progress FROM LATEST CL32 ONLY
+    # ✅ Extract progress FROM LATEST CL32 ONLY ✅
     forecast_df = forecast_df.copy()
 
-    forecast_df["Progress %"] = pd.to_numeric(
-        forecast_df["Activity % Complete"], errors="coerce"
-    )
+    forecast_df["Progress %"] = forecast_df["Activity % Complete"]
 
     forecast_df = forecast_df.rename(columns={
         "Finish": "Forecast Finish"
@@ -137,7 +159,7 @@ def extract_milestones(df):
         "Finish": "Baseline Finish"
     })
 
-    # ✅ Safe merge (no column loss)
+    # ✅ Merge
     merged = pd.merge(
         baseline_df[["Activity ID", "Activity Name", "Baseline Finish"]],
         forecast_df[["Activity ID", "Forecast Finish", "Progress %"]],
@@ -150,7 +172,6 @@ def extract_milestones(df):
         merged["Forecast Finish"] - merged["Baseline Finish"]
     ).dt.days
 
-    # ✅ Final rename
     merged = merged.rename(columns={
         "Activity Name": "Deliverable"
     })
@@ -159,7 +180,7 @@ def extract_milestones(df):
 
 
 # =========================
-# RENDER TABLE
+# RENDER
 # =========================
 def render_milestone_table(df):
 
@@ -169,7 +190,6 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Labels
     baseline_label = f"Baseline ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast ({forecast_date.strftime('%b %Y')})"
 
@@ -182,7 +202,7 @@ def render_milestone_table(df):
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
-    # ✅ FINAL progress (guaranteed correct now)
+    # ✅ Progress (correct now ✅)
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
@@ -211,7 +231,7 @@ def render_milestone_table(df):
     col2.metric("🟠 Slight Delay", int(((ms_df["Δ Change (days)"] > 0) & (ms_df["Δ Change (days)"] <= 7)).sum()))
     col3.metric("🟢 On / Ahead", int((ms_df["Δ Change (days)"] <= 0).sum()))
 
-    # ✅ Sort
+    # ✅ Sort worst first
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
