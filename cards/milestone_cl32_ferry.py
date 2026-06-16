@@ -152,11 +152,11 @@ def extract_milestones(df):
     forecast_df["Progress %"] = forecast_df["Activity % Complete"]
 
     forecast_df = forecast_df.rename(columns={
-        "Forecast Finish": "Forecast Finish"
+        "Finish": "Forecast Finish"
     })
 
     baseline_df = baseline_df.rename(columns={
-        "Baseline Finish": "Baseline Finish"
+        "Finish": "Baseline Finish"
     })
 
     # ✅ Merge
