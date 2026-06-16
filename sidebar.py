@@ -2,16 +2,12 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import base64
 
 # ✅ LOADERS (self-contained)
 from loaders.ferry_loader import load_ferry
 from loaders.flass_loader import load_flass
 from loaders.rossall_loader import load_rossall
-
-# ✅ PIE CARDS
-from cards.pie_card_ferry import render_pie_ferry
-from cards.pie_card_flass import render_pie_flass
-from cards.pie_card_rossall import render_pie_rossall
 
 
 # =========================
@@ -125,11 +121,11 @@ def render_programme_tracker():
 
 
 # =========================
-# ✅ SIDEBAR (FINAL)
+# ✅ SIDEBAR (FINAL CLEAN VERSION)
 # =========================
 def render_sidebar():
 
-    # ✅ Load data safely (only take CL32)
+    # ✅ Load data safely (still needed elsewhere)
     _, df_ferry = load_ferry()
     _, df_flass = load_flass()
     _, df_rossall = load_rossall()
@@ -156,7 +152,7 @@ def render_sidebar():
             </div>
             """, unsafe_allow_html=True)
 
-        # ✅ PROJECT SELECTOR (UNCHANGED)
+        # ✅ PROJECT SELECTOR
         st.title("Projects")
 
         project = st.radio(
@@ -164,27 +160,8 @@ def render_sidebar():
             ["Ferry PS", "Rossall Outfall", "Flass Lane"]
         )
 
-        # =========================
-        # ✅ NEW — PROGRAMME STATUS
-        # =========================
-        st.markdown("---")
-        st.markdown("## 📊 Programme Status")
-
-        st.markdown("### 🚢 Ferry")
-        if df_ferry is not None and not df_ferry.empty:
-            render_pie_ferry(df_ferry, st.sidebar)
-
-        st.markdown("### 🏗️ Flass")
-        if df_flass is not None and not df_flass.empty:
-            render_pie_flass(df_flass, st.sidebar)
-
-        st.markdown("### 🌊 Rossall")
-        if df_rossall is not None and not df_rossall.empty:
-            render_pie_rossall(df_rossall, st.sidebar)
-
-        # ✅ ORIGINAL FEATURES (UNCHANGED)
+        # ✅ KEEP ORIGINAL FEATURES ONLY
         render_programme_tracker()
         render_next_deadline()
 
     return project
-import base64
