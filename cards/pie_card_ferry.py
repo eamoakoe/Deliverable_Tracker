@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# ✅ SAME DELIVERABLE LIST (MATCHES MILESTONE FILE)
+# ✅ SAME DELIVERABLE LIST (MATCHES MILESTONE)
 # =========================
 DELIVERABLE_NAMES = [
     "Outfall pipework optioneering",
@@ -95,12 +95,12 @@ def render_pie_ferry(df, container):
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # ✅ Latest CL32 ONLY
+    # ✅ Latest CL32 only
     if "SnapshotDate" in df.columns:
         latest_date = df["SnapshotDate"].max()
         df = df[df["SnapshotDate"] == latest_date]
 
-    # ✅ Deliverables ONLY (same as milestone table ✅)
+    # ✅ Deliverables only (aligned with milestone)
     df = df[df["Activity Name"].apply(is_deliverable)]
 
     # ✅ Clean Activity ID
@@ -126,72 +126,67 @@ def render_pie_ferry(df, container):
     today = pd.Timestamp.today().normalize()
 
     # =========================
-    # STATUS CLASSIFICATION
+    # ✅ STATUS LOGIC (SAME AS BEFORE)
     # =========================
     def classify(row):
-        if row["Activity % Complete"] >= 100:
+
+        progress = row["Activity % Complete"]
+        finish = row["Finish"]
+
+        if progress >= 100:
             return "Completed"
-        if pd.isna(row["Finish"]):
+
+        if pd.isna(finish):
             return "On Track"
-        if row["Finish"] < today:
+
+        if finish < today:
             return "Delayed"
+
         return "On Track"
 
     df["Status"] = df.apply(classify, axis=1)
 
     # =========================
-    # SPLIT BY DISCIPLINE ✅
+    # ✅ SUMMARY
     # =========================
-    groups = {
-        "Civils": df[df["Activity ID"].str.startswith("FER-CIV")],
-        "Mechanical": df[df["Activity ID"].str.startswith("FER-MEC")],
-        "EICA": df[df["Activity ID"].str.startswith("FER-EICA")]
-    }
+    summary = df["Status"].value_counts()
+    summary = summary.reindex(
+        ["On Track", "Delayed", "Completed"]
+    ).fillna(0)
 
-    # ✅ Colours (your requirement)
+    summary = summary[summary > 0]
+
+    # ✅ Colours (your spec)
     colors = {
         "On Track": "#FFD700",   # 🟡 Gold
         "Delayed": "#FF3B30",    # 🔴 Red
         "Completed": "#00C853"   # 🟢 Green
     }
 
-    # ✅ Layout
-    cols = container.columns(3)
+    # =========================
+    # ✅ SINGLE PIE
+    # =========================
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=summary.index,
+            values=summary.values,
 
-    for i, (title, data) in enumerate(groups.items()):
+            # ✅ SHOW LABEL + NUMBER + %
+            textinfo="label+value+percent",
 
-        summary = data["Status"].value_counts()
+            marker=dict(
+                colors=[colors[k] for k in summary.index]
+            ),
 
-        summary = summary.reindex(
-            ["On Track", "Delayed", "Completed"]
-        ).fillna(0)
+            sort=False,
+            hole=0  # ✅ solid pie
+        )]
+    )
 
-        summary = summary[summary > 0]
+    fig.update_layout(
+        height=260,
+        margin=dict(l=5, r=5, t=5, b=5),
+        showlegend=False
+    )
 
-        if summary.sum() == 0:
-            continue
-
-        # =========================
-        # PIE
-        # =========================
-        fig = go.Figure(
-            data=[go.Pie(
-                labels=summary.index,
-                values=summary.values,
-                textinfo="percent",
-                marker=dict(
-                    colors=[colors[k] for k in summary.index]
-                ),
-                sort=False,
-                hole=0  # ✅ SOLID PIE
-            )]
-        )
-
-        fig.update_layout(
-            height=200,
-            margin=dict(l=5, r=5, t=25, b=5),
-            title=title,
-            showlegend=False
-        )
-
-        cols[i].plotly_chart(fig, width="stretch")
+    container.plotly_chart(fig, width="stretch")
