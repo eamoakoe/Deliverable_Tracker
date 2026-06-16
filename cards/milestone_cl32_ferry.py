@@ -190,21 +190,16 @@ def render_milestone_table(df):
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
     # =========================
-    # STATUS
+    # ✅ STATUS (FINAL CLEAN LOGIC)
     # =========================
     def status(row):
         d = row["Δ Change (days)"]
         progress = row["Progress %"]
 
-        # ✅ Completed first
         if progress >= 100:
             return "🟢 Completed"
-
-        # ✅ Slipped
         elif d > 0:
             return "🔴 Slipped"
-
-        # ✅ Otherwise
         else:
             return "🟡 On Track"
 
@@ -215,11 +210,11 @@ def render_milestone_table(df):
     # =========================
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
+    # ✅ GRID STYLE (VERTICAL + HORIZONTAL LINES)
     styled = (
         ms_df.style
         .set_table_styles([
 
-            # ✅ Header (with borders)
             {
                 "selector": "thead th",
                 "props": [
@@ -228,11 +223,10 @@ def render_milestone_table(df):
                     ("font-weight", "bold"),
                     ("border", "1px solid #334155"),
                     ("padding", "6px"),
-                    ("text-align", "center"),
+                    ("text-align", "center")
                 ]
             },
 
-            # ✅ All cells (THIS adds vertical + horizontal lines)
             {
                 "selector": "tbody td",
                 "props": [
@@ -243,13 +237,13 @@ def render_milestone_table(df):
                 ]
             },
 
-            # ✅ Alternating rows
             {
                 "selector": "tbody tr:nth-child(even) td",
                 "props": [
                     ("background-color", "#1e293b"),
                 ]
             }
+
         ])
     )
 
