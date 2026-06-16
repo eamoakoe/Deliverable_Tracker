@@ -108,6 +108,10 @@ def _prepare(df):
         df["Activity % Complete"], errors="coerce"
     )
 
+    # ✅ ADD ONLY THIS (safe)
+    if "Comments" not in df.columns:
+        df["Comments"] = ""
+
     return df
 
 
@@ -142,12 +146,15 @@ def extract_milestones(df):
     forecast_df = forecast_df.copy()
     forecast_df["Progress %"] = forecast_df["Activity % Complete"]
 
+    # ✅ ADD ONLY THIS
+    forecast_df["Comments"] = forecast_df["Comments"].fillna("").astype(str)
+
     baseline_df = baseline_df.rename(columns={"Finish": "Baseline Finish"})
     forecast_df = forecast_df.rename(columns={"Finish": "Forecast Finish"})
 
     merged = pd.merge(
         baseline_df[["Activity ID", "Activity Name", "Baseline Finish"]],
-        forecast_df[["Activity ID", "Forecast Finish", "Progress %"]],
+        forecast_df[["Activity ID", "Forecast Finish", "Progress %", "Comments"]],
         on="Activity ID",
         how="left"
     )
@@ -156,13 +163,15 @@ def extract_milestones(df):
         merged["Forecast Finish"] - merged["Baseline Finish"]
     ).dt.days.round(0).astype("Int64")
 
-    merged = merged.rename(columns={"Activity Name": "Deliverable"})
+    merged = merged.rename(columns={
+        "Activity Name": "Deliverable"
+    })
 
     return merged, baseline_date, forecast_date
 
 
 # =========================
-# RENDER (DARK CARD)
+# RENDER
 # =========================
 def render_milestone_table(df):
 
@@ -172,7 +181,6 @@ def render_milestone_table(df):
         st.warning("⚠️ No deliverables found")
         return
 
-    # ✅ Clear labels
     baseline_label = f"Forecast Finish ({baseline_date.strftime('%b %Y')})"
     forecast_label = f"Forecast Finish ({forecast_date.strftime('%b %Y')})"
 
@@ -181,13 +189,18 @@ def render_milestone_table(df):
         "Forecast Finish": forecast_label
     })
 
-    # ✅ Format
     ms_df[baseline_label] = pd.to_datetime(ms_df[baseline_label]).dt.strftime("%d-%b-%Y")
     ms_df[forecast_label] = pd.to_datetime(ms_df[forecast_label]).dt.strftime("%d-%b-%Y")
 
     ms_df["Progress %"] = ms_df["Progress %"].fillna(0).round(0).astype(int)
 
-    # ✅ STATUS
+    # ✅ Ensure Comments is last (only structural move)
+    cols = list(ms_df.columns)
+    if "Comments" in cols:
+        cols.remove("Comments")
+        cols.append("Comments")
+    ms_df = ms_df[cols]
+
     def status(row):
         d = row["Δ Change (days)"]
         if pd.isna(d):
@@ -201,12 +214,8 @@ def render_milestone_table(df):
 
     ms_df["Status"] = ms_df.apply(status, axis=1)
 
-    # ✅ Sort
     ms_df = ms_df.sort_values("Δ Change (days)", ascending=False)
 
-    # =========================
-    # STYLING (DARK TABLE)
-    # =========================
     styled = (
         ms_df.style
         .set_table_styles([
@@ -234,9 +243,6 @@ def render_milestone_table(df):
         ])
     )
 
-    # =========================
-    # CARD WRAPPER ✅
-    # =========================
     card = """
     <div style="
         background-color:#0b3d5c;
@@ -245,7 +251,7 @@ def render_milestone_table(df):
         box-shadow:0px 4px 12px rgba(0,0,0,0.3);
         margin-top:15px;
     ">
-    <h3 style="color:white;">📊 Deliverables Performance CL32</h3>
+    <h3 style="color:white;">📊 Deliverables Performance</h3>
     """
 
     st.markdown(card, unsafe_allow_html=True)
