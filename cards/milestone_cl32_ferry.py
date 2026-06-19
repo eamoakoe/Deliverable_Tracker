@@ -27,7 +27,7 @@ DELIVERABLE_NAMES = [
     "CAT2 check on MGE pile design",
     "Manhole Schedule",
     "Outline drawing",
-    "GA & Long sections",
+    "GA &amp; Long sections",
     "Valve chamber standard detail",
     "Kiosk slab proposal",
     "Shaft penetrations",
@@ -35,7 +35,7 @@ DELIVERABLE_NAMES = [
     "Mechanical calculations",
     "Pump system curve",
     "Basis of Design",
-    "Outline P&IDs",
+    "Outline P&amp;IDs",
     "Control Philosophy",
     "Submission of Outline Design Pack",
     "Client Review of Design Pack",
@@ -46,14 +46,14 @@ DELIVERABLE_NAMES = [
     "Cover slab design",
     "Pipe entry/exit",
     "Pipe exit details",
-    "MH01 & MH02 Design",
+    "MH01 &amp; MH02 Design",
     "Pipework from MHs to Shaft",
     "Valve Chamber",
     "Flowmeter Chamber",
     "Civils Pipe Design",
     "Tank kiosk enclosure foundation",
     "Assessment of exit details",
-    "Routing & Design",
+    "Routing &amp; Design",
     "HAZOP",
     "DSEAR Assessment",
     "Material Take Off",
@@ -80,31 +80,31 @@ def render_milestone_table(df):
 
     df = df.copy()
     df.columns = df.columns.str.strip()
+    df["Activity Name"] = df["Activity Name"].astype(str).str.strip()
 
     # ✅ Latest snapshot
-    latest_date = df["SnapshotDate"].max()
+    latest_date = pd.to_datetime(df["SnapshotDate"]).max()
     df_latest = df[df["SnapshotDate"] == latest_date]
 
-    # ✅ Deliverables
-    df_latest = df_latest[df_latest["Activity Name"].apply(is_deliverable)]
+    # ✅ Deliverables only (for metrics)
+    df_deliv = df_latest[df_latest["Activity Name"].apply(is_deliverable)].copy()
 
     # ✅ Clean finish
-    df_latest["Finish"] = pd.to_datetime(df_latest["Finish"], errors="coerce")
-
-    df_latest["Activity % Complete"] = (
-        df_latest["Activity % Complete"]
+    df_deliv["Finish"] = pd.to_datetime(df_deliv["Finish"], errors="coerce")
+    df_deliv["Activity % Complete"] = (
+        df_deliv["Activity % Complete"]
         .astype(str)
         .str.replace("%", "", regex=False)
         .str.strip()
     )
-    df_latest["Activity % Complete"] = pd.to_numeric(
-        df_latest["Activity % Complete"], errors="coerce"
+    df_deliv["Activity % Complete"] = pd.to_numeric(
+        df_deliv["Activity % Complete"], errors="coerce"
     ).fillna(0)
 
     today = pd.Timestamp.today().normalize()
 
     # =========================
-    # ✅ PIE LOGIC
+    # ✅ PIE
     # =========================
     def classify(row):
         if row["Activity % Complete"] >= 100:
@@ -114,9 +114,9 @@ def render_milestone_table(df):
         else:
             return "On Track"
 
-    df_latest["Status"] = df_latest.apply(classify, axis=1)
+    df_deliv["Status"] = df_deliv.apply(classify, axis=1)
 
-    summary = df_latest["Status"].value_counts().reindex(
+    summary = df_deliv["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Completed"]
     ).fillna(0)
 
@@ -155,7 +155,7 @@ def render_milestone_table(df):
 
     merged = pd.merge(
         baseline_df[["Activity ID", "Activity Name", "Baseline Finish"]],
-        df_latest[["Activity ID", "Finish", "Activity % Complete"]],
+        df_deliv[["Activity ID", "Finish", "Activity % Complete"]],
         on="Activity ID",
         how="left"
     )
@@ -167,7 +167,56 @@ def render_milestone_table(df):
     })
 
     # =========================
-    # ✅ SAFE WORKING DAYS Δ
+    # ✅ ADD HIERARCHY + COLOUR
+    # =========================
+    SECTION_COLORS = {
+        "Optioneering Assessment": "#7C3AED",
+        "3D Modelling": "#2563EB",
+        "Concept Shaft Design": "#1D4ED8",
+        "Outline Design Scope Freeze (Minimum Requirements)": "#F59E0B",
+        "Civils Design": "#16A34A",
+        "Mechanical Design": "#DC2626",
+        "Process Design": "#0D9488",
+        "Geotechnical": "#4B5563",
+        "EICA Design": "#DB2777"
+    }
+
+    df_full = df[df["SnapshotDate"] == latest_date].copy()
+    df_full["Activity ID"] = df_full["Activity ID"].fillna("").astype(str).str.strip()
+    df_full["Is Summary"] = df_full["Activity ID"] == ""
+
+    # Hierarchy level
+    levels = []
+    level = 0
+    for _, row in df_full.iterrows():
+        if row["Is Summary"]:
+            level += 1
+        levels.append(level)
+
+    df_full["Level"] = levels
+
+    # Discipline tracking
+    df_full["Discipline"] = None
+    current = None
+
+    for i, row in df_full.iterrows():
+        name = row["Activity Name"]
+        if name in SECTION_COLORS:
+            current = name
+        df_full.at[i, "Discipline"] = current
+
+    df_lookup = df_full[["Activity ID", "Level", "Discipline"]]
+    merged = merged.merge(df_lookup, on="Activity ID", how="left")
+
+    def format_deliverable(row):
+        indent = "&nbsp;" * 6 * int(row["Level"]) if pd.notna(row["Level"]) else ""
+        color = SECTION_COLORS.get(row["Discipline"], "#FFFFFF")
+        return f"{indent}<span style='color:{color}'>{row['Deliverable']}</span>"
+
+    merged["Deliverable"] = merged.apply(format_deliverable, axis=1)
+
+    # =========================
+    # ✅ DELTA
     # =========================
     start_dt = pd.to_datetime(merged["Baseline Finish"], errors="coerce")
     end_dt = pd.to_datetime(merged["Forecast Finish"], errors="coerce")
@@ -175,7 +224,6 @@ def render_milestone_table(df):
     valid_mask = start_dt.notna() & end_dt.notna()
 
     merged["Δ Change (days)"] = 0
-
     merged.loc[valid_mask, "Δ Change (days)"] = np.busday_count(
         start_dt[valid_mask].values.astype("datetime64[D]"),
         end_dt[valid_mask].values.astype("datetime64[D]")
@@ -200,7 +248,7 @@ def render_milestone_table(df):
     merged = merged.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
-    # ✅ DATE FORMAT FIX
+    # ✅ FORMAT DATES
     # =========================
     merged["Baseline Finish"] = pd.to_datetime(
         merged["Baseline Finish"]
@@ -210,9 +258,6 @@ def render_milestone_table(df):
         merged["Forecast Finish"]
     ).dt.strftime("%d %B %Y")
 
-    # =========================
-    # ✅ HEADERS
-    # =========================
     baseline_label = f"Finish Date (CL32 {baseline_date.strftime('%B %Y')})"
     forecast_label = f"Finish Date (CL32 {forecast_date.strftime('%B %Y')})"
 
@@ -222,7 +267,7 @@ def render_milestone_table(df):
     })
 
     # =========================
-    # ✅ TABLE STYLE
+    # ✅ STYLE (UNCHANGED)
     # =========================
     styled = (
         merged.style
@@ -248,4 +293,4 @@ def render_milestone_table(df):
     )
 
     st.markdown("### 📊 Deliverables Performance CL32")
-    st.markdown(styled.to_html(), unsafe_allow_html=True)
+    st.markdown(styled.to_html(escape=False), unsafe_allow_html=True)
