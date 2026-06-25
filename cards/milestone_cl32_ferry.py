@@ -27,7 +27,7 @@ DELIVERABLE_NAMES = [
     "CAT2 check on MGE pile design",
     "Manhole Schedule",
     "Outline drawing",
-    "GA &amp; Long sections",
+    "GA & Long sections",
     "Valve chamber standard detail",
     "Kiosk slab proposal",
     "Shaft penetrations",
@@ -35,7 +35,7 @@ DELIVERABLE_NAMES = [
     "Mechanical calculations",
     "Pump system curve",
     "Basis of Design",
-    "Outline P&amp;IDs",
+    "Outline P&IDs",
     "Control Philosophy",
     "Submission of Outline Design Pack",
     "Client Review of Design Pack",
@@ -46,14 +46,14 @@ DELIVERABLE_NAMES = [
     "Cover slab design",
     "Pipe entry/exit",
     "Pipe exit details",
-    "MH01 &amp; MH02 Design",
+    "MH01 & MH02 Design",
     "Pipework from MHs to Shaft",
     "Valve Chamber",
     "Flowmeter Chamber",
     "Civils Pipe Design",
     "Tank kiosk enclosure foundation",
     "Assessment of exit details",
-    "Routing &amp; Design",
+    "Routing & Design",
     "HAZOP",
     "DSEAR Assessment",
     "Material Take Off",
@@ -86,11 +86,11 @@ def render_milestone_table(df):
     latest_date = pd.to_datetime(df["SnapshotDate"]).max()
     df_latest = df[df["SnapshotDate"] == latest_date]
 
-    # ✅ Deliverables only (for metrics)
+    # ✅ Deliverables only
     df_deliv = df_latest[df_latest["Activity Name"].apply(is_deliverable)].copy()
 
-    # ✅ Clean finish
     df_deliv["Finish"] = pd.to_datetime(df_deliv["Finish"], errors="coerce")
+
     df_deliv["Activity % Complete"] = (
         df_deliv["Activity % Complete"]
         .astype(str)
@@ -167,7 +167,7 @@ def render_milestone_table(df):
     })
 
     # =========================
-    # ✅ ADD HIERARCHY + COLOUR
+    # ✅ HIERARCHY + DISCIPLINE
     # =========================
     SECTION_COLORS = {
         "Optioneering Assessment": "#7C3AED",
@@ -181,42 +181,55 @@ def render_milestone_table(df):
         "EICA Design": "#DB2777"
     }
 
-    df_full = df[df["SnapshotDate"] == latest_date].copy()
+    DISCIPLINE_SHORT = {
+        "Civils Design": "CIV",
+        "Mechanical Design": "MEC",
+        "Process Design": "PRO",
+        "EICA Design": "EICA",
+        "Geotechnical": "GEO",
+        "3D Modelling": "BIM",
+        "Concept Shaft Design": "CSD",
+        "Optioneering Assessment": "OPT",
+    }
+
+    df_full = df_latest.copy()
     df_full["Activity ID"] = df_full["Activity ID"].fillna("").astype(str).str.strip()
     df_full["Is Summary"] = df_full["Activity ID"] == ""
 
-    # Hierarchy level
-    levels = []
     level = 0
+    levels = []
     for _, row in df_full.iterrows():
         if row["Is Summary"]:
             level += 1
         levels.append(level)
-
     df_full["Level"] = levels
 
-    # Discipline tracking
     df_full["Discipline"] = None
     current = None
-
     for i, row in df_full.iterrows():
-        name = row["Activity Name"]
-        if name in SECTION_COLORS:
-            current = name
+        if row["Activity Name"] in SECTION_COLORS:
+            current = row["Activity Name"]
         df_full.at[i, "Discipline"] = current
 
     df_lookup = df_full[["Activity ID", "Level", "Discipline"]]
     merged = merged.merge(df_lookup, on="Activity ID", how="left")
 
+    # ✅ ✅ ✅ FORMAT DELIVERABLE (UPDATED)
     def format_deliverable(row):
         indent = "&nbsp;" * 6 * int(row["Level"]) if pd.notna(row["Level"]) else ""
-        color = SECTION_COLORS.get(row["Discipline"], "#FFFFFF")
-        return f"{indent}<span style='color:{color}'>{row['Deliverable']}</span>"
+
+        discipline = row["Discipline"]
+        short = DISCIPLINE_SHORT.get(discipline, "")
+        prefix = f"<span style='color:#94a3b8'>[{short}]</span> " if short else ""
+
+        color = SECTION_COLORS.get(discipline, "#FFFFFF")
+
+        return f"{indent}<span style='color:{color}'>{prefix}{row['Deliverable']}</span>"
 
     merged["Deliverable"] = merged.apply(format_deliverable, axis=1)
 
     # =========================
-    # ✅ DELTA
+    # ✅ Δ (WORKING DAYS)
     # =========================
     start_dt = pd.to_datetime(merged["Baseline Finish"], errors="coerce")
     end_dt = pd.to_datetime(merged["Forecast Finish"], errors="coerce")
@@ -248,7 +261,7 @@ def render_milestone_table(df):
     merged = merged.sort_values("Δ Change (days)", ascending=False)
 
     # =========================
-    # ✅ FORMAT DATES
+    # ✅ DATES
     # =========================
     merged["Baseline Finish"] = pd.to_datetime(
         merged["Baseline Finish"]
@@ -267,7 +280,7 @@ def render_milestone_table(df):
     })
 
     # =========================
-    # ✅ STYLE (UNCHANGED)
+    # ✅ STYLE
     # =========================
     styled = (
         merged.style
